@@ -1,0 +1,97 @@
+/* Copyright 2024 Centro Nacional de Inteligencia Artificial (CENIA, Chile). All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. */
+.mask {
+  z-index: 6;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  background-color: rgb(0, 0, 0, 0.65);
+  animation: fade-in 0.6s cubic-bezier(0.390, 0.575, 0.565, 1.000) both;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.card {
+  transform: translate(-50%, -50%);
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  background-color: #fff;
+  border-radius: 30px;
+}
+
+
+.countdown-card {
+	height: 35vh;
+	width: 50%;
+}
+
+
+.close-btn {
+  position: relative;
+  font-family: inherit;
+  color: #fff;
+  background-color: #0a8cde;
+  border: none;
+  width: 90%;
+  height: 50px;
+  padding: 0 16px;
+  font-size: inherit;
+  margin: 10px 0;
+  cursor: pointer;
+  border-radius: 12px;
+  z-index: 1;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.084), 0px 2px 3px rgba(0, 0, 0, 0.168);
+}
+
+.close-btn::before {
+  background-color: #0e9ff8;
+  width: 0;
+  height: 100%;
+  content: "";
+  z-index: -1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-block;
+  transition: width 700ms ease-in-out;
+}
+
+.close-btn:hover::before {
+  width: 100%;
+}
+
+.text-message {
+	padding-left: 50px;
+	padding-right: 50px;
+}

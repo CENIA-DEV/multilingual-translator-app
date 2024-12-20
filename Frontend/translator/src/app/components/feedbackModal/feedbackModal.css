@@ -1,0 +1,225 @@
+/* Copyright 2024 Centro Nacional de Inteligencia Artificial (CENIA, Chile). All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. */
+.mask {
+  z-index: 6;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  background-color: rgb(0, 0, 0, 0.65);
+  animation: fade-in 0.6s cubic-bezier(0.390, 0.575, 0.565, 1.000) both;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.closeButton {
+  position: absolute;
+  top: 5%;
+  left: 93%;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  color:#0a8cde
+}
+
+.modal-card{
+  transform: translate(-50%, -50%);
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  background-color: #fff;
+  border-radius: 30px;
+}
+
+.feedback-card {
+	height: 65vh;
+	width: 70%;
+}
+
+.rating-container{
+  display: flex;
+  align-items: center;
+  justify-content:space-between;
+  width: 70%;
+}
+
+.rating-container div{
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.selected-face{
+  transition: .5s;
+  transform: translateY(-10px);
+}
+
+.unselected-face {
+  transition: .5s;
+  transform: translateY(0px);
+}
+
+.suggestedTranslation {
+  position: relative;
+  width: 90%;
+  height: 50%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.textBoxWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 45%;
+}
+
+.textBoxWrapper strong {
+  padding-left: 15px;
+}
+
+.suggestion-box {
+  resize: none;
+  height: 100%;
+  padding: 15px;
+  font-family: inherit;
+  font-size: medium;
+  border-radius: 13px;
+}
+
+.input-suggest-box, .input-suggest-box:focus {
+	color: #0a8cde;
+    border-color: #f2f2f2;
+    outline: none;
+}
+
+.output-suggest-box, .output-suggest-box:focus {
+	border: 2px solid #ccc;
+}
+
+/* .suggestedTranslation label {
+  position: absolute;
+  pointer-events: none;
+  transition: .5s;
+  left: 15px;
+  bottom: 15px;
+  color: rgb(0, 0, 0, 0.4);
+}
+
+.suggestedTranslation input[type="text"] {
+  box-sizing: border-box;
+  width: 100%;
+  height: 50px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: medium;
+  border: 1px solid #ccc;
+}
+
+.suggestedTranslation input[type="text"]:focus~label,
+.suggestedTranslation input[type="text"]:valid~label {
+  transform: translateY(-25px);
+  font-size: .9rem;
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 0 10px;
+  outline: none;
+} */
+
+.submit-btn {
+  position: relative;
+  font-family: inherit;
+  color: #fff;
+  background-color: #0a8cde;
+  border: none;
+  width: 90%;
+  height: 50px;
+  padding: 0 16px;
+  font-size: inherit;
+  margin: 10px 0;
+  cursor: pointer;
+  border-radius: 12px;
+  z-index: 1;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.084), 0px 2px 3px rgba(0, 0, 0, 0.168);
+}
+
+.submit-btn::before {
+  background-color: #0e9ff8;
+  width: 0;
+  height: 100%;
+  content: "";
+  z-index: -1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-block;
+  transition: width 700ms ease-in-out;
+}
+
+.submit-btn:hover::before {
+  width: 100%;
+}
+
+.bar {
+  display: none;
+}
+
+.success-bar {
+  z-index: 10;
+  position: absolute;
+  bottom: 5%;
+  left: 40%;
+  width: 20%;
+  height: 40px;
+  color: #fff;
+  background-color: #0a8cde;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  border-radius: 15px;
+  animation: fade-in-success 1.2s cubic-bezier(0.390, 0.575, 0.565, 1.000) both;
+}
+
+
+@keyframes fade-in-success {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}

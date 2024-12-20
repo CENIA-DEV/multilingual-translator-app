@@ -1,0 +1,80 @@
+/* Copyright 2024 Centro Nacional de Inteligencia Artificial (CENIA, Chile). All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. */
+.invitation-card {
+  animation: invitation-slide-in-left 1.5s cubic-bezier(0.390, 0.575, 0.565, 1.000) 0.1s both;
+}
+
+.invitation-back-card {
+  animation: invitation-slide-in-left-2 1.5s cubic-bezier(0.390, 0.575, 0.565, 1.000) 0.2s both;
+}
+
+.error-message {
+  color: red;
+  font-size: small;
+  font-style: italic;
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+@keyframes invitation-slide-in-left {
+  0% {
+    transform: translateX(-100dvw);
+  }
+
+  100% {
+    transform: translateX(0dvw);
+  }
+}
+
+@keyframes invitation-slide-in-left-2 {
+  0% {
+    transform: translateY(2.5dvh) translateX(-100dvw);
+  }
+
+  100% {
+    transform: translateY(2.5dvh) translateX(1.1dvw);
+  }
+}
+
+@media screen and (max-width: 850px) {
+
+  .invitation-card {
+    animation: invitation-slide-in-down 1s cubic-bezier(0.390, 0.575, 0.565, 1.000) 0.1s both;
+  }
+
+  .invitation-back-card {
+    animation: invitation-slide-in-down2 1s cubic-bezier(0.390, 0.575, 0.565, 1.000) 0.2s both;
+  }
+
+}
+
+@keyframes invitation-slide-in-down {
+  0% {
+    top: 100dvh;
+  }
+
+  100% {
+    top: 25dvh;
+  }
+}
+
+@keyframes invitation-slide-in-down2 {
+  0% {
+    top: 100dvh;
+  }
+
+  100% {
+    top: 22dvh;
+  }
+}

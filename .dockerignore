@@ -1,0 +1,41 @@
+Backend/translatorapp_v2/Datos
+Backend/chroma_db/embeddings
+Backend/translatorapp_v2/db.sqlite3
+
+**/.env
+**/*.pyc
+
+# dependencies
+node_modules
+.pnp
+**/.pnp.js
+**/.yarn/install-state.gz
+
+# testing
+coverage
+
+# next.js
+.next/
+out/
+
+# production
+build
+
+# misc
+**/.DS_Store
+**/*.pem
+
+# debug
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# local env files
+**/.env*.local
+
+# vercel
+**/.vercel
+
+# typescript
+**/*.tsbuildinfo
+**/next-env.d.ts

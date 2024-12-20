@@ -1,0 +1,86 @@
+name: Deploy frontend pipeline
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Variant language for deployment'
+        required: true
+        type: choice
+        options:
+          - rap
+          - arn
+jobs:
+  build-push-gcp:
+    name: Build and Push to GCP
+    runs-on: ubuntu-latest
+
+    env:
+        PROJECT_ID: ${{ secrets.PROJECT_ID }}
+        SERVICE_REGION: ${{ vars.SERVICE_REGION }}
+        REGION: ${{ vars.ARTIFACT_REGION }}
+        INSTANCE_NAME: ${{ secrets.INSTANCE_NAME }}
+        REP_NAME: native-translator
+        IMAGE_NAME: ${{ vars.IMAGE_NAME_FRONTEND }}
+        VPC_NAME: ${{ vars.VPC_NAME }}
+        SUBNET_NAME: ${{ vars.FRONTEND_SUBNET }}
+        GOOGLE_SEARCH_ID: ${{ secrets.GOOGLE_SEARCH_ID }}
+    steps:
+      - name: Set variant from dispatch event or branch
+        id: set-variant
+        run: |
+          if [ ! -z "${{ github.event.inputs.variant }}" ]; then
+            echo "variant=${{ github.event.inputs.variant }}" >> $GITHUB_OUTPUT
+          else
+            # Extract variant from branch name (e.g., main-rap -> rap)
+            echo "variant=$(echo $BRANCH | rev | cut -d'-' -f1 | rev)" >> $GITHUB_OUTPUT
+          fi
+      - name: Check out code
+        uses: actions/checkout@v3
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0.4.0'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 416.0.0'
+      - name: 'Create production env file'
+        working-directory: Frontend/translator/
+        run: |-
+          API_URL=$(gcloud run services describe ${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }} --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+          echo "API URL: $API_URL"
+          echo "NEXT_PUBLIC_API_URL=$API_URL" >> .env.production
+          echo "NEXT_PUBLIC_VARIANT=${{ steps.set-variant.outputs.variant }}" >> .env.production
+          if [ "${{ steps.set-variant.outputs.variant }}" == "rap" ]; then
+            echo "NEXT_PUBLIC_GOOGLE_SEARCH_ID=${{ env.GOOGLE_SEARCH_ID }}" >> .env.production
+          else
+            # dont add search id for arn
+            echo "NEXT_PUBLIC_GOOGLE_SEARCH_ID=" >> .env.production
+          fi
+      - name: Build Docker Image
+        working-directory: Frontend/translator/
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Configure Docker Client # aunthenticate to rep
+        run: |-
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Push Docker Image to Artifact Registry
+        run: |-
+          ARTIFACT_REGISTRY_URL=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          echo "Artifact Registry URL: $ARTIFACT_REGISTRY_URL"
+          echo "ARTIFACT_REGISTRY_URL=$ARTIFACT_REGISTRY_URL" >> $GITHUB_ENV
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_URL
+          docker push $ARTIFACT_REGISTRY_URL
+
+      - name: Deploy to cloud run
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: '${{ vars.SERVICE_NAME_FRONTEND }}-${{ steps.set-variant.outputs.variant }}'
+          image: ${{ env.ARTIFACT_REGISTRY_URL }}
+          region: '${{ env.SERVICE_REGION }}'
+          project_id: '${{ env.PROJECT_ID }}'
+          timeout: '5m'
+          flags: '--network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic'

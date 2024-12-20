@@ -1,0 +1,12 @@
+/Backend/translatorapp_v2/Datos
+/Backend/chroma_db/embeddings
+/Backend/translatorapp_v2/db.sqlite3
+/Backend/translatorapp_v2/cache
+/Backend/chroma_db
+/Backend/translatorapp_v2/secrets
+.env
+*.pyc
+/Backend/translatorapp_v2/data/*
+package-lock.json
+.env.*
+*.DS_Store

@@ -1,0 +1,825 @@
+[
+  {
+    "name": "Acehnese (Arabic script)",
+    "code": "ace_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Acehnese (Latin script)",
+    "code": "ace_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Mesopotamian Arabic",
+    "code": "acm_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Ta\u2019izzi-Adeni Arabic",
+    "code": "acq_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Tunisian Arabic",
+    "code": "aeb_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Afrikaans",
+    "code": "afr_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "South Levantine Arabic",
+    "code": "ajp_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  { "name": "Akan", "code": "aka_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Amharic", "code": "amh_Ethi", "writing": "Ethi", "dialect": null },
+  {
+    "name": "North Levantine Arabic",
+    "code": "apc_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Modern Standard Arabic",
+    "code": "arb_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Modern Standard Arabic (Romanized)",
+    "code": "arb_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Najdi Arabic",
+    "code": "ars_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Moroccan Arabic",
+    "code": "ary_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Egyptian Arabic",
+    "code": "arz_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Assamese",
+    "code": "asm_Beng",
+    "writing": "Beng",
+    "dialect": null
+  },
+  {
+    "name": "Asturian",
+    "code": "ast_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Awadhi", "code": "awa_Deva", "writing": "Deva", "dialect": null },
+  {
+    "name": "Central Aymara",
+    "code": "ayr_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "South Azerbaijani",
+    "code": "azb_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "North Azerbaijani",
+    "code": "azj_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Bashkir", "code": "bak_Cyrl", "writing": "Cyrl", "dialect": null },
+  { "name": "Bambara", "code": "bam_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Balinese",
+    "code": "ban_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Belarusian",
+    "code": "bel_Cyrl",
+    "writing": "Cyrl",
+    "dialect": null
+  },
+  { "name": "Bemba", "code": "bem_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Bengali", "code": "ben_Beng", "writing": "Beng", "dialect": null },
+  {
+    "name": "Bhojpuri",
+    "code": "bho_Deva",
+    "writing": "Deva",
+    "dialect": null
+  },
+  {
+    "name": "Banjar (Arabic script)",
+    "code": "bjn_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Banjar (Latin script)",
+    "code": "bjn_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Standard Tibetan",
+    "code": "bod_Tibt",
+    "writing": "Tibt",
+    "dialect": null
+  },
+  { "name": "Bosnian", "code": "bos_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Buginese",
+    "code": "bug_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Bulgarian",
+    "code": "bul_Cyrl",
+    "writing": "Cyrl",
+    "dialect": null
+  },
+  { "name": "Catalan", "code": "cat_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Cebuano", "code": "ceb_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Czech", "code": "ces_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Chokwe", "code": "cjk_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Central Kurdish",
+    "code": "ckb_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Crimean Tatar",
+    "code": "crh_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Welsh", "code": "cym_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Danish", "code": "dan_Latn", "writing": "Latn", "dialect": null },
+  { "name": "German", "code": "deu_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Southwestern Dinka",
+    "code": "dik_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Dyula", "code": "dyu_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Dzongkha",
+    "code": "dzo_Tibt",
+    "writing": "Tibt",
+    "dialect": null
+  },
+  { "name": "Greek", "code": "ell_Grek", "writing": "Grek", "dialect": null },
+  {
+    "name": "Ingl\u00e9s",
+    "code": "eng_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Esperanto",
+    "code": "epo_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Estonian",
+    "code": "est_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Basque", "code": "eus_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Ewe", "code": "ewe_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Faroese", "code": "fao_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Fijian", "code": "fij_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Finnish", "code": "fin_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Fon", "code": "fon_Latn", "writing": "Latn", "dialect": null },
+  { "name": "French", "code": "fra_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Friulian",
+    "code": "fur_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Nigerian Fulfulde",
+    "code": "fuv_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Scottish Gaelic",
+    "code": "gla_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Irish", "code": "gle_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Galician",
+    "code": "glg_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Guarani", "code": "grn_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Gujarati",
+    "code": "guj_Gujr",
+    "writing": "Gujr",
+    "dialect": null
+  },
+  {
+    "name": "Haitian Creole",
+    "code": "hat_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Hausa", "code": "hau_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Hebrew", "code": "heb_Hebr", "writing": "Hebr", "dialect": null },
+  { "name": "Hindi", "code": "hin_Deva", "writing": "Deva", "dialect": null },
+  {
+    "name": "Chhattisgarhi",
+    "code": "hne_Deva",
+    "writing": "Deva",
+    "dialect": null
+  },
+  {
+    "name": "Croatian",
+    "code": "hrv_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Hungarian",
+    "code": "hun_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Armenian",
+    "code": "hye_Armn",
+    "writing": "Armn",
+    "dialect": null
+  },
+  { "name": "Igbo", "code": "ibo_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Ilocano", "code": "ilo_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Indonesian",
+    "code": "ind_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Icelandic",
+    "code": "isl_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Italian", "code": "ita_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Javanese",
+    "code": "jav_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Japanese",
+    "code": "jpn_Jpan",
+    "writing": "Jpan",
+    "dialect": null
+  },
+  { "name": "Kabyle", "code": "kab_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Jingpho", "code": "kac_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Kamba", "code": "kam_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Kannada", "code": "kan_Knda", "writing": "Knda", "dialect": null },
+  {
+    "name": "Kashmiri (Arabic script)",
+    "code": "kas_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Kashmiri (Devanagari script)",
+    "code": "kas_Deva",
+    "writing": "Deva",
+    "dialect": null
+  },
+  {
+    "name": "Georgian",
+    "code": "kat_Geor",
+    "writing": "Geor",
+    "dialect": null
+  },
+  {
+    "name": "Central Kanuri (Arabic script)",
+    "code": "knc_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Central Kanuri (Latin script)",
+    "code": "knc_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Kazakh", "code": "kaz_Cyrl", "writing": "Cyrl", "dialect": null },
+  {
+    "name": "Kabiy\u00e8",
+    "code": "kbp_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Kabuverdianu",
+    "code": "kea_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Khmer", "code": "khm_Khmr", "writing": "Khmr", "dialect": null },
+  { "name": "Kikuyu", "code": "kik_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Kinyarwanda",
+    "code": "kin_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Kyrgyz", "code": "kir_Cyrl", "writing": "Cyrl", "dialect": null },
+  {
+    "name": "Kimbundu",
+    "code": "kmb_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Northern Kurdish",
+    "code": "kmr_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Kikongo", "code": "kon_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Korean", "code": "kor_Hang", "writing": "Hang", "dialect": null },
+  { "name": "Lao", "code": "lao_Laoo", "writing": "Laoo", "dialect": null },
+  {
+    "name": "Ligurian",
+    "code": "lij_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Limburgish",
+    "code": "lim_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Lingala", "code": "lin_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Lithuanian",
+    "code": "lit_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Lombard", "code": "lmo_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Latgalian",
+    "code": "ltg_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Luxembourgish",
+    "code": "ltz_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Luba-Kasai",
+    "code": "lua_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Ganda", "code": "lug_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Luo", "code": "luo_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Mizo", "code": "lus_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Standard Latvian",
+    "code": "lvs_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Magahi", "code": "mag_Deva", "writing": "Deva", "dialect": null },
+  {
+    "name": "Maithili",
+    "code": "mai_Deva",
+    "writing": "Deva",
+    "dialect": null
+  },
+  {
+    "name": "Malayalam",
+    "code": "mal_Mlym",
+    "writing": "Mlym",
+    "dialect": null
+  },
+  { "name": "Marathi", "code": "mar_Deva", "writing": "Deva", "dialect": null },
+  {
+    "name": "Minangkabau (Arabic script)",
+    "code": "min_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Minangkabau (Latin script)",
+    "code": "min_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Macedonian",
+    "code": "mkd_Cyrl",
+    "writing": "Cyrl",
+    "dialect": null
+  },
+  {
+    "name": "Plateau Malagasy",
+    "code": "plt_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Maltese", "code": "mlt_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Meitei (Bengali script)",
+    "code": "mni_Beng",
+    "writing": "Beng",
+    "dialect": null
+  },
+  {
+    "name": "Halh Mongolian",
+    "code": "khk_Cyrl",
+    "writing": "Cyrl",
+    "dialect": null
+  },
+  { "name": "Mossi", "code": "mos_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Maori", "code": "mri_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Huilliche Az\u00fcmchefe",
+    "code": "arn_a0_h",
+    "writing": "a0",
+    "dialect": "h"
+  },
+  {
+    "name": "Huilliche Ragileo",
+    "code": "arn_r0_h",
+    "writing": "r0",
+    "dialect": "h"
+  },
+  {
+    "name": "Huilliche Unificado",
+    "code": "arn_u0_h",
+    "writing": "u0",
+    "dialect": "h"
+  },
+  {
+    "name": "Lafkenche Az\u00fcmchefe",
+    "code": "arn_a0_l",
+    "writing": "a0",
+    "dialect": "l"
+  },
+  {
+    "name": "Lafkenche Ragileo",
+    "code": "arn_r0_l",
+    "writing": "r0",
+    "dialect": "l"
+  },
+  {
+    "name": "Lafkenche Unificado",
+    "code": "arn_u0_l",
+    "writing": "u0",
+    "dialect": "l"
+  },
+  {
+    "name": "Nguluche Az\u00fcmchefe",
+    "code": "arn_a0_n",
+    "writing": "a0",
+    "dialect": "n"
+  },
+  {
+    "name": "Nguluche Ragileo",
+    "code": "arn_r0_n",
+    "writing": "r0",
+    "dialect": "n"
+  },
+  {
+    "name": "Nguluche Unificado",
+    "code": "arn_u0_n",
+    "writing": "u0",
+    "dialect": "n"
+  },
+  {
+    "name": "Pewenche Az\u00fcmchefe",
+    "code": "arn_a0_p",
+    "writing": "a0",
+    "dialect": "p"
+  },
+  {
+    "name": "Pewenche Ragileo",
+    "code": "arn_r0_p",
+    "writing": "r0",
+    "dialect": "p"
+  },
+  {
+    "name": "Pewenche Unificado",
+    "code": "arn_u0_p",
+    "writing": "u0",
+    "dialect": "p"
+  },
+  {
+    "name": "Mapundungun Estandar 1",
+    "code": "arn_ave",
+    "writing": "ave",
+    "dialect": null
+  },
+  {
+    "name": "Mapundungun Estandar 2",
+    "code": "arn_jw",
+    "writing": "jw",
+    "dialect": null
+  },
+  { "name": "Burmese", "code": "mya_Mymr", "writing": "Mymr", "dialect": null },
+  { "name": "Dutch", "code": "nld_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Norwegian Nynorsk",
+    "code": "nno_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Norwegian Bokm\u00e5l",
+    "code": "nob_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Nepali", "code": "npi_Deva", "writing": "Deva", "dialect": null },
+  {
+    "name": "Northern Sotho",
+    "code": "nso_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Nuer", "code": "nus_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Nyanja", "code": "nya_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Occitan", "code": "oci_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "West Central Oromo",
+    "code": "gaz_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Odia", "code": "ory_Orya", "writing": "Orya", "dialect": null },
+  {
+    "name": "Pangasinan",
+    "code": "pag_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Eastern Panjabi",
+    "code": "pan_Guru",
+    "writing": "Guru",
+    "dialect": null
+  },
+  {
+    "name": "Papiamento",
+    "code": "pap_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Western Persian",
+    "code": "pes_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  { "name": "Polish", "code": "pol_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Portuguese",
+    "code": "por_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Dari", "code": "prs_Arab", "writing": "Arab", "dialect": null },
+  {
+    "name": "Southern Pashto",
+    "code": "pbt_Arab",
+    "writing": "Arab",
+    "dialect": null
+  },
+  {
+    "name": "Ayacucho Quechua",
+    "code": "quy_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Romanian",
+    "code": "ron_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Rundi", "code": "run_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Russian", "code": "rus_Cyrl", "writing": "Cyrl", "dialect": null },
+  { "name": "Sango", "code": "sag_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Sanskrit",
+    "code": "san_Deva",
+    "writing": "Deva",
+    "dialect": null
+  },
+  { "name": "Santali", "code": "sat_Olck", "writing": "Olck", "dialect": null },
+  {
+    "name": "Sicilian",
+    "code": "scn_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Shan", "code": "shn_Mymr", "writing": "Mymr", "dialect": null },
+  { "name": "Sinhala", "code": "sin_Sinh", "writing": "Sinh", "dialect": null },
+  { "name": "Slovak", "code": "slk_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Slovenian",
+    "code": "slv_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Samoan", "code": "smo_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Shona", "code": "sna_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Sindhi", "code": "snd_Arab", "writing": "Arab", "dialect": null },
+  { "name": "Somali", "code": "som_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Southern Sotho",
+    "code": "sot_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Castellano",
+    "code": "spa_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Tosk Albanian",
+    "code": "als_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Sardinian",
+    "code": "srd_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Serbian", "code": "srp_Cyrl", "writing": "Cyrl", "dialect": null },
+  { "name": "Swati", "code": "ssw_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Sundanese",
+    "code": "sun_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Swedish", "code": "swe_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Swahili", "code": "swh_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Silesian",
+    "code": "szl_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Tamil", "code": "tam_Taml", "writing": "Taml", "dialect": null },
+  { "name": "Tatar", "code": "tat_Cyrl", "writing": "Cyrl", "dialect": null },
+  { "name": "Telugu", "code": "tel_Telu", "writing": "Telu", "dialect": null },
+  { "name": "Tajik", "code": "tgk_Cyrl", "writing": "Cyrl", "dialect": null },
+  { "name": "Tagalog", "code": "tgl_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Thai", "code": "tha_Thai", "writing": "Thai", "dialect": null },
+  {
+    "name": "Tigrinya",
+    "code": "tir_Ethi",
+    "writing": "Ethi",
+    "dialect": null
+  },
+  {
+    "name": "Tamasheq (Latin script)",
+    "code": "taq_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Tamasheq (Tifinagh script)",
+    "code": "taq_Tfng",
+    "writing": "Tfng",
+    "dialect": null
+  },
+  {
+    "name": "Tok Pisin",
+    "code": "tpi_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Tswana", "code": "tsn_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Tsonga", "code": "tso_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Turkmen", "code": "tuk_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Tumbuka", "code": "tum_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Turkish", "code": "tur_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Twi", "code": "twi_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Central Atlas Tamazight",
+    "code": "tzm_Tfng",
+    "writing": "Tfng",
+    "dialect": null
+  },
+  { "name": "Uyghur", "code": "uig_Arab", "writing": "Arab", "dialect": null },
+  {
+    "name": "Ukrainian",
+    "code": "ukr_Cyrl",
+    "writing": "Cyrl",
+    "dialect": null
+  },
+  { "name": "Umbundu", "code": "umb_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Urdu", "code": "urd_Arab", "writing": "Arab", "dialect": null },
+  {
+    "name": "Northern Uzbek",
+    "code": "uzn_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Venetian",
+    "code": "vec_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  {
+    "name": "Vietnamese",
+    "code": "vie_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Waray", "code": "war_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Wolof", "code": "wol_Latn", "writing": "Latn", "dialect": null },
+  { "name": "Xhosa", "code": "xho_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Eastern Yiddish",
+    "code": "ydd_Hebr",
+    "writing": "Hebr",
+    "dialect": null
+  },
+  { "name": "Yoruba", "code": "yor_Latn", "writing": "Latn", "dialect": null },
+  {
+    "name": "Yue Chinese",
+    "code": "yue_Hant",
+    "writing": "Hant",
+    "dialect": null
+  },
+  {
+    "name": "Chinese (Simplified)",
+    "code": "zho_Hans",
+    "writing": "Hans",
+    "dialect": null
+  },
+  {
+    "name": "Chinese (Traditional)",
+    "code": "zho_Hant",
+    "writing": "Hant",
+    "dialect": null
+  },
+  {
+    "name": "Standard Malay",
+    "code": "zsm_Latn",
+    "writing": "Latn",
+    "dialect": null
+  },
+  { "name": "Zulu", "code": "zul_Latn", "writing": "Latn", "dialect": null }
+]
