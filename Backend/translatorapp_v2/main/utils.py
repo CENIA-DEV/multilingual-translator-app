@@ -72,22 +72,24 @@ def generate_payload(text, source_lang, target_lang):
 
 def get_prediction(src_text, src_lang, dst_lang, deployment):
     payload = generate_payload(src_text, src_lang, dst_lang)
-    response = requests.post(url=deployment, data=json.dumps(payload))
-    response = response.json()
-
+    json_payload = json.dumps(payload)
+    response = requests.post(url=deployment, data=json_payload)
     # Process the response
-    if "outputs" in response:
+    if response.status_code == 200:
+        # ok
+        response = response.json()
         return (
             response["outputs"][0]["data"][0],
             response["model_name"],
             response["model_version"],
         )
-    elif "error" in response:
-        print(response["error"])
+    elif response.status_code == 400:
+        # bad request
+        print(response.json())
         raise Exception("Error in model prediction")
     else:
-        print("Unexpected response format")
-        raise Exception("Unexpected response format")
+        print("API responded with status code", response.status_code)
+        raise Exception("Error in model prediction")
 
 
 def translate(src_text, src_lang, dst_lang):
