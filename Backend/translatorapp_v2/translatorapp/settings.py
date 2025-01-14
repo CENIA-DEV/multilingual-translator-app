@@ -71,11 +71,16 @@ DEBUG = True if os.environ.get("PRODUCTION") == "False" else False
 SESSION_COOKIE_SECURE = True if os.environ.get("PRODUCTION") == "True" else False
 CSRF_COOKIE_SECURE = True if os.environ.get("PRODUCTION") == "True" else False
 
-ALLOWED_HOSTS = ["*"]
+
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    APP_SETTINGS.frontend_url,
+    APP_SETTINGS.frontend_url.strip("www."),
+]
 
 
 # Application definition
-
 INSTALLED_APPS = [
     "main",
     "django.contrib.admin",
@@ -113,8 +118,6 @@ REST_FRAMEWORK = {
 
 
 ROOT_URLCONF = "translatorapp.urls"
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 TEMPLATES = [
     {
