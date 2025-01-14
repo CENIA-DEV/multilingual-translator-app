@@ -73,4 +73,3 @@ We have provided two actions for deploying backend and frontend to GCP. It's imp
 Check action files to see specific variable names. Both frontend and backend urls are retrieved through `SERVICE_NAME_BACKEND` and `SERVICE_NAME_FRONTEND`.
 
 The you can manually run actions on `actions` section in github and setting as input `variant`.
-s
