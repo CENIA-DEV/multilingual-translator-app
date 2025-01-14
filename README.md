@@ -35,10 +35,13 @@ DJANGO_SUPERUSER_PASSWORD="<password from superuser created before>"
 PRODUCTION="False"
 SECRET_KEY="<Django key created in previous step>"
 APP_FRONTEND_URL="http://localhost:3000"
+
+APP_INFERENCE_MODEL_NAME="<your_inference_model_name>"
+APP_RAW_INFERENCE_MODEL_NAME="<your_raw_inference_model_name>"
+APP_INFERENCE_MODEL_URL="<your_inference_model_url>"
+APP_RAW_INFERENCE_MODEL_URL="<your_raw_inference_model_url>"
 ```
-
 Then, run database migrations. To do so, go to the `Backend/translatorapp_v2` folder and run `python manage.py migrate`
-
 
 ## Frontend Setup
 
@@ -47,8 +50,8 @@ Open the `Frontend/translator` and Run `npm i` to install the dependencies
 Create a file named `.env` inside `Frontend/translator`. The file should look something like this:
 
 ```
-API_URL = "http://127.0.0.1:8000"
-VARIANT = "<arn or rap>"
+NEXT_PUBLIC_API_URL = "http://127.0.0.1:8000"
+NEXT_PUBLIC_VARIANT = "<arn or rap>"
 ```
 
 # Run Frontend
@@ -70,3 +73,4 @@ We have provided two actions for deploying backend and frontend to GCP. It's imp
 Check action files to see specific variable names. Both frontend and backend urls are retrieved through `SERVICE_NAME_BACKEND` and `SERVICE_NAME_FRONTEND`.
 
 The you can manually run actions on `actions` section in github and setting as input `variant`.
+s
