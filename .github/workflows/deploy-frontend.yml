@@ -48,6 +48,9 @@ jobs:
       - name: 'Create production env file'
         working-directory: Frontend/translator/
         run: |-
+          API_URL=$(gcloud run services describe ${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }} --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+          echo "API URL: $API_URL"
+          echo "NEXT_PUBLIC_API_URL=$API_URL" >> .env.production
           echo "NEXT_PUBLIC_VARIANT=${{ steps.set-variant.outputs.variant }}" >> .env.production
           if [ "${{ steps.set-variant.outputs.variant }}" == "rap" ]; then
             echo "NEXT_PUBLIC_GOOGLE_SEARCH_ID=${{ env.GOOGLE_SEARCH_ID }}" >> .env.production
