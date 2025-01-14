@@ -16,10 +16,10 @@ FROM python:3.11.7-slim
 # Establish the working directory to /app
 WORKDIR /app
 # Copy the requirements.txt file
-COPY requirements/base.txt .
+COPY requirements.txt .
 
 # Install the dependencies
-RUN pip install --no-cache-dir -r base.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the files
 COPY . .

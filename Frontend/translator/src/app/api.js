@@ -16,7 +16,9 @@ import axios from "axios";
 import { ACCESS_TOKEN } from "./constants";
 
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL
+    // if url is not set, use empty string so relative path is considered
+    // the ur is used for local development where api url is different
+    baseURL: process.env.NEXT_PUBLIC_API_URL || ''
 })
 
 api.interceptors.request.use(
