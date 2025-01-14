@@ -1,5 +1,24 @@
 # Translator
 
+## Model Setup
+
+For model setup, we use [Pytriton](https://github.com/triton-inference-server/pytriton) to serve the model. Pytriton is a framework for building and serving models. It's a lightweight framework that allows for easy deployment of models.
+
+Move to the `Model` folder and run `pip install -r requirements.txt` to install the dependencies. Note that pytriton has support only for Ubuntu 22+, Debian 11+, Rocky Linux 9+, and Red Hat UBI 9+ operating systems.
+
+Then start the server. A valid model name is required. The model name can be a path to a folder containing the model or a model name as of huggingface.
+In this instructions, we'll use huggingface to download model weights. We'll use the [`CenIA/nllb-200-3.3B-spa-rap`](https://huggingface.co/CenIA/nllb-200-3.3B-spa-rap) model that we developed for this project. You can also use vainilla NLLB models from their [repository](https://huggingface.co/facebook/nllb-200-3.3B). 
+
+A few extra options are provided:
+
+- `python server.py --model-name CenIA/nllb-200-3.3B-spa-rap` to run the server without optimizations.
+- `python server.py --model-name CenIA/nllb-200-3.3B-spa-rap --optimize` to run the server with optimizations. Such optimizations include using BetterTransformer, TensorFloat32 precision, and warmup.
+- `python server.py --model-name CenIA/nllb-200-3.3B-spa-rap --optimize --num-copies 2` to run the server with optimizations and 2 copies of the model. This allows Pytriton to serve multiple requests in parallel. You can set the number of copies to as much as your GPU memory allows.
+
+Extra configurations were configured to increase the performance of the model, such as Dynamic Batching and response caching.\
+
+If all goes well, model server should be listening to requests on port 8015. You can test the server by running `python client.py --model-name CenIA--nllb-200-3.3B-spa-rap`. Note the `--` in the model name instead of `/`. You can also change the source and target languages with `--source-lang` and `--target-lang` and `--text` arguments. Note that currently this model only supports `spa_Latn` and `rap_Latn` languages in both directions. 
+
 ## Backend Setup
 
 First, create a Postgresql database and store the database name and host in case of using an external service.
