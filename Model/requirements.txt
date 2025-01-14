@@ -1,0 +1,8 @@
+nvidia-pytriton==0.5.12
+torch==2.5.1
+transformers==4.46.2
+optimum==1.23.3
+sentencepiece==0.2.0
+accelerate==1.1.1
+google-cloud-storage==2.18.2
+python-dotenv==1.0.1
