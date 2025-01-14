@@ -1,12 +1,8 @@
-import os
-import torch
-from dotenv import load_dotenv
-import os
-import torch
-from dotenv import load_dotenv
-from transformers import AutoModelForSeq2SeqLM, NllbTokenizerFast
-from optimum.bettertransformer import BetterTransformer
 import logging
+
+import torch
+from optimum.bettertransformer import BetterTransformer
+from transformers import AutoModelForSeq2SeqLM, NllbTokenizerFast
 
 language_token_map = {
     "rap_Latn": "mri_Latn",
@@ -14,6 +10,7 @@ language_token_map = {
     "arn_r0_n": "nso_Latn",
     "arn_u0_n": "fra_Latn",
 }
+
 
 class ModelWrapper:
     def __init__(self, model_path: str, logger: logging.Logger, optimize: bool = False):
@@ -27,13 +24,13 @@ class ModelWrapper:
                 Optimize model inference.
         """
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
+
         self.tokenizer = NllbTokenizerFast.from_pretrained(model_path)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(
             model_path,
             torch_dtype=torch.float16,
             device_map=self._device,
-            local_files_only=True
+            local_files_only=True,
         )
         self.model.eval()
         self.logger = logger
@@ -45,10 +42,13 @@ class ModelWrapper:
             self.logger.debug("Model optimized!")
 
     @torch.inference_mode()
-    def predict(self, sentences: list[str], source_lang: str, target_lang: str) -> list[str]:
+    def predict(
+        self, sentences: list[str], source_lang: str, target_lang: str
+    ) -> list[str]:
         """
-        Given a sentence and its source language, predicts the corresponding translation.
-        Available languages are: `spa_Latn`, `rap_Latn` (or `mri_Latn`) and `arn_Latn` (or `quy_Latn`).
+        Given a sentence and its source language, predicts the corresponding
+        translation. Available languages are: `spa_Latn`, `rap_Latn`
+        (or `mri_Latn`) and `arn_Latn` (or `quy_Latn`).
         Args:
             sentences (`list`):
                 List of sentences to be translated.
@@ -63,8 +63,16 @@ class ModelWrapper:
         self.logger.debug(f"Translating sentences: {sentences}")
         self.logger.debug(f"Source lang original: {source_lang}")
         self.logger.debug(f"Target lang original: {target_lang}")
-        source_lang = language_token_map[source_lang] if source_lang in language_token_map else source_lang
-        target_lang = language_token_map[target_lang] if target_lang in language_token_map else target_lang
+        source_lang = (
+            language_token_map[source_lang]
+            if source_lang in language_token_map
+            else source_lang
+        )
+        target_lang = (
+            language_token_map[target_lang]
+            if target_lang in language_token_map
+            else target_lang
+        )
         self.logger.debug(f"Source lang mapped: {source_lang}")
         self.logger.debug(f"Target lang mapped: {target_lang}")
         self.tokenizer.src_lang = source_lang
@@ -72,16 +80,23 @@ class ModelWrapper:
 
         self.logger.debug(f"TRANSLATING {sentences}")
 
-        inputs = self.tokenizer(sentences, return_tensors="pt", padding="longest").to(self._device)
+        inputs = self.tokenizer(sentences, return_tensors="pt", padding="longest").to(
+            self._device
+        )
         self.logger.debug(f"Inputs Shape: {inputs['input_ids'].shape}")
-        prediction = self.model.generate(**inputs, forced_bos_token_id=self.tokenizer.convert_tokens_to_ids(target_lang))
+        prediction = self.model.generate(
+            **inputs,
+            forced_bos_token_id=self.tokenizer.convert_tokens_to_ids(target_lang),
+        )
         self.logger.debug(f"Prediction Shape: {prediction.shape}")
         translation = self.tokenizer.batch_decode(prediction, skip_special_tokens=True)
         self.logger.debug(f"Translation: {translation}")
 
         return translation
 
-    def optimize(self, tf32: bool = True, better_transformer: bool = True, warmup: bool = True):
+    def optimize(
+        self, tf32: bool = True, better_transformer: bool = True, warmup: bool = True
+    ):
         """
         Optimize the model for inference.
 
@@ -96,14 +111,18 @@ class ModelWrapper:
         if tf32:
             self.logger.info("Setting TensorFloat32 precision...")
             torch.set_float32_matmul_precision("high")
-        
+
         if better_transformer:
             self.logger.info("Optimizing model with BetterTransformer...")
             try:
-                model = BetterTransformer.transform(self.model, keep_original_model=True)
+                model = BetterTransformer.transform(
+                    self.model, keep_original_model=True
+                )
                 model.eval()
             except ValueError:
-                self.logger.warning("BetterTransformer not available, using original model...")
+                self.logger.warning(
+                    "BetterTransformer not available, using original model..."
+                )
                 model = self.model
 
             self.model = model
@@ -113,11 +132,19 @@ class ModelWrapper:
             self.logger.info("Warming up model...")
             with torch.inference_mode():
                 for _ in range(n_warmup):
-                    inputs = self.tokenizer("texto de prueba", return_tensors="pt").to(self._device)
-                    self.model.generate(**inputs, forced_bos_token_id=self.tokenizer.convert_tokens_to_ids("mri_Latn"))[0]
+                    inputs = self.tokenizer("texto de prueba", return_tensors="pt").to(
+                        self._device
+                    )
+                    self.model.generate(
+                        **inputs,
+                        forced_bos_token_id=self.tokenizer.convert_tokens_to_ids(
+                            "mri_Latn"
+                        ),
+                    )[0]
             self.logger.info("Model warmed up!")
+
     def __repr__(self):
         return self.model.__repr__()
-    
+
     def __call__(self, *args, **kwargs):
         return self.predict(*args, **kwargs)

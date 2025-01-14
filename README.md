@@ -7,7 +7,7 @@ For model setup, we use [Pytriton](https://github.com/triton-inference-server/py
 Move to the `Model` folder and run `pip install -r requirements.txt` to install the dependencies. Note that pytriton has support only for Ubuntu 22+, Debian 11+, Rocky Linux 9+, and Red Hat UBI 9+ operating systems.
 
 Then start the server. A valid model name is required. The model name can be a path to a folder containing the model or a model name as of huggingface.
-In this instructions, we'll use huggingface to download model weights. We'll use the [`CenIA/nllb-200-3.3B-spa-rap`](https://huggingface.co/CenIA/nllb-200-3.3B-spa-rap) model that we developed for this project. You can also use vainilla NLLB models from their [repository](https://huggingface.co/facebook/nllb-200-3.3B). 
+In this instructions, we'll use huggingface to download model weights. We'll use the [`CenIA/nllb-200-3.3B-spa-rap`](https://huggingface.co/CenIA/nllb-200-3.3B-spa-rap) model that we developed for this project. You can also use vainilla NLLB models from their [repository](https://huggingface.co/facebook/nllb-200-3.3B).
 
 A few extra options are provided:
 
@@ -17,7 +17,7 @@ A few extra options are provided:
 
 Extra configurations were configured to increase the performance of the model, such as Dynamic Batching and response caching.\
 
-If all goes well, model server should be listening to requests on port 8015. You can test the server by running `python client.py --model-name CenIA--nllb-200-3.3B-spa-rap`. Note the `--` in the model name instead of `/`. You can also change the source and target languages with `--source-lang` and `--target-lang` and `--text` arguments. Note that currently this model only supports `spa_Latn` and `rap_Latn` languages in both directions. 
+If all goes well, model server should be listening to requests on port 8015. You can test the server by running `python client.py --model-name CenIA--nllb-200-3.3B-spa-rap`. Note the `--` in the model name instead of `/`. You can also change the source and target languages with `--source-lang` and `--target-lang` and `--text` arguments. Note that currently this model only supports `spa_Latn` and `rap_Latn` languages in both directions.
 
 ## Backend Setup
 
@@ -88,7 +88,7 @@ We designed the following GCP deployment:
 
 ![GCP deployment description](assets/deployment.png)
 
-We have provided three actions for deploying backend, frontend and model to GCP respectively. It's important to set the same environment variables as in `.env` file but as secrets. Aditionally, your GCP project variables. 
+We have provided three actions for deploying backend, frontend and model to GCP respectively. It's important to set the same environment variables as in `.env` file but as secrets. Aditionally, your GCP project variables.
 Check action files to see specific variable names. Both frontend and backend urls are retrieved through `SERVICE_NAME_BACKEND` and `SERVICE_NAME_FRONTEND`.
 
 The you can manually run actions on `actions` section in github and setting as input `variant`.
