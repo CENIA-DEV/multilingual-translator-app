@@ -55,11 +55,11 @@ PRODUCTION="False"
 SECRET_KEY="<Django key created in previous step>"
 APP_FRONTEND_URL="http://localhost:3000"
 
-APP_INFERENCE_MODEL_NAME="<your_inference_model_name>"
-APP_RAW_INFERENCE_MODEL_NAME="<your_raw_inference_model_name>"
-APP_INFERENCE_MODEL_URL="<your_inference_model_url>"
-APP_RAW_INFERENCE_MODEL_URL="<your_raw_inference_model_url>"
+APP_INFERENCE_MODEL_NAME="CenIA--nllb-200-3.3B-spa-rap"
+APP_INFERENCE_MODEL_URL="http://localhost:8015"
 ```
+
+Note that the model name is the one used in the first step. You can change it to your own model name.
 Then, run database migrations. To do so, go to the `Backend/translatorapp_v2` folder and run `python manage.py migrate`
 
 ## Frontend Setup
@@ -88,7 +88,7 @@ We designed the following GCP deployment:
 
 ![GCP deployment description](assets/deployment.png)
 
-We have provided two actions for deploying backend and frontend to GCP. It's important to set the same environment variables as in `.env` file but as secrets. Aditionally, your GCP project variables.
+We have provided three actions for deploying backend, frontend and model to GCP respectively. It's important to set the same environment variables as in `.env` file but as secrets. Aditionally, your GCP project variables. 
 Check action files to see specific variable names. Both frontend and backend urls are retrieved through `SERVICE_NAME_BACKEND` and `SERVICE_NAME_FRONTEND`.
 
 The you can manually run actions on `actions` section in github and setting as input `variant`.
