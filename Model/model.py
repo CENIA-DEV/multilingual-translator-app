@@ -29,6 +29,7 @@ class ModelWrapper:
             optimize (`bool`, *optional*, defaults to `True`):
                 Optimize model inference.
         """
+        self.logger = logger
         if gpu:
             if torch.cuda.is_available():
                 self.logger.info("GPU available, using GPU")
@@ -47,7 +48,6 @@ class ModelWrapper:
             device_map=self._device,
         )
         self.model.eval()
-        self.logger = logger
         self.logger.debug(f"Model loaded on device: {self._device}")
 
         if optimize:
