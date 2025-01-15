@@ -98,13 +98,13 @@ def _parse_args():
         required=False,
         help="Number of copies of the model.",
     )
-    
+
     parser.add_argument(
         "--gpu",
-        "-g",
+        "-c",
         action="store_true",
-        help="If use GPU",
-        default=True,
+        help="If use CPU",
+        default=False,
     )
 
     return parser.parse_args()
