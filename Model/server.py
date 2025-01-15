@@ -98,6 +98,14 @@ def _parse_args():
         required=False,
         help="Number of copies of the model.",
     )
+    
+    parser.add_argument(
+        "--gpu",
+        "-g",
+        action="store_true",
+        help="If use GPU",
+        default=True,
+    )
 
     return parser.parse_args()
 
@@ -134,6 +142,7 @@ def main():
                 logger=logger,
                 folder_path=model_name,
                 optimize=args.optimize,
+                gpu=args.gpu,
             ),
             inputs=[
                 Tensor(name="input_text", dtype=np.bytes_, shape=(1,)),

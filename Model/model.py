@@ -13,7 +13,13 @@ language_token_map = {
 
 
 class ModelWrapper:
-    def __init__(self, model_path: str, logger: logging.Logger, optimize: bool = False):
+    def __init__(
+        self,
+        model_path: str,
+        logger: logging.Logger,
+        optimize: bool = False,
+        gpu: bool = True,
+    ):
         """
         Wrapper for NLLB models.
 
@@ -23,14 +29,22 @@ class ModelWrapper:
             optimize (`bool`, *optional*, defaults to `True`):
                 Optimize model inference.
         """
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if gpu:
+            if torch.cuda.is_available():
+                self.logger.info("GPU available, using GPU")
+                self._device = torch.device("cuda")
+            else:
+                self.logger.warning("GPU not available, using CPU instead")
+                self._device = torch.device("cpu")
+        else:
+            self.logger.info("CPU mode")
+            self._device = torch.device("cpu")
 
         self.tokenizer = NllbTokenizerFast.from_pretrained(model_path)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(
             model_path,
             torch_dtype=torch.float16,
             device_map=self._device,
-            local_files_only=True,
         )
         self.model.eval()
         self.logger = logger
