@@ -34,7 +34,7 @@ def generate_payload(text, source_lang, target_lang):
 def predict(text, source_lang, target_lang, model_name):
     payload = generate_payload(text, source_lang, target_lang)
     response = requests.post(
-        url=f"localhost:8015/v2/models/{model_name}/infer", data=json.dumps(payload)
+        url=f"http://localhost:8015/v2/models/{model_name}/infer", data=json.dumps(payload)
     )
     response = response.json()
 
