@@ -61,12 +61,12 @@ class _InferFuncWrapper:
         return {"translation": translations}
 
 
-def _infer_function_factory(num_copies, logger, folder_path, optimize):
+def _infer_function_factory(num_copies, logger, folder_path, optimize, gpu):
     infer_fns = []
     for _ in range(num_copies):
         logger.info(f"Loading model at {folder_path}")
         # TO DO: CHECK IF MODEL NAME IN FOLDER PATH
-        model = ModelWrapper(folder_path, logger=logger, optimize=optimize)
+        model = ModelWrapper(folder_path, logger=logger, optimize=optimize, gpu=gpu)
         logger.info("Model loaded!")
         infer_fns.append(_InferFuncWrapper(model=model, logger=logger))
     return infer_fns
