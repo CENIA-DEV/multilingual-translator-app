@@ -107,6 +107,14 @@ def _parse_args():
         default=False,
     )
 
+    parser.add_argument(
+        "--port",
+        "-p",
+        type=int,
+        default=8015,
+        help="Port to use",
+    )
+
     return parser.parse_args()
 
 
@@ -126,7 +134,7 @@ def main():
     log_verbose = 1 if args.verbose else 0
 
     config = TritonConfig(
-        http_port=8015,
+        http_port=args.port,
         exit_on_error=True,
         log_verbose=log_verbose,
         allow_http=True,

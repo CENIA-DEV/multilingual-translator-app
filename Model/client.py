@@ -31,10 +31,11 @@ def generate_payload(text, source_lang, target_lang):
     return payload
 
 
-def predict(text, source_lang, target_lang, model_name):
+def predict(text, source_lang, target_lang, model_name, port=8015):
     payload = generate_payload(text, source_lang, target_lang)
     response = requests.post(
-        url=f"http://localhost:8015/v2/models/{model_name}/infer", data=json.dumps(payload)
+        url=f"http://localhost:{port}/v2/models/{model_name}/infer",
+        data=json.dumps(payload),
     )
     response = response.json()
 
@@ -51,9 +52,14 @@ def predict(text, source_lang, target_lang, model_name):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--text", type=str, default="Hola como estas")
-    parser.add_argument("--source_lang", type=str, default="spa_Latn")
-    parser.add_argument("--target_lang", type=str, default="rap_Latn")
-    parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--source-lang", type=str, default="spa_Latn")
+    parser.add_argument("--target-lang", type=str, default="rap_Latn")
+    parser.add_argument("--model-name", type=str, required=True)
+    parser.add_argument("--port", type=int, default=8015)
     args = parser.parse_args()
 
-    print(predict(args.text, args.source_lang, args.target_lang, args.model_name))
+    print(
+        predict(
+            args.text, args.source_lang, args.target_lang, args.model_name, args.port
+        )
+    )

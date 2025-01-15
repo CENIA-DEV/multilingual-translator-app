@@ -9,21 +9,28 @@ Move to the `Model` folder and run `pip install -r requirements.txt` to install 
 Then start the server. A valid model name is required. The model name can be a path to a folder containing the model or a model name as of huggingface.
 In this instructions, we'll use huggingface to download model weights. We'll use the [`CenIA/nllb-200-3.3B-spa-rap`](https://huggingface.co/CenIA/nllb-200-3.3B-spa-rap) model that we developed for this project. You can also use vainilla NLLB models from their [repository](https://huggingface.co/facebook/nllb-200-3.3B).
 
+You can run the server with the following command:
+
+```
+python server.py --model-name CenIA/nllb-200-3.3B-spa-rap
+```
+
 A few extra options are provided:
 
-- `python server.py --model-name CenIA/nllb-200-3.3B-spa-rap` to run the server without optimizations.
-- `python server.py --model-name CenIA/nllb-200-3.3B-spa-rap --optimize` to run the server with optimizations. Such optimizations include using BetterTransformer, TensorFloat32 precision, and warmup.
-- `python server.py --model-name CenIA/nllb-200-3.3B-spa-rap --optimize --num-copies 2` to run the server with optimizations and 2 copies of the model. This allows Pytriton to serve multiple requests in parallel. You can set the number of copies to as much as your GPU memory allows.
+- `--port`: The port to use. Default is 8015.
+- `--gpu`: If use GPU. Default is False.
+- `--optimize`: If use optimizations. Default is False.
+- `--num-copies`: The number of copies of the model to use. This allows Pytriton to serve multiple requests in parallel. Default is 1.
 
-Extra configurations were configured to increase the performance of the model, such as Dynamic Batching and response caching.\
+Extra configurations were configured to increase the performance of the model, such as Dynamic Batching and response caching.
 
-If all goes well, model server should be listening to requests on port 8015. You can test the server by running `python client.py --model-name CenIA--nllb-200-3.3B-spa-rap`. Note the `--` in the model name instead of `/`. You can also change the source and target languages with `--source-lang` and `--target-lang` and `--text` arguments. Note that currently this model only supports `spa_Latn` and `rap_Latn` languages in both directions.
+If all goes well, model server should be listening to requests on port 8015. You can test the server by running `python client.py --model-name CenIA--nllb-200-3.3B-spa-rap --port 8015`. Note the `--` in the model name instead of `/`. Change the port to the one you set in the server. You can also change the source and target languages with `--source-lang` and `--target-lang` and `--text` arguments. Note that currently this model only supports `spa_Latn` and `rap_Latn` languages in both directions.
 
 ## Backend Setup
 
 First, create a Postgresql database and store the database name and host in case of using an external service.
 
-Then install the dependencies.  To do so, go to the `Backend` folder and run `pip install -r requirements.txt`.
+Then install the dependencies.  To do so, go to the `Backend/translatorapp_v2` folder and run `pip install -r requirements.txt`.
 
 Django needs a secret key for encription. To create one run: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"` and copy the output key.
 
@@ -57,6 +64,8 @@ APP_FRONTEND_URL="http://localhost:3000"
 
 APP_INFERENCE_MODEL_NAME="CenIA--nllb-200-3.3B-spa-rap"
 APP_INFERENCE_MODEL_URL="http://localhost:8015"
+APP_RAW_INFERENCE_MODEL_NAME="CenIA--nllb-200-3.3B-spa-rap"
+APP_RAW_INFERENCE_MODEL_URL="http://localhost:8015"
 ```
 
 Note that the model name is the one used in the first step. You can change it to your own model name.
