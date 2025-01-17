@@ -1,0 +1,102 @@
+name: Deploy nllb model manually
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Variant language for deployment'
+        required: true
+        type: choice
+        options:
+          - rap
+          - arn
+          - raw
+jobs:
+  build-push-gcp:
+    name: Build and Push to GCP NLLB
+    runs-on: ubuntu-latest
+    env:
+        PROJECT_ID: ${{ secrets.PROJECT_ID }}
+        REGION: ${{ vars.REGION }}
+        REP_NAME: ${{ vars.REP_NAME }}
+        STORAGE_URI: ${{ vars.STORAGE_URI }}
+        VPC_NAME: ${{ vars.VPC_NAME }}
+        SUBNET_NAME: ${{ vars.SUBNET_NAME }}
+    steps:
+      # Delete huge unnecessary tools folder
+      # Running oout of memory on the runner
+      # https://github.com/orgs/community/discussions/25678
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+      - name: Set variant from dispatch event or branch
+        id: set-variant
+        run: |
+          # check if the variant is provided by the workflow dispatch event
+          if [ ! -z "${{ github.event.inputs.variant }}" ]; then
+            echo "variant=${{ github.event.inputs.variant }}" >> $GITHUB_OUTPUT
+          else
+            # Extract variant from branch name (e.g., main-rap -> rap)
+            VARIANT=$(echo $BRANCH | rev | cut -d'-' -f1 | rev)
+            if [[ "$VARIANT" != "rap" && "$VARIANT" != "arn" && "$VARIANT" != "raw" ]]; then
+              echo "Invalid variant: $VARIANT. Must be one of: rap, arn, raw"
+              exit 1
+            else
+              echo "variant=$VARIANT" >> $GITHUB_OUTPUT
+            fi
+          fi
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            src/models/nllb/deployment/
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0.4.0'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 416.0.0'
+      - name: Download model
+        working-directory: src/models/nllb/deployment/
+        run: |
+          # get the model name based on the variant
+          if [ "${{ steps.set-variant.outputs.variant }}" = "raw" ]; then
+            MODEL_NAME=${{ vars.MODEL_NAME }}
+          else
+            MODEL_NAME=${{ vars.MODEL_NAME }}-spa-${{ steps.set-variant.outputs.variant }}
+          fi
+          echo "Using model: $MODEL_NAME"
+          MODEL_PATH=${{ env.STORAGE_URI }}/${{ steps.set-variant.outputs.variant }}/$MODEL_NAME
+          echo "Using model path: $MODEL_PATH"
+          gcloud storage cp -r $MODEL_PATH .
+      - name: Build Docker Image
+        working-directory: src/models/nllb/deployment/
+        run: |
+          echo "Building docker image for variant: ${{ steps.set-variant.outputs.variant }}"
+          docker build -t ${{ steps.set-variant.outputs.variant }}:${{ github.sha }} .
+
+      - name: Configure Docker Client # aunthenticate to rep
+        run: |-
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Push Docker Image to Artifact Registry
+        run: |-
+          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}:${{ github.sha }}
+          echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
+          docker tag ${{ steps.set-variant.outputs.variant }}:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
+          docker push $ARTIFACT_REGISTRY_IMAGE_NAME
+
+      # TODO: Uncomment this when we glocud has support for gpu
+      #- name: Deploy to cloud run
+      #  uses: 'google-github-actions/deploy-cloudrun@v2'
+      #  with:
+      #    service: nllb-${{ steps.set-variant.outputs.variant }}
+      #    image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      #    project_id: '${{ env.PROJECT_ID }}'
+      #    region: '${{ env.REGION }}'
+      #    timeout: '5m'
+      #    flags:  --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --no-cpu-throttling --port=8015 --concurrency=4 --cpu=4 --memory=16Gi --max-instances=4 --gpu 1 --gpu-type=nvidia-l4
