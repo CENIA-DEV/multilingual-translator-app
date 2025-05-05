@@ -72,7 +72,7 @@ export default function LangSelector({lang, ...props}) {
 
   return(
 
-    <div className="lang-container" key={lang}>
+    <div className="lang-container " style={side === 'right' ? {justifyContent: "flex-end"} : {justifyContent: "flex-start"}} key={lang}>
       {/* TO DO: Fix responsive view with large languages names */}
       <strong className="lang-selected" style={side === 'left'? {color: "#0a8cde"} : {color: "#fff"}}>{lang.name}</strong>
 

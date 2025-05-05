@@ -35,11 +35,11 @@ export const text = {
     "eng-arn": "Try the translator"
   },
   'JoinProject': {
-    "spa-rap": "Únete a nuestro proyecto",
+    "spa-rap": "Acerca del proyecto",
     "rap": "'Āmui mai koe ki te aŋa nei",
-    "eng-rap": "Join our project",
-    "spa-arn": "Únete a nuestro proyecto",
-    "eng-arn": "Join our project"
+    "eng-rap": "About the project",
+    "spa-arn": "Acerca del proyecto",
+    "eng-arn": "About the project"
   },
 
   'AboutProject': {

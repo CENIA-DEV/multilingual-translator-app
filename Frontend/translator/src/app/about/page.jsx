@@ -18,7 +18,7 @@ import { useRef, useEffect, useState } from 'react'
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { faBookOpen, faLockOpen, faUsers, faSpinner } from '@fortawesome/free-solid-svg-icons'
+import { faBookOpen, faLockOpen, faUsers, faSpinner, faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import api from "../api"
 import Image from 'next/image'
@@ -102,10 +102,12 @@ export default function LandingPage() {
           />
         </div>
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex flex-row gap-4">
+          <Label className="text-white items-center flex gap-2">Selecciona tu idioma</Label>
           <Select onValueChange={handleLanguageChange} defaultValue={language}>
             
           <SelectTrigger className="w-[120px] bg-gray border-solid border-1 hover:border-2 hover:border-default focus:ring-2 focus:ring-default  border-default text-white">
+
             <SelectValue placeholder="Language" />
           </SelectTrigger>
           {VARIANT_LANG === 'rap' ? (
@@ -131,11 +133,14 @@ export default function LandingPage() {
                 <Link href="/translator" className="inline-block bg-gradient-to-r from-default to-[#0a7cde] hover:from-[#0a7cde] hover:to-[#0a4cde] text-white font-semibold py-3 px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
                   {text.TryTranslator[language]}
                 </Link>
-                <Link href="#contact" className="inline-block border-white bg-white text-default backdrop-blur-md font-semibold py-3 hover:bg-[#0a7cde] hover:to-[#0a4cde] hover:text-white px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
+                <Link href="#about" className="inline-block border-white bg-white text-default backdrop-blur-md font-semibold py-3 hover:bg-[#0a7cde] hover:to-[#0a4cde] hover:text-white px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
                   {text.JoinProject[language]}
                 </Link>
               </div>
             </div>
+          </div>
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white animate-bounce">
+              <FontAwesomeIcon icon={faChevronDown} />
           </div>
         </div>
         
@@ -145,7 +150,7 @@ export default function LandingPage() {
             
               <div className="space-y-6">
                 {text.AboutProject.AboutProjectText.map((text, index) => (
-                  <p key={index} className="text-justify text-xl text-gray-500 dark:text-gray-400">
+                  <p key={index} className="text-justify text-xl text-gray-600 dark:text-gray-400">
                     {parse(text[language])}
                   </p>
                 ))}
@@ -165,21 +170,21 @@ export default function LandingPage() {
               <div className="flex flex-col items-center space-y-2 p-4 rounded-lg">
                 <FontAwesomeIcon icon={faUsers} size="3x" className="text-default" />
                 <h3 className="text-center">{text.Focus.Collaboration.Title[language]}</h3>
-                <p className="text-xl text-center text-gray-500 dark:text-gray-400">
+                <p className="text-xl text-center text-gray-600 dark:text-gray-400">
                 {text.Focus.Collaboration.Text[language]}
                 </p>
               </div>
               <div className="flex flex-col items-center space-y-2 p-4 rounded-lg">
                 <FontAwesomeIcon icon={faBookOpen} size="3x" className="text-default" />
                 <h3 className="text-center">{text.Focus.IA.Title[language]}</h3>
-                <p className="text-xl text-center text-gray-500 dark:text-gray-400">
+                <p className="text-xl text-center text-gray-600 dark:text-gray-400">
                 {text.Focus.IA.Text[language]}
                 </p>
               </div>
               <div className="flex flex-col items-center space-y-2 p-4 rounded-lg">
                 <FontAwesomeIcon icon={faLockOpen} size="3x" className="text-default" />
                 <h3 className="text-center">{text.Focus.Free.Title[language]}</h3>
-                <p className="text-xl text-center text-gray-500 dark:text-gray-400">
+                <p className="text-xl text-center text-gray-600 dark:text-gray-400">
                 {text.Focus.Free.Text[language]}
                 </p>
               </div>
@@ -193,7 +198,7 @@ export default function LandingPage() {
             <div className="w-fullflex flex-col items-center justify-center space-y-4 text-center">
               <h2 className="text-center text-xl">{text.Owners.Academy[language]}</h2>
                 <div 
-                  className="h-40 relative max-[850px]:h-20">
+                  className="h-32 relative max-[850px]:h-20">
                   <Image
                     src={`/images/${VARIANT_LANG}-language-academy.png`}
                     alt="Academia de Lengua logo"
@@ -209,7 +214,7 @@ export default function LandingPage() {
                 
                 <h2 className="text-center text-xl">Estudios Aplicados Antropología UC </h2>
                 <div 
-                  className="h-40 relative max-[850px]:h-20">
+                  className="h-32 relative max-[850px]:h-20">
                   <Image
                     src="/images/eaauc.png"
                     alt="EAAUC logo"
@@ -222,7 +227,7 @@ export default function LandingPage() {
               <div className="space-y-4 ">
                 
                 <h3 className="text-center text-xl">Centro Nacional de Inteligencia Artificial</h3>
-                <div className="h-40 relative max-[850px]:h-20">
+                <div className="h-32 relative max-[850px]:h-20">
                   <Image
                     src="/images/cenia.png"
                     alt="Cenia logo"
@@ -368,7 +373,7 @@ export default function LandingPage() {
                 <div className="space-y-4 ">
                   
                   <h3 className="text-center"> ISOC </h3>
-                  <div className="h-40 relative">
+                  <div className="h-32 relative">
                     <Image
                       src="/images/isoc.png"
                       alt="ISOC logo"
@@ -381,7 +386,7 @@ export default function LandingPage() {
                 <div className="space-y-4 ">
                   
                   <h3 className="text-center">ANID</h3>
-                  <div className="h-40 relative">
+                  <div className="h-32 relative">
                     <Image
                       src="/images/anid.png"
                       alt="ANID logo"
@@ -396,7 +401,7 @@ export default function LandingPage() {
                 <div className="space-y-4 ">
                   
                   <h3 className="text-center">Conadi</h3>
-                  <div className="h-40 relative">
+                  <div className="h-32 relative">
                     <Image
                       src="/images/conadi.png"
                       alt="Conadi logo"
@@ -410,7 +415,7 @@ export default function LandingPage() {
                 <div className="space-y-4 ">
                   
                   <h3 className="text-center">{text.Financing.Municipality[language]}</h3>
-                  <div className="h-40 relative">
+                  <div className="h-32 relative">
                     <Image
                       src="/images/municipalidad.png"
                       alt="Municipalidad logo"
@@ -430,12 +435,12 @@ export default function LandingPage() {
         <section id="contact" className="w-full py-12 md:py-24 lg:py-32 bg-default/5 flex items-center justify-center">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">{text.Contact.Title[language]}</h2>
-                <p className="max-w-[600px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
+                <p className="max-w-[600px] text-gray-600 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
                   {text.Contact.Subtitle[language]}
                 </p>
-              </div>
+              </div> */}
               
               <Dialog
                   open={isParticipateModalOpen}
@@ -448,9 +453,9 @@ export default function LandingPage() {
                   </DialogTrigger>
                   <DialogContent className="w-1/2 max-[850px]:w-[90%] max-[850px]:h-fit gap-y-4">
                     <DialogHeader>
-                      <DialogTitle>Enviar Solicitud de Colaboración</DialogTitle>
+                      <DialogTitle>Contáctanos</DialogTitle>
                       <DialogDescription>
-                        Llena los siguientes campos para enviar una solicitud de colaboración.
+                        Llena los siguientes campos para contactarnos.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 w-full">
@@ -503,7 +508,9 @@ export default function LandingPage() {
                         </Label>
                         <Input
                           id="organization"
+                          required={false}
                           type="text"
+                          placeholder="Opcional"
                           value={newParticipate.organization}
                           onChange={(e) =>
                             setNewParticipate({
@@ -514,10 +521,9 @@ export default function LandingPage() {
                           className="col-span-3 focus-visible:ring-0 focus-visible:ring-offset-0"
                         />
                         <Label htmlFor="reason" className="text-right">
-                          Motivo
+                          Mensaje
                         </Label>
                         <Textarea 
-                          placeholder="Escribe cómo te gustaría colaborar" 
                           className="col-span-3 h-40 rounded-md hover:border-default hover:rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0" 
                           id="reason" 
                           name="reason" 

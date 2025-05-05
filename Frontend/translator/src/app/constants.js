@@ -49,7 +49,7 @@ export const REQUEST_ACCESS_REASONS = [
 ];
 
 export const NO_USER_PATHS = [
-  {'name': 'Sobre el proyecto', 'route': '/about', 'icon': 'home'},
+  {'name': 'Inicio', 'route': '/about', 'icon': 'home'},
   {'name': 'Traductor', 'route': '/translator', 'icon': 'language'},
 ]
 
