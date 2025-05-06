@@ -20,15 +20,16 @@ import { API_ENDPOINTS } from '@/app/constants';
 import ActionButton from '../actionButton/actionButton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export default function FeedbackModal(props){
 
-
+  const modelData = props.modelData
   const editingTranslation = props.editingTranslation
   const validatedSuggestion = props.validatedSuggestion
   const suggestionId = props.suggestionId
   const setEditingTranslation = props.setEditingTranslation
-
+  const { trackEvent } = useAnalytics();
   // const { toast } = useToast()
 
   const uploadSuggestion = async (suggestion) => {
@@ -39,8 +40,8 @@ export default function FeedbackModal(props){
           API_ENDPOINTS.SUGGESTIONS+'reject_translation/',
           {
             ...suggestion,
-            model_name: props.modelData.modelName,
-            model_version: props.modelData.modelVersion,
+            model_name: modelData.modelName,
+            model_version: modelData.modelVersion,
           }
         );
 
@@ -48,6 +49,10 @@ export default function FeedbackModal(props){
 
         toast("Sugerencia enviada con éxito",{
           description: "Gracias por su sugerencia",
+        });
+
+        trackEvent('negative_feedback_submit_success', {
+          page: 'translator'
         });
 
       }
@@ -59,6 +64,10 @@ export default function FeedbackModal(props){
         })
       }
       console.log(error.response.data)
+      trackEvent('negative_feedback_submit_error', {
+        page: 'translator',
+        error: error.response.status
+      });
     }
   } 
 

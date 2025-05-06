@@ -30,6 +30,8 @@ import { Label } from "@/components/ui/label"
 import { text } from "./text"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { VARIANT_LANG } from "../constants" 
+import { useAnalytics } from '@/hooks/useAnalytics';
+
 export default function LandingPage() {
   const parallaxRef = useRef(null)
   const [language, setLanguage] = useState(`spa-${VARIANT_LANG}`)
@@ -43,6 +45,7 @@ export default function LandingPage() {
     first_name: "",
     last_name: ""
   })
+  const { trackEvent } = useAnalytics();
   useEffect(() => {
     const handleScroll = () => {
       const scrolled = window.scrollY
@@ -68,12 +71,20 @@ export default function LandingPage() {
         title: "Gracias por tu interés en colaborar con nosotros",
         description: "Te contactaremos a la brevedad"
       })
+      trackEvent('participate_form_submit_success', {
+        page: 'about',
+        email: newParticipate.email,
+      })
     }
     catch (error) {
       console.log(error)
       toast({
         title: "Hubo un error al enviar tu solicitud",
         description: "Por favor corrabore los datos y vuelva a intentarlo"
+      })
+      trackEvent('participate_form_submit_error', {
+        page: 'about',
+        email: newParticipate.email,
       })
     }
     finally {
@@ -84,6 +95,18 @@ export default function LandingPage() {
 
   const handleLanguageChange = (value) => {
     setLanguage(value)
+    trackEvent('language_change', {
+      language: value,
+      page: 'about'
+    })
+  }
+
+  const trackClick = (eventName) => {
+    trackEvent(eventName, 
+      {
+        page: 'about'
+      }
+    );
   }
 
   return (
@@ -130,10 +153,10 @@ export default function LandingPage() {
                 {text.Subtitle[language]}
               </p>
               <div className="flex gap-4 max-[850px]:flex-col items-center justify-center">
-                <Link href="/translator" className="inline-block bg-gradient-to-r from-default to-[#0a7cde] hover:from-[#0a7cde] hover:to-[#0a4cde] text-white font-semibold py-3 px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
+                <Link href="/translator" onClick={() => trackClick('try_translator_button_click')} className="inline-block bg-gradient-to-r from-default to-[#0a7cde] hover:from-[#0a7cde] hover:to-[#0a4cde] text-white font-semibold py-3 px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
                   {text.TryTranslator[language]}
                 </Link>
-                <Link href="#about" className="inline-block border-white bg-white text-default backdrop-blur-md font-semibold py-3 hover:bg-[#0a7cde] hover:to-[#0a4cde] hover:text-white px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
+                <Link href="#about" onClick={() => trackClick('about_project_button_click')} className="inline-block border-white bg-white text-default backdrop-blur-md font-semibold py-3 hover:bg-[#0a7cde] hover:to-[#0a4cde] hover:text-white px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
                   {text.JoinProject[language]}
                 </Link>
               </div>

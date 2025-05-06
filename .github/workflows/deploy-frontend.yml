@@ -31,7 +31,6 @@ jobs:
         IMAGE_NAME: ${{ vars.IMAGE_NAME_FRONTEND }}
         VPC_NAME: ${{ vars.VPC_NAME }}
         SUBNET_NAME: ${{ vars.FRONTEND_SUBNET }}
-        GOOGLE_SEARCH_ID: ${{ secrets.GOOGLE_SEARCH_ID }}
     steps:
       - name: Set variant from dispatch event or branch
         id: set-variant
@@ -41,6 +40,14 @@ jobs:
           else
             # Extract variant from branch name (e.g., main-rap -> rap)
             echo "variant=$(echo $BRANCH | rev | cut -d'-' -f1 | rev)" >> $GITHUB_OUTPUT
+          fi
+      - name: Set GA Measurement ID based on variant
+        id: set-ga-id
+        run: |
+          if [ "${{ steps.set-variant.outputs.variant }}" = "rap" ]; then
+            echo "ga_id=${{ secrets.GA_MEASUREMENT_ID_RAP }}" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" ]; then
+            echo "ga_id=${{ secrets.GA_MEASUREMENT_ID_ARN }}" >> $GITHUB_OUTPUT
           fi
       - name: Check out code
         uses: actions/checkout@v3
@@ -57,12 +64,7 @@ jobs:
         working-directory: Frontend/translator/
         run: |-
           echo "NEXT_PUBLIC_VARIANT=${{ steps.set-variant.outputs.variant }}" >> .env.production
-          if [ "${{ steps.set-variant.outputs.variant }}" == "rap" ]; then
-            echo "NEXT_PUBLIC_GOOGLE_SEARCH_ID=${{ env.GOOGLE_SEARCH_ID }}" >> .env.production
-          else
-            # dont add search id for arn
-            echo "NEXT_PUBLIC_GOOGLE_SEARCH_ID=" >> .env.production
-          fi
+          echo "NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ steps.set-ga-id.outputs.ga_id }}" >> .env.production
       - name: Build Docker Image
         working-directory: Frontend/translator/
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .

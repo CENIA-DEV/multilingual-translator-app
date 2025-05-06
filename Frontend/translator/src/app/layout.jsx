@@ -21,6 +21,8 @@ import Menu from "./components/menu/menu";
 import ProtectedRoute from "./protected-route";
 import { Toaster } from "@/components/ui/sonner";
 import { VARIANT_LANG, LANG_TITLE } from "./constants";
+import Script from "next/script";
+import PageViewTracker from "@/components/analytics/PageViewTracker";
 config.autoAddCss = false;
 
 export const metadata = {
@@ -37,13 +39,27 @@ export default function Layout({ children }) {
       <head>
         <title>{metadata.title}</title>
         <meta name="description" content={`Proyecto que busca revitalizar la lengua ${LANG_TITLE} mediante un traductor.`} />
-        {process.env.NEXT_PUBLIC_GOOGLE_SEARCH_ID && (
+        {/* {process.env.NEXT_PUBLIC_GOOGLE_SEARCH_ID && (
           <meta name="google-site-verification" content={process.env.NEXT_PUBLIC_GOOGLE_SEARCH_ID} />
-        )}
+        )} */}
+        {/* Google Analytics */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}');
+          `}
+        </Script>
       </head>
       <body>
         <ProtectedRoute>
           <Suspense fallback={<Loading />}>
+            <PageViewTracker />
             <Menu />
             {children}
             <Toaster />

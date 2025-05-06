@@ -26,7 +26,7 @@ import { API_ENDPOINTS } from '../constants';
 import { VARIANT_LANG,  } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
+import { useAnalytics } from '@/hooks/useAnalytics';
 export default function Translator() {
 
   const [srcText, setSrcText] = useState('');
@@ -60,6 +60,8 @@ export default function Translator() {
   const [showDevModal, setShowDevModal] = useState(true);
 
   const [isMobile, setIsMobile] = useState(false);
+
+  const { trackEvent } = useAnalytics();
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -115,6 +117,11 @@ export default function Translator() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       setDstText(srcText);
       setLoadingState(false);
+      trackEvent('button_cross_lang_click', {
+        src_lang: srcLang,
+        dst_lang: dstLang,
+        page: 'translator'
+      });
     }
   };
  
@@ -165,7 +172,11 @@ export default function Translator() {
             onClick: () => console.log('Pop up cerrado'),
     },
         });
-        
+        trackEvent('positive_feedback_submit_success', {
+          model_name: modelData.modelName,
+          model_version: modelData.modelVersion,
+          page: 'translator'
+        });
       } catch(error) {
           if (error.response.status === 401){
             toast("Error",{
@@ -177,9 +188,20 @@ export default function Translator() {
             })
           }
           console.log(error) 
+          trackEvent('positive_feedback_submit_error', {
+            page: 'translator',
+            error: error.response.status
+          });
       }
     }
   };
+
+  const handleTranslate = async () => {
+    translate();
+    trackEvent('translation_button_click', {
+      page: 'translator'
+    });
+  }
 
   const handleSrcText = (text) => {
     setSrcText(text);
@@ -193,6 +215,7 @@ export default function Translator() {
       else{
         setLoadingState(true);
         
+        const startTime = performance.now();
         try {
           // Add timer for long-running request
           let timeoutId = setTimeout(() => {
@@ -220,7 +243,22 @@ export default function Translator() {
             modelVersion: res.data.model_version
           });
           clearTimeout(timeoutId);
-
+          const endTime = performance.now();
+          const translationTime = endTime - startTime;
+          trackEvent('translation_success', {
+            src_text: srcText.slice(0, 100),
+            dst_text: res.data.dst_text.slice(0, 100),
+            src_lang: srcLang,
+            dst_lang: dstLang,
+            model_name: res.data.model_name,
+            model_version: res.data.model_version,
+            translation_time_ms: translationTime,
+            is_timeout: translationTime > 5000,
+            is_mobile: window.innerWidth <= 850,
+            is_question: srcText.includes('?'),
+            word_count: srcText.split(/\s+/).length,
+            page: 'translator'
+          });
         } 
         catch (error) {
           console.log(error)
@@ -232,11 +270,16 @@ export default function Translator() {
                 onClick: () => console.log('Pop up cerrado'),
               },
             })
+            trackEvent('translation_error', {
+              status: error.response.status,
+              page: 'translator'
+            }); 
           }
           console.log('Error in translation')
         } 
         finally {
           setLoadingState(false);
+
         }
         
       }
@@ -295,7 +338,7 @@ export default function Translator() {
 
       <div
         className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]`}
-        onClick={() => translate()}
+        onClick={() => handleTranslate()}
         style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
       >
         <FontAwesomeIcon
