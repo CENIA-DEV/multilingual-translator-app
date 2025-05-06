@@ -214,7 +214,7 @@ class LanguageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lang
-        fields = ["script", "code", "dialect", "name"]
+        fields = ["id", "script", "code", "dialect", "name"]
 
     def create(self, validated_data):
         # Get or create script to avoid unique constraint error

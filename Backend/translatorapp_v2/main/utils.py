@@ -88,6 +88,7 @@ def get_prediction(src_text, src_lang, dst_lang, deployment):
         print(response.json())
         raise Exception("Error in model prediction")
     else:
+        print(response)
         print("API responded with status code", response.status_code)
         raise Exception("Error in model prediction")
 

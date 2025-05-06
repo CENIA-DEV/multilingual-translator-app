@@ -9,16 +9,24 @@ on:
         options:
           - rap
           - arn
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - PRODUCTION
+          - STAGING
+          - DEVELOPMENT
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
 
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
         SERVICE_REGION: ${{ vars.SERVICE_REGION }}
         REGION: ${{ vars.ARTIFACT_REGION }}
-        INSTANCE_NAME: ${{ secrets.INSTANCE_NAME }}
         REP_NAME: native-translator
         IMAGE_NAME: ${{ vars.IMAGE_NAME_FRONTEND }}
         VPC_NAME: ${{ vars.VPC_NAME }}
