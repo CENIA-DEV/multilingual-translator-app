@@ -20,6 +20,7 @@ jobs:
   build-push-gcp:
     name: Build and Push to GCP
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
         SERVICE_REGION: ${{ vars.SERVICE_REGION }}
