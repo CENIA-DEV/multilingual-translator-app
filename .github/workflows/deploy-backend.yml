@@ -54,7 +54,7 @@ jobs:
           version: '>= 416.0.0'
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
-        run: echo "${{ secrets.ENV_FILE_BACK }}" > .env
+        run: echo "${{ env.ENV_FILE_BACK }}" > .env
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
