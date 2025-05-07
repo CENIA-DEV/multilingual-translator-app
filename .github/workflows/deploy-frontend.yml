@@ -16,7 +16,6 @@ on:
         options:
           - PRODUCTION
           - STAGING
-          - DEVELOPMENT
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -44,9 +43,9 @@ jobs:
       - name: Set GA Measurement ID based on variant
         id: set-ga-id
         run: |
-          if [ "${{ steps.set-variant.outputs.variant }}" = "rap" ]; then
+          if [ "${{ steps.set-variant.outputs.variant }}" = "rap"  && "${{ github.event.inputs.environment }}" = "PRODUCTION" ]; then
             echo "ga_id=${{ secrets.GA_MEASUREMENT_ID_RAP }}" >> $GITHUB_OUTPUT
-          elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" ]; then
+          elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" && "${{ github.event.inputs.environment }}" = "PRODUCTION" ]; then
             echo "ga_id=${{ secrets.GA_MEASUREMENT_ID_ARN }}" >> $GITHUB_OUTPUT
           fi
       - name: Check out code

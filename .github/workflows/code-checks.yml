@@ -13,7 +13,7 @@ jobs:
   pre-commit:
     name: Pre-commit code check
     runs-on: ubuntu-latest
-    environment: DEVELOPMENT
+    environment: STAGING
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -32,11 +32,11 @@ jobs:
   pytest:
     name: Pytest tests
     runs-on: ubuntu-latest
-    environment: DEVELOPMENT
+    environment: STAGING
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
       REGION: ${{vars.REGION}}
-      INSTANCE_NAME_TEST: ${{ secrets.INSTANCE_NAME_TEST }}
+      INSTANCE_NAME_TEST: ${{ secrets.DB_INSTANCE_NAME }}
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -63,7 +63,7 @@ jobs:
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
         run: |
-          echo "${{ secrets.ENV_FILE_TEST }}" > .env
+          echo "${{ secrets.ENV_FILE_BACK }}" > .env
           echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/

@@ -17,7 +17,7 @@ jobs:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
         SERVICE_REGION: ${{ vars.SERVICE_REGION }}
         REGION: ${{ vars.ARTIFACT_REGION }}
-        INSTANCE_NAME: ${{ secrets.INSTANCE_NAME }}
+        INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
         REP_NAME: native-translator
         IMAGE_NAME: ${{ vars.IMAGE_NAME_BACKEND }}
         DB_HOST: ${{ secrets.DB_HOST }}
@@ -54,7 +54,7 @@ jobs:
           version: '>= 416.0.0'
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
-        run: echo "${{ vars.ENV_FILE_BACK }}" > .env
+        run: echo "${{ secrets.ENV_FILE_BACK }}" > .env
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
