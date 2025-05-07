@@ -35,7 +35,7 @@ jobs:
     environment: STAGING
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
-      REGION: ${{vars.REGION}}
+      REGION: ${{vars.DB_REGION}}
       INSTANCE_NAME_TEST: ${{ secrets.DB_INSTANCE_NAME }}
       DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
       ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}

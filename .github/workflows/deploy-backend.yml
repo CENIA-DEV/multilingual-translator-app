@@ -16,7 +16,9 @@ jobs:
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
         SERVICE_REGION: ${{ vars.SERVICE_REGION }}
-        REGION: ${{ vars.ARTIFACT_REGION }}
+        DB_REGION: ${{ vars.DB_REGION }}
+        MODEL_REGION: ${{ vars.MODEL_REGION }}
+        ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
         INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
         REP_NAME: native-translator
         IMAGE_NAME: ${{ vars.IMAGE_NAME_BACKEND }}
@@ -62,11 +64,11 @@ jobs:
       - name: Configure Docker Client # aunthenticate to rep
         run: |-
           gcloud auth configure-docker --quiet
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+          gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
 
       - name: Push Docker Image to Artifact Registry
         run: |-
-          ARTIFACT_REGISTRY_URL=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          ARTIFACT_REGISTRY_URL=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           echo "Artifact Registry URL: $ARTIFACT_REGISTRY_URL"
           echo "ARTIFACT_REGISTRY_URL=$ARTIFACT_REGISTRY_URL" >> $GITHUB_ENV
           docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_URL
@@ -76,13 +78,13 @@ jobs:
         id: get-urls
         run: |
           echo "Service Region: ${{ env.SERVICE_REGION }}"
-          echo "Region: ${{ env.REGION }}"
+          echo "Region: ${{ env.ARTIFACT_REGION }}"
           SERVICE_NAME_INFERENCE=${{ vars.SERVICE_NAME_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
           SERVICE_NAME_RAW_INFERENCE=${{ vars.SERVICE_NAME_RAW_INFERENCE }}
           echo "Service Name Inference: $SERVICE_NAME_INFERENCE"
           echo "Service Name Raw Inference: $SERVICE_NAME_RAW_INFERENCE"
-          INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.REGION }} --format 'value(status.url)')
-          RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.REGION }} --format 'value(status.url)')
+          INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+          RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
           if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
             FRONTEND_URL=${{ vars.URL_RAP }}
           else
@@ -114,4 +116,4 @@ jobs:
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '5m'
-          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic'
+          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic'
