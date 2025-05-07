@@ -67,7 +67,7 @@ jobs:
         run: |
           echo "${{ env.ENV_FILE_BACK }}" > .env
           echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
-          echo "DJANGO_SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}" >> .env
+          echo "SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/
         run: |
