@@ -91,14 +91,19 @@ jobs:
           echo "Region: ${{ env.ARTIFACT_REGION }}"
           SERVICE_NAME_INFERENCE=${{ vars.SERVICE_NAME_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
           SERVICE_NAME_RAW_INFERENCE=${{ vars.SERVICE_NAME_RAW_INFERENCE }}
+          SERVICE_NAME_FRONTEND=${{ vars.SERVICE_NAME_FRONTEND }}
           echo "Service Name Inference: $SERVICE_NAME_INFERENCE"
           echo "Service Name Raw Inference: $SERVICE_NAME_RAW_INFERENCE"
           INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
           RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
-          if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
-            FRONTEND_URL=${{ vars.URL_RAP }}
+          if [[ "${{ github.event.inputs.environment }}" == "PRODUCTION" ]]; then
+            if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
+              FRONTEND_URL=${{ vars.URL_RAP }}
+            else
+              FRONTEND_URL=${{ vars.URL_ARN }}
+            fi
           else
-            FRONTEND_URL=${{ vars.URL_ARN }}
+            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_FRONTEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
           fi
           echo "Inference URL: $INFERENCE_URL"
           echo "Raw Inference URL: $RAW_INFERENCE_URL"
