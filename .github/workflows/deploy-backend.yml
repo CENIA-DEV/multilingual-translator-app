@@ -33,6 +33,7 @@ jobs:
         DB_HOST: ${{ secrets.DB_HOST }}
         VPC_NAME: ${{ vars.VPC_NAME }}
         SUBNET_NAME: ${{ vars.BACKEND_SUBNET }}
+        ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
         PORT: 8000
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
     steps:
