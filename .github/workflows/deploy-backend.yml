@@ -103,7 +103,7 @@ jobs:
               FRONTEND_URL=${{ vars.URL_ARN }}
             fi
           else
-            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_FRONTEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_FRONTEND-${{ steps.set-variant.outputs.variant }} --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
           fi
           echo "Inference URL: $INFERENCE_URL"
           echo "Raw Inference URL: $RAW_INFERENCE_URL"
