@@ -79,7 +79,11 @@ CORS_ALLOWED_ORIGINS = [
     APP_SETTINGS.frontend_url.strip("www."),
 ]
 
-ALLOWED_HOSTS = [APP_SETTINGS.frontend_url, APP_SETTINGS.frontend_url.strip("www.")] if not DEBUG else ["*"]
+ALLOWED_HOSTS = (
+    [APP_SETTINGS.frontend_url, APP_SETTINGS.frontend_url.strip("www.")]
+    if not DEBUG
+    else ["*"]
+)
 
 
 # Application definition
