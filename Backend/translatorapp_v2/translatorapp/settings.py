@@ -50,6 +50,7 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="app_")
 
     frontend_url: str
+    backend_url: str
     inference_model_name: str
     raw_inference_model_name: str
     inference_model_url: str
@@ -80,7 +81,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 ALLOWED_HOSTS = (
-    [APP_SETTINGS.frontend_url, APP_SETTINGS.frontend_url.strip("www.")]
+    [APP_SETTINGS.backend_url, APP_SETTINGS.backend_url.strip("www.")]
     if not DEBUG
     else ["*"]
 )

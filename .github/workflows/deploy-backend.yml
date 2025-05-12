@@ -98,18 +98,24 @@ jobs:
           RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
           if [[ "${{ github.event.inputs.environment }}" == "PRODUCTION" ]]; then
             if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
+              # in production, both urls are the same
               FRONTEND_URL=${{ vars.URL_RAP }}
+              BACKEND_URL=${{ vars.URL_RAP }}
             else
               FRONTEND_URL=${{ vars.URL_ARN }}
+              BACKEND_URL=${{ vars.URL_ARN }}
             fi
           else
             SERVICE_NAME_BACKEND=${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}
+            SERVICE_NAME_FRONTEND=${{ vars.SERVICE_NAME_FRONTEND }}-${{ steps.set-variant.outputs.variant }}
             # in staging, frontend url is the backend url
-            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+            BACKEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_FRONTEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
           fi
           echo "Inference URL: $INFERENCE_URL"
           echo "Raw Inference URL: $RAW_INFERENCE_URL"
           echo "Frontend URL: $FRONTEND_URL"
+          echo "Backend URL: $BACKEND_URL"
           echo "INFERENCE_URL=$INFERENCE_URL" >> $GITHUB_ENV
           echo "RAW_INFERENCE_URL=$RAW_INFERENCE_URL" >> $GITHUB_ENV
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
@@ -125,6 +131,7 @@ jobs:
             VARIANT=${{ steps.set-variant.outputs.variant }}
             DB_HOST=${{ env.DB_HOST }}
             APP_FRONTEND_URL=${{ env.FRONTEND_URL }}
+            APP_BACKEND_URL=${{ env.BACKEND_URL }}
             DB_NAME=${{ steps.set-variant.outputs.variant }}
             APP_INFERENCE_MODEL_NAME=${{ vars.INFERENCE_MODEL_NAME }}-${{ steps.set-variant.outputs.variant }}
             APP_RAW_INFERENCE_MODEL_NAME=${{ vars.RAW_INFERENCE_MODEL_NAME }}
