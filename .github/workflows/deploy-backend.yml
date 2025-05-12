@@ -91,7 +91,6 @@ jobs:
           echo "Region: ${{ env.ARTIFACT_REGION }}"
           SERVICE_NAME_INFERENCE=${{ vars.SERVICE_NAME_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
           SERVICE_NAME_RAW_INFERENCE=${{ vars.SERVICE_NAME_RAW_INFERENCE }}
-          SERVICE_NAME_FRONTEND=${{ vars.SERVICE_NAME_FRONTEND }}-${{ steps.set-variant.outputs.variant }}
           echo "Service Name Inference: $SERVICE_NAME_INFERENCE"
           echo "Service Name Raw Inference: $SERVICE_NAME_RAW_INFERENCE"
           echo "Service Name Frontend: $SERVICE_NAME_FRONTEND"
@@ -104,7 +103,9 @@ jobs:
               FRONTEND_URL=${{ vars.URL_ARN }}
             fi
           else
-            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_FRONTEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+            SERVICE_NAME_BACKEND=${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}
+            # in staging, frontend url is the backend url
+            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
           fi
           echo "Inference URL: $INFERENCE_URL"
           echo "Raw Inference URL: $RAW_INFERENCE_URL"
