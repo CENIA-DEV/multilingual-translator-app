@@ -30,6 +30,7 @@ jobs:
         IMAGE_NAME: ${{ vars.IMAGE_NAME_FRONTEND }}
         VPC_NAME: ${{ vars.VPC_NAME }}
         SUBNET_NAME: ${{ vars.FRONTEND_SUBNET }}
+        SERVICE_NAME_BACKEND: ${{ vars.SERVICE_NAME_BACKEND }}
     steps:
       - name: Set variant from dispatch event or branch
         id: set-variant
@@ -64,6 +65,14 @@ jobs:
         run: |-
           echo "NEXT_PUBLIC_VARIANT=${{ steps.set-variant.outputs.variant }}" >> .env.production
           echo "NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ steps.set-ga-id.outputs.ga_id }}" >> .env.production
+          # if not production, set the api url to the backend url so we dont use relative path
+          if [ "${{ github.event.inputs.environment }}" != "PRODUCTION" ]; then
+            SERVICE_NAME_BACKEND=${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}
+            echo "SERVICE_NAME_BACKEND: ${SERVICE_NAME_BACKEND}" 
+            BACKEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+            echo "BACKEND_URL: ${BACKEND_URL}"
+            echo "NEXT_PUBLIC_API_URL=${BACKEND_URL}" >> .env.production
+          fi
       - name: Build Docker Image
         working-directory: Frontend/translator/
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
