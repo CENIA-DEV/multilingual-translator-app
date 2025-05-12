@@ -68,6 +68,10 @@ jobs:
           echo "${{ env.ENV_FILE_BACK }}" > .env
           echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
           echo "SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}" >> .env
+          echo "DB_HOST=localhost" >> .env
+          echo "APP_FRONTEND_URL=localhost:3000" >> .env
+          echo "APP_BACKEND_URL=localhost:8000" >> .env
+          echo "INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME_TEST }}" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/
         run: |

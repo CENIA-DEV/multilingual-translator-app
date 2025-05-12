@@ -134,6 +134,8 @@ jobs:
             APP_FRONTEND_URL=${{ env.FRONTEND_URL }}
             APP_BACKEND_URL=${{ env.BACKEND_URL }}
             DB_NAME=${{ steps.set-variant.outputs.variant }}
+            INVITATION_GUIDE_URL=${{ env.FRONTEND_URL }}
+            INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }}
             APP_INFERENCE_MODEL_NAME=${{ vars.INFERENCE_MODEL_NAME }}-${{ steps.set-variant.outputs.variant }}
             APP_RAW_INFERENCE_MODEL_NAME=${{ vars.RAW_INFERENCE_MODEL_NAME }}
             APP_INFERENCE_MODEL_URL=${{ env.INFERENCE_URL }}
