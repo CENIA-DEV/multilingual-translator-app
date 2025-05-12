@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+from urllib.parse import urlparse
 
 from django.utils.translation import gettext_lazy as _
 from dotenv import load_dotenv
@@ -80,10 +81,39 @@ CORS_ALLOWED_ORIGINS = [
     APP_SETTINGS.frontend_url.strip("www."),
 ]
 
+# Add CORS additional settings
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# Debug prints for CORS settings
+print(f"Frontend URL: {APP_SETTINGS.frontend_url}")
+print(f"Backend URL: {APP_SETTINGS.backend_url}")
+print(f"CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
+
+# Extract domain from backend URL for ALLOWED_HOSTS
+backend_domain = urlparse(APP_SETTINGS.backend_url).netloc
+print(f"Backend Domain: {backend_domain}")
+
 ALLOWED_HOSTS = (
-    [APP_SETTINGS.backend_url, APP_SETTINGS.backend_url.strip("www.")]
-    if not DEBUG
-    else ["*"]
+    [backend_domain] if not DEBUG else ["*"]  # Use just the domain part of the URL
 )
 
 
