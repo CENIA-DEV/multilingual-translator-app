@@ -75,42 +75,16 @@ CSRF_COOKIE_SECURE = True if os.environ.get("PRODUCTION") == "True" else False
 
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = False if DEBUG else False
 CORS_ALLOWED_ORIGINS = [
     APP_SETTINGS.frontend_url,
     APP_SETTINGS.frontend_url.strip("www."),
 ]
 
-# Add CORS additional settings
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = [
-    "DELETE",
-    "GET",
-    "OPTIONS",
-    "PATCH",
-    "POST",
-    "PUT",
-]
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-
-# Additional CORS settings
-CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
-CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
-
 # Debug prints for CORS settings
 print(f"Frontend URL: {APP_SETTINGS.frontend_url}")
 print(f"Backend URL: {APP_SETTINGS.backend_url}")
-print(f"CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
+# print(f"CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
 
 # Extract domain from backend URL for ALLOWED_HOSTS
 backend_domain = urlparse(APP_SETTINGS.backend_url).netloc
