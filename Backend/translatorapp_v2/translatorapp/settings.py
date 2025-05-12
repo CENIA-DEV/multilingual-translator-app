@@ -103,6 +103,10 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
+# Additional CORS settings
+CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
 # Debug prints for CORS settings
 print(f"Frontend URL: {APP_SETTINGS.frontend_url}")
 print(f"Backend URL: {APP_SETTINGS.backend_url}")
@@ -116,6 +120,18 @@ ALLOWED_HOSTS = (
     [backend_domain] if not DEBUG else ["*"]  # Use just the domain part of the URL
 )
 
+# Ensure CORS middleware is at the top of the middleware stack
+MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",  # Must be at the top
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -129,18 +145,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
-]
-
-MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.locale.LocaleMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 REST_FRAMEWORK = {
