@@ -68,7 +68,7 @@ jobs:
           # if not production, set the api url to the backend url so we dont use relative path
           if [ "${{ github.event.inputs.environment }}" != "PRODUCTION" ]; then
             SERVICE_NAME_BACKEND=${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}
-            echo "SERVICE_NAME_BACKEND: ${SERVICE_NAME_BACKEND}" 
+            echo "SERVICE_NAME_BACKEND: ${SERVICE_NAME_BACKEND}"
             BACKEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
             echo "BACKEND_URL: ${BACKEND_URL}"
             echo "NEXT_PUBLIC_API_URL=${BACKEND_URL}" >> .env.production

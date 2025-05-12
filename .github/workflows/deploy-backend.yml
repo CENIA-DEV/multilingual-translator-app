@@ -119,6 +119,7 @@ jobs:
           echo "INFERENCE_URL=$INFERENCE_URL" >> $GITHUB_ENV
           echo "RAW_INFERENCE_URL=$RAW_INFERENCE_URL" >> $GITHUB_ENV
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
+          echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
 
       - name: Deploy to cloud run
         uses: 'google-github-actions/deploy-cloudrun@v2'
