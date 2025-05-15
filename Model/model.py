@@ -1,4 +1,5 @@
 import logging
+import json
 from abc import ABC, abstractmethod
 import torch
 from optimum.bettertransformer import BetterTransformer
@@ -54,6 +55,8 @@ class ModelWrapper(ABC):
             torch_dtype=torch.float16,
             device_map=self._device,
         )
+        model_info = self.get_model_info()
+        self.logger.info(f"Model info: {json.dumps(model_info, indent=2)}")
         self.model.eval()
         self.logger.debug(f"Model loaded on device: {self._device}")
 
@@ -61,6 +64,31 @@ class ModelWrapper(ABC):
             self.logger.debug("Optimizing model...")
             self.optimize()
             self.logger.debug("Model optimized!")
+            
+    def get_model_info(self):
+        """
+        Returns model configuration information including model architecture,
+        version, vocabulary size, and other configuration details.
+        
+        Returns:
+            dict: A dictionary containing model configuration information
+        """
+        model_info = {
+            "model_type": self.model.config.model_type,
+            "architectures": self.model.config.architectures if hasattr(self.model.config, "architectures") else None,
+            "hidden_size": self.model.config.hidden_size,
+            "vocab_size": self.model.config.vocab_size,
+            "encoder_layers": self.model.config.encoder_layers if hasattr(self.model.config, "encoder_layers") else None,
+            "decoder_layers": self.model.config.decoder_layers if hasattr(self.model.config, "decoder_layers") else None,
+        }
+        
+        # Add any version information if available
+        if hasattr(self.model.config, "_name_or_path"):
+            model_info["name_or_path"] = self.model.config._name_or_path
+        if hasattr(self.model.config, "transformers_version"):
+            model_info["transformers_version"] = self.model.config.transformers_version
+            
+        return model_info
             
     @abstractmethod
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
