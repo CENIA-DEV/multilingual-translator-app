@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 from dotenv import load_dotenv
-from model import ModelWrapper
+from model import MadLadWrapper, ModelWrapper, NLLBModelWrapper
 from pytriton.decorators import batch, first_value, group_by_values
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig, TritonLifecyclePolicy
@@ -61,12 +61,14 @@ class _InferFuncWrapper:
         return {"translation": translations}
 
 
-def _infer_function_factory(num_copies, logger, folder_path, optimize, gpu):
+def _infer_function_factory(num_copies, logger, folder_path, optimize, gpu, model_type):
     infer_fns = []
     for _ in range(num_copies):
         logger.info(f"Loading model at {folder_path}")
         # TO DO: CHECK IF MODEL NAME IN FOLDER PATH
-        model = ModelWrapper(folder_path, logger=logger, optimize=optimize, gpu=gpu)
+
+        model_cls = NLLBModelWrapper if model_type == "nllb" else MadLadWrapper
+        model = model_cls(folder_path, logger=logger, optimize=optimize, gpu=gpu)
         logger.info("Model loaded!")
         infer_fns.append(_InferFuncWrapper(model=model, logger=logger))
     return infer_fns
@@ -89,7 +91,9 @@ def _parse_args():
         help="Model name",
     )
 
-    parser.add_argument("--optimize", action="store_true", help="Optimize model.")
+    parser.add_argument(
+        "--optimize", action="store_true", help="Optimize model.", default=False
+    )
 
     parser.add_argument(
         "--copies",
@@ -115,6 +119,13 @@ def _parse_args():
         help="Port to use",
     )
 
+    parser.add_argument(
+        "--model-type",
+        "-t",
+        type=str,
+        default="nllb",
+        choices=["nllb", "madlad"],
+    )
     return parser.parse_args()
 
 
@@ -151,6 +162,7 @@ def main():
                 folder_path=model_name,
                 optimize=args.optimize,
                 gpu=args.gpu,
+                model_type=args.model_type,
             ),
             inputs=[
                 Tensor(name="input_text", dtype=np.bytes_, shape=(1,)),

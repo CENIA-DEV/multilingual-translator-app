@@ -53,7 +53,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--text", type=str, default="Hola como estas")
     parser.add_argument("--source-lang", type=str, default="spa_Latn")
-    parser.add_argument("--target-lang", type=str, default="rap_Latn")
+    parser.add_argument("--target-lang", type=str, default="arn_Latn")
     parser.add_argument("--model-name", type=str, required=True)
     parser.add_argument("--port", type=int, default=8015)
     args = parser.parse_args()
