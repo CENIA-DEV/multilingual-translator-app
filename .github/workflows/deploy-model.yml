@@ -7,6 +7,7 @@ jobs:
   build-push-gcp:
     name: Build and Push Model to GCP
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'PRODUCTION' || 'STAGING' }}
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
         ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
