@@ -23,22 +23,7 @@ jobs:
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
-      - name: Set variant from dispatch event or branch
-        id: set-variant
-        run: |
-          # check if the variant is provided by the workflow dispatch event
-          if [ ! -z "${{ github.event.inputs.variant }}" ]; then
-            echo "variant=${{ github.event.inputs.variant }}" >> $GITHUB_OUTPUT
-          else
-            # Extract variant from branch name (e.g., main-rap -> rap)
-            VARIANT=$(echo $BRANCH | rev | cut -d'-' -f1 | rev)
-            if [[ "$VARIANT" != "rap" && "$VARIANT" != "arn" && "$VARIANT" != "raw" ]]; then
-              echo "Invalid variant: $VARIANT. Must be one of: rap, arn, raw"
-              exit 1
-            else
-              echo "variant=$VARIANT" >> $GITHUB_OUTPUT
-            fi
-          fi
+
       - name: Check out code
         uses: actions/checkout@v4
         with:
@@ -56,8 +41,7 @@ jobs:
       - name: Build Docker Image
         working-directory: Model/
         run: |
-          echo "Building docker image for variant: ${{ steps.set-variant.outputs.variant }}"
-          docker build -t ${{ steps.set-variant.outputs.variant }}:${{ github.sha }} .
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
 
       - name: Configure Docker Client # aunthenticate to rep
         run: |-
@@ -68,7 +52,7 @@ jobs:
         run: |-
           ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
-          docker tag ${{ steps.set-variant.outputs.variant }}:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
           docker push $ARTIFACT_REGISTRY_IMAGE_NAME
 
       # TODO: Uncomment this when we glocud has support for gpu
