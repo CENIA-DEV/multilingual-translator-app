@@ -1,10 +1,15 @@
 import json
 import logging
+import os
 from abc import ABC, abstractmethod
 
 import torch
+from dotenv import load_dotenv
 from optimum.bettertransformer import BetterTransformer
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
+load_dotenv()
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 nllb_language_token_map = {
     "rap_Latn": "mri_Latn",
@@ -55,6 +60,7 @@ class ModelWrapper(ABC):
             model_path,
             torch_dtype=torch.float16,
             device_map=self._device,
+            token=HF_TOKEN,
         )
         model_info = self.get_model_info()
         self.logger.info(f"Model info: {json.dumps(model_info, indent=2)}")
