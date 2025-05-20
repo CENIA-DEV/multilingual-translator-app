@@ -159,7 +159,7 @@ def main():
             infer_func=_infer_function_factory(
                 num_copies=args.copies,
                 logger=logger,
-                folder_path=model_name,
+                folder_path=args.model_name,
                 optimize=args.optimize,
                 gpu=args.gpu,
                 model_type=args.model_type,
