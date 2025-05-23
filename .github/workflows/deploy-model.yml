@@ -1,8 +1,20 @@
-name: Deploy pytriton model image
+name: Deploy model to GCP manually
 on:
-  push:
-    branches: ['main', 'dev']
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Variant language for deployment'
+        required: true
+        type: choice
+        options:
+          - rap
+          - arn
+          - raw
 
+      model_path:
+        description: 'Model path'
+        required: true
+        type: string
 jobs:
   build-push-gcp:
     name: Build and Push Model to GCP
@@ -11,11 +23,11 @@ jobs:
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
         ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
-        REP_NAME: model
-        IMAGE_NAME: pytriton
-        # SERVICE_REGION: ${{ vars.SERVICE_REGION }}
+        ARTIFACT_REGISTRY_NAME: model
+        STORAGE_URI: ${{ vars.STORAGE_URI }}
         # VPC_NAME: ${{ vars.VPC_NAME }}
         # SUBNET_NAME: ${{ vars.SUBNET_NAME }}
+        # SERVICE_REGION: ${{ vars.SERVICE_REGION }}
     steps:
       # Delete huge unnecessary tools folder
       # Running oout of memory on the runner
@@ -39,6 +51,12 @@ jobs:
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
           version: '>= 416.0.0'
+      - name: Download model
+        working-directory: Model/
+        run: |
+          MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+          echo "Using model path: $MODEL_PATH"
+          gcloud storage cp -r $MODEL_PATH .
       - name: Build Docker Image
         working-directory: Model/
         run: |
@@ -51,7 +69,7 @@ jobs:
 
       - name: Push Docker Image to Artifact Registry
         run: |-
-          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ steps.set-variant.outputs.variant }}:${{ github.sha }}
           echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
           docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
           docker push $ARTIFACT_REGISTRY_IMAGE_NAME
