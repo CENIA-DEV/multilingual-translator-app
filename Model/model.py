@@ -55,7 +55,7 @@ class ModelWrapper(ABC):
             self.logger.info("CPU mode")
             self._device = torch.device("cpu")
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, token=HF_TOKEN)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(
             model_path,
             torch_dtype=torch.float16,
