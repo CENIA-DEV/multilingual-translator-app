@@ -17,8 +17,70 @@ on:
           - STAGING
           - PRODUCTION
 jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install pre-commit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pre-commit
+      - name: Run pre-commit
+        run: |
+          pre-commit run --all-files
+
+  pytest:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      REGION: 'us-central1'
+      INSTANCE_NAME_TEST: ${{ secrets.INSTANCE_NAME_TEST }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Set up python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0.4.0'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 416.0.0'
+      - name: Install Cloud SQL Proxy
+        run: |
+          wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
+          chmod +x cloud_sql_proxy
+      - name: Start Cloud SQL Proxy
+        # the tailing & allows the proxy to run in the background so subsequent action steps can run
+        run: ./cloud_sql_proxy -instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME_TEST }}=tcp:5432 &
+      - name: 'Create env file'
+        working-directory: Backend/translatorapp_v2/
+        run: |
+          echo "${{ vars.ENV_FILE_TEST }}" > .env
+          echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
+      - name: Install dependencies
+        working-directory: Backend/translatorapp_v2/
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/base.txt
+      - name: Run pytest
+        working-directory: Backend/translatorapp_v2/
+        run: |
+          pytest
+
   build-push-gcp:
     name: Build and Push to GCP
+    needs: [pytest, pre-commit]
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
     env:
