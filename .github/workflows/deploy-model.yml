@@ -1,4 +1,4 @@
-name: Deploy nllb model manually
+name: Deploy model to GCP manually
 on:
   workflow_dispatch:
     inputs:
@@ -10,17 +10,24 @@ on:
           - rap
           - arn
           - raw
+
+      model_path:
+        description: 'Model path'
+        required: true
+        type: string
 jobs:
   build-push-gcp:
-    name: Build and Push to GCP NLLB
+    name: Build and Push Model to GCP
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'PRODUCTION' || 'STAGING' }}
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
-        REGION: ${{ vars.REGION }}
-        REP_NAME: ${{ vars.REP_NAME }}
+        ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
+        ARTIFACT_REGISTRY_NAME: model
         STORAGE_URI: ${{ vars.STORAGE_URI }}
-        VPC_NAME: ${{ vars.VPC_NAME }}
-        SUBNET_NAME: ${{ vars.SUBNET_NAME }}
+        # VPC_NAME: ${{ vars.VPC_NAME }}
+        # SUBNET_NAME: ${{ vars.SUBNET_NAME }}
+        # SERVICE_REGION: ${{ vars.SERVICE_REGION }}
     steps:
       # Delete huge unnecessary tools folder
       # Running oout of memory on the runner
@@ -49,7 +56,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            src/models/nllb/deployment/
+            Model/
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v0.4.0'
@@ -60,20 +67,13 @@ jobs:
         with:
           version: '>= 416.0.0'
       - name: Download model
-        working-directory: src/models/nllb/deployment/
+        working-directory: Model/
         run: |
-          # get the model name based on the variant
-          if [ "${{ steps.set-variant.outputs.variant }}" = "raw" ]; then
-            MODEL_NAME=${{ vars.MODEL_NAME }}
-          else
-            MODEL_NAME=${{ vars.MODEL_NAME }}-spa-${{ steps.set-variant.outputs.variant }}
-          fi
-          echo "Using model: $MODEL_NAME"
-          MODEL_PATH=${{ env.STORAGE_URI }}/${{ steps.set-variant.outputs.variant }}/$MODEL_NAME
+          MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
           echo "Using model path: $MODEL_PATH"
           gcloud storage cp -r $MODEL_PATH .
       - name: Build Docker Image
-        working-directory: src/models/nllb/deployment/
+        working-directory: Model/
         run: |
           echo "Building docker image for variant: ${{ steps.set-variant.outputs.variant }}"
           docker build -t ${{ steps.set-variant.outputs.variant }}:${{ github.sha }} .
@@ -81,11 +81,11 @@ jobs:
       - name: Configure Docker Client # aunthenticate to rep
         run: |-
           gcloud auth configure-docker --quiet
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+          gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
 
       - name: Push Docker Image to Artifact Registry
         run: |-
-          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}:${{ github.sha }}
+          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ steps.set-variant.outputs.variant }}:${{ github.sha }}
           echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
           docker tag ${{ steps.set-variant.outputs.variant }}:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
           docker push $ARTIFACT_REGISTRY_IMAGE_NAME
@@ -95,8 +95,8 @@ jobs:
       #  uses: 'google-github-actions/deploy-cloudrun@v2'
       #  with:
       #    service: nllb-${{ steps.set-variant.outputs.variant }}
-      #    image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      #    image: ${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
       #    project_id: '${{ env.PROJECT_ID }}'
-      #    region: '${{ env.REGION }}'
+      #    region: '${{ env.SERVICE_REGION }}'
       #    timeout: '5m'
       #    flags:  --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --no-cpu-throttling --port=8015 --concurrency=4 --cpu=4 --memory=16Gi --max-instances=4 --gpu 1 --gpu-type=nvidia-l4

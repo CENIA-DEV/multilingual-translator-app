@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 from dotenv import load_dotenv
-from model import ModelWrapper, NLLBModelWrapper, MadLadWrapper
+from model import MadLadWrapper, ModelWrapper, NLLBModelWrapper
 from pytriton.decorators import batch, first_value, group_by_values
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig, TritonLifecyclePolicy
@@ -66,7 +66,7 @@ def _infer_function_factory(num_copies, logger, folder_path, optimize, gpu, mode
     for _ in range(num_copies):
         logger.info(f"Loading model at {folder_path}")
         # TO DO: CHECK IF MODEL NAME IN FOLDER PATH
-        
+
         model_cls = NLLBModelWrapper if model_type == "nllb" else MadLadWrapper
         model = model_cls(folder_path, logger=logger, optimize=optimize, gpu=gpu)
         logger.info("Model loaded!")
@@ -91,7 +91,9 @@ def _parse_args():
         help="Model name",
     )
 
-    parser.add_argument("--optimize", action="store_true", help="Optimize model.", default=False)
+    parser.add_argument(
+        "--optimize", action="store_true", help="Optimize model.", default=False
+    )
 
     parser.add_argument(
         "--copies",

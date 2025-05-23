@@ -1,6 +1,7 @@
-import logging
 import json
+import logging
 from abc import ABC, abstractmethod
+
 import torch
 from optimum.bettertransformer import BetterTransformer
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
@@ -64,32 +65,44 @@ class ModelWrapper(ABC):
             self.logger.debug("Optimizing model...")
             self.optimize()
             self.logger.debug("Model optimized!")
-            
+
     def get_model_info(self):
         """
         Returns model configuration information including model architecture,
         version, vocabulary size, and other configuration details.
-        
+
         Returns:
             dict: A dictionary containing model configuration information
         """
         model_info = {
             "model_type": self.model.config.model_type,
-            "architectures": self.model.config.architectures if hasattr(self.model.config, "architectures") else None,
+            "architectures": (
+                self.model.config.architectures
+                if hasattr(self.model.config, "architectures")
+                else None
+            ),
             "hidden_size": self.model.config.hidden_size,
             "vocab_size": self.model.config.vocab_size,
-            "encoder_layers": self.model.config.encoder_layers if hasattr(self.model.config, "encoder_layers") else None,
-            "decoder_layers": self.model.config.decoder_layers if hasattr(self.model.config, "decoder_layers") else None,
+            "encoder_layers": (
+                self.model.config.encoder_layers
+                if hasattr(self.model.config, "encoder_layers")
+                else None
+            ),
+            "decoder_layers": (
+                self.model.config.decoder_layers
+                if hasattr(self.model.config, "decoder_layers")
+                else None
+            ),
         }
-        
+
         # Add any version information if available
         if hasattr(self.model.config, "_name_or_path"):
             model_info["name_or_path"] = self.model.config._name_or_path
         if hasattr(self.model.config, "transformers_version"):
             model_info["transformers_version"] = self.model.config.transformers_version
-            
+
         return model_info
-            
+
     @abstractmethod
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
         pass
@@ -116,9 +129,9 @@ class ModelWrapper(ABC):
         self.logger.debug(f"Translating sentences: {sentences}")
         self.logger.debug(f"Source lang original: {source_lang}")
         self.logger.debug(f"Target lang original: {target_lang}")
-        
+
         inputs = self.tokenize(sentences, target_lang, source_lang)
-        
+
         self.logger.debug(f"Inputs Shape: {inputs['input_ids'].shape}")
         prediction = self.model.generate(
             **inputs,
@@ -184,7 +197,8 @@ class ModelWrapper(ABC):
 
     def __call__(self, *args, **kwargs):
         return self.predict(*args, **kwargs)
-    
+
+
 class NLLBModelWrapper(ModelWrapper):
 
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str):
@@ -208,8 +222,8 @@ class NLLBModelWrapper(ModelWrapper):
         return self.tokenizer(sentences, return_tensors="pt", padding="longest").to(
             self._device
         )
-    
-    
+
+
 class MadLadWrapper(ModelWrapper):
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
         for sentence in sentences:
