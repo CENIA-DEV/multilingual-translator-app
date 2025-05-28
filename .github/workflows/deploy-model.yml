@@ -60,7 +60,7 @@ jobs:
       - name: Build Docker Image
         working-directory: Model/
         run: |
-          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker build -t model:${{ github.sha }} .
 
       - name: Configure Docker Client # aunthenticate to rep
         run: |-
@@ -69,9 +69,9 @@ jobs:
 
       - name: Push Docker Image to Artifact Registry
         run: |-
-          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ steps.set-variant.outputs.variant }}:${{ github.sha }}
+          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ github.event.inputs.model_path }}:${{ github.sha }}
           echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
+          docker tag model:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
           docker push $ARTIFACT_REGISTRY_IMAGE_NAME
 
       # TODO: Uncomment this when we glocud has support for gpu
