@@ -4,6 +4,29 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def convert_dialect_to_foreign_key(apps, schema_editor):
+    Lang = apps.get_model('main', 'Lang')
+    Dialect = apps.get_model('main', 'Dialect')
+    
+    # We need to update dialects to ids, to be then updated to the foreign key
+    
+    # Create a temporary field to store dialect IDs
+    dialect_map = {}
+    
+    # First create all Dialect objects and store their IDs
+    for lang in Lang.objects.all():
+        if lang.dialect:  # If there's an existing dialect string
+            dialect, _ = Dialect.objects.get_or_create(
+                code=lang.dialect,
+                defaults={'name': lang.dialect}
+            )
+            dialect_map[lang.id] = dialect.id
+    
+    # Now update the Lang records with the dialect IDs
+    for lang_id, dialect_id in dialect_map.items():
+        Lang.objects.filter(id=lang_id).update(dialect=dialect_id)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -47,6 +70,8 @@ class Migration(migrations.Migration):
             model_name="lang",
             name="writing",
         ),
+        # Run the data migration before changing the field type
+        migrations.RunPython(convert_dialect_to_foreign_key),
         migrations.AlterField(
             model_name="lang",
             name="dialect",

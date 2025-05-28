@@ -20,15 +20,16 @@ import { API_ENDPOINTS } from '@/app/constants';
 import ActionButton from '../actionButton/actionButton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export default function FeedbackModal(props){
 
-
+  const modelData = props.modelData
   const editingTranslation = props.editingTranslation
   const validatedSuggestion = props.validatedSuggestion
   const suggestionId = props.suggestionId
   const setEditingTranslation = props.setEditingTranslation
-
+  const { trackEvent } = useAnalytics();
   // const { toast } = useToast()
 
   const uploadSuggestion = async (suggestion) => {
@@ -39,15 +40,19 @@ export default function FeedbackModal(props){
           API_ENDPOINTS.SUGGESTIONS+'reject_translation/',
           {
             ...suggestion,
-            model_name: props.modelData.modelName,
-            model_version: props.modelData.modelVersion,
+            model_name: modelData.modelName,
+            model_version: modelData.modelVersion,
           }
         );
 
         setEditingTranslation(null);
 
-        toast("Sugerencia enviada con éxito",{
-          description: "Gracias por su sugerencia",
+        toast("Retroalimentación enviada con éxito",{
+          description: "Gracias por su retroalimentación",
+        });
+
+        trackEvent('negative_feedback_submit_success', {
+          page: 'translator'
         });
 
       }
@@ -59,6 +64,10 @@ export default function FeedbackModal(props){
         })
       }
       console.log(error.response.data)
+      trackEvent('negative_feedback_submit_error', {
+        page: 'translator',
+        error: error.response.status
+      });
     }
   } 
 
@@ -73,8 +82,12 @@ export default function FeedbackModal(props){
           }
         )
 
-        toast("Sugerencia actualizada",{
-          description: "La sugerencia ha sido actualizada correctamente",
+        toast("Retroalimentación actualizada",{
+          description: "La retroalimentación ha sido actualizada correctamente",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => console.log('Pop up cerrado'),
+          },
         })
       }
       else {
@@ -86,8 +99,12 @@ export default function FeedbackModal(props){
           }
         )
 
-        toast("Sugerencia actualizada y aceptada",{
-          description: "La sugerencia ha sido actualizada y aceptada correctamente",
+        toast("Retroalimentación actualizada y aceptada",{
+          description: "La retroalimentación ha sido actualizada y aceptada correctamente",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => console.log('Pop up cerrado'),
+          },
         }) 
 
       }
@@ -100,6 +117,10 @@ export default function FeedbackModal(props){
       if (error.response.status === 401){
         toast("Error",{
           description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => console.log('Pop up cerrado'),
+          },
         })
       }
       console.log(error.response.data)
@@ -124,13 +145,13 @@ export default function FeedbackModal(props){
     <Dialog open={!!editingTranslation} onOpenChange={() => setEditingTranslation(null)}>
     <DialogContent className='h-3/4 w-3/4 gap-y-4'>
       <DialogHeader>
-        <DialogTitle>Editar sugerencia</DialogTitle>
+        <DialogTitle>Enviar retroalimentación</DialogTitle>
         <DialogDescription>
-          <span>Puedes agregar cambios a la sugerencia aquí. Haz click en "guardar cambios" cuando termines.</span>
+          <span>¿Quieres sugerir una traducción alternativa?</span>
           <br />
           {editingTranslation && suggestionId && (
             <span>
-              Sugerencia ingresada por: {editingTranslation.user ? editingTranslation.user.email : 'Anónimo'}
+              Retroalimentación ingresada por: {editingTranslation.user ? editingTranslation.user.email : 'Anónimo'}
             </span>
           )}
         </DialogDescription>
@@ -178,7 +199,7 @@ export default function FeedbackModal(props){
         <ActionButton
           clickCallback={() => handleSaveEdit()} 
         >
-          Guardar cambios
+          Enviar
         </ActionButton>
       </DialogFooter>
       </DialogContent>

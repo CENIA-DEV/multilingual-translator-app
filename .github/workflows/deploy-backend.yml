@@ -9,6 +9,13 @@ on:
         options:
           - rap
           - arn
+      environment:
+        description: 'Environment for deployment'
+        required: true
+        type: choice
+        options:
+          - STAGING
+          - PRODUCTION
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
@@ -75,16 +82,20 @@ jobs:
     name: Build and Push to GCP
     needs: [pytest, pre-commit]
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
         SERVICE_REGION: ${{ vars.SERVICE_REGION }}
-        REGION: ${{ vars.ARTIFACT_REGION }}
-        INSTANCE_NAME: ${{ secrets.INSTANCE_NAME }}
+        DB_REGION: ${{ vars.DB_REGION }}
+        MODEL_REGION: ${{ vars.MODEL_REGION }}
+        ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
+        INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
         REP_NAME: native-translator
         IMAGE_NAME: ${{ vars.IMAGE_NAME_BACKEND }}
         DB_HOST: ${{ secrets.DB_HOST }}
         VPC_NAME: ${{ vars.VPC_NAME }}
         SUBNET_NAME: ${{ vars.BACKEND_SUBNET }}
+        ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
         PORT: 8000
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
     steps:
@@ -116,7 +127,8 @@ jobs:
           version: '>= 416.0.0'
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
-        run: echo "${{ vars.ENV_FILE_BACK }}" > .env
+        run: echo "${{ env.ENV_FILE_BACK }}" > .env
+
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
@@ -124,11 +136,11 @@ jobs:
       - name: Configure Docker Client # aunthenticate to rep
         run: |-
           gcloud auth configure-docker --quiet
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+          gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
 
       - name: Push Docker Image to Artifact Registry
         run: |-
-          ARTIFACT_REGISTRY_URL=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          ARTIFACT_REGISTRY_URL=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           echo "Artifact Registry URL: $ARTIFACT_REGISTRY_URL"
           echo "ARTIFACT_REGISTRY_URL=$ARTIFACT_REGISTRY_URL" >> $GITHUB_ENV
           docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_URL
@@ -138,24 +150,37 @@ jobs:
         id: get-urls
         run: |
           echo "Service Region: ${{ env.SERVICE_REGION }}"
-          echo "Region: ${{ env.REGION }}"
+          echo "Region: ${{ env.ARTIFACT_REGION }}"
           SERVICE_NAME_INFERENCE=${{ vars.SERVICE_NAME_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
           SERVICE_NAME_RAW_INFERENCE=${{ vars.SERVICE_NAME_RAW_INFERENCE }}
           echo "Service Name Inference: $SERVICE_NAME_INFERENCE"
           echo "Service Name Raw Inference: $SERVICE_NAME_RAW_INFERENCE"
-          INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.REGION }} --format 'value(status.url)')
-          RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.REGION }} --format 'value(status.url)')
-          if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
-            FRONTEND_URL=${{ vars.URL_RAP }}
+          INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+          RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+          if [[ "${{ github.event.inputs.environment }}" == "PRODUCTION" ]]; then
+            if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
+              # in production, both urls are the same
+              FRONTEND_URL=${{ vars.URL_RAP }}
+              BACKEND_URL=${{ vars.URL_RAP }}
+            else
+              FRONTEND_URL=${{ vars.URL_ARN }}
+              BACKEND_URL=${{ vars.URL_ARN }}
+            fi
           else
-            FRONTEND_URL=${{ vars.URL_ARN }}
+            SERVICE_NAME_BACKEND=${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}
+            SERVICE_NAME_FRONTEND=${{ vars.SERVICE_NAME_FRONTEND }}-${{ steps.set-variant.outputs.variant }}
+            # in staging, frontend url is the backend url
+            BACKEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_FRONTEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
           fi
           echo "Inference URL: $INFERENCE_URL"
           echo "Raw Inference URL: $RAW_INFERENCE_URL"
           echo "Frontend URL: $FRONTEND_URL"
+          echo "Backend URL: $BACKEND_URL"
           echo "INFERENCE_URL=$INFERENCE_URL" >> $GITHUB_ENV
           echo "RAW_INFERENCE_URL=$RAW_INFERENCE_URL" >> $GITHUB_ENV
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
+          echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
 
       - name: Deploy to cloud run
         uses: 'google-github-actions/deploy-cloudrun@v2'
@@ -168,7 +193,10 @@ jobs:
             VARIANT=${{ steps.set-variant.outputs.variant }}
             DB_HOST=${{ env.DB_HOST }}
             APP_FRONTEND_URL=${{ env.FRONTEND_URL }}
+            APP_BACKEND_URL=${{ env.BACKEND_URL }}
             DB_NAME=${{ steps.set-variant.outputs.variant }}
+            INVITATION_GUIDE_URL=${{ env.FRONTEND_URL }}
+            INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }}
             APP_INFERENCE_MODEL_NAME=${{ vars.INFERENCE_MODEL_NAME }}-${{ steps.set-variant.outputs.variant }}
             APP_RAW_INFERENCE_MODEL_NAME=${{ vars.RAW_INFERENCE_MODEL_NAME }}
             APP_INFERENCE_MODEL_URL=${{ env.INFERENCE_URL }}
@@ -176,4 +204,4 @@ jobs:
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '5m'
-          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic'
+          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }}'

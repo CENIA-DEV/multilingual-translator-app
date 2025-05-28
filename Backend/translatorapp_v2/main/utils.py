@@ -86,8 +86,8 @@ def get_prediction(src_text, src_lang, dst_lang, deployment):
         print(response["error"])
         raise Exception("Error in model prediction")
     else:
-        print("Unexpected response format")
-        raise Exception("Unexpected response format")
+        print("API responded with status code", response.status_code)
+        raise Exception("Error in model prediction")
 
 
 def translate(src_text, src_lang, dst_lang):

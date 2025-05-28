@@ -16,22 +16,23 @@ limitations under the License. */
 import { useState , useEffect} from 'react'
 import "./translator.css"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faThumbsDown , faThumbsUp , faArrowsRotate } from "@fortawesome/free-solid-svg-icons";
+import { faThumbsDown , faThumbsUp , faArrowsRotate, faArrowRightArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
+import { Button } from "@/components/ui/button";
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
 import { API_ENDPOINTS } from '../constants';
 import { VARIANT_LANG,  } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
+import { useAnalytics } from '@/hooks/useAnalytics';
 export default function Translator() {
 
   const [srcText, setSrcText] = useState('');
   const [dstText, setDstText] = useState('');
   const [srcLang, setSrcLang] = useState({
-    "name": "Castellano",
+    "name": "Español",
     "writing": "Latn",
     "code": "spa_Latn",
     "dialect": null
@@ -57,6 +58,10 @@ export default function Translator() {
   const [loadingState, setLoadingState] = useState(false);
 
   const [showDevModal, setShowDevModal] = useState(true);
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  const { trackEvent } = useAnalytics();
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -112,6 +117,11 @@ export default function Translator() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       setDstText(srcText);
       setLoadingState(false);
+      trackEvent('button_cross_lang_click', {
+        src_lang: srcLang,
+        dst_lang: dstLang,
+        page: 'translator'
+      });
     }
   };
  
@@ -156,26 +166,48 @@ export default function Translator() {
         );
 
         toast("Sugerencia enviada con éxito",{
-          description: "Gracias por su sugerencia"
+          description: "Gracias por su retroalimentación",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => console.log('Pop up cerrado'),
+    },
         });
-        
+        trackEvent('positive_feedback_submit_success', {
+          model_name: modelData.modelName,
+          model_version: modelData.modelVersion,
+          page: 'translator'
+        });
       } catch(error) {
           if (error.response.status === 401){
             toast("Error",{
               description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
+              cancel: {
+                label: 'Cerrar',
+                onClick: () => console.log('Pop up cerrado'),
+              },
             })
           }
           console.log(error) 
+          trackEvent('positive_feedback_submit_error', {
+            page: 'translator',
+            error: error.response.status
+          });
       }
     }
   };
+
+  const handleTranslate = async () => {
+    translate();
+    trackEvent('translation_button_click', {
+      page: 'translator'
+    });
+  }
 
   const handleSrcText = (text) => {
     setSrcText(text);
   }
 
   const translate = async () => {
-  
     if(!loadingState){
       if(srcText.length === 0){
         setDstText('');
@@ -183,12 +215,17 @@ export default function Translator() {
       else{
         setLoadingState(true);
         
+        const startTime = performance.now();
         try {
           // Add timer for long-running request
           let timeoutId = setTimeout(() => {
             toast("La traducción está tardando más tiempo de lo esperado...", {
               description: "Por favor, espere un momento mientras el modelo se carga",
-              duration: 20000
+              duration: 20000,
+              cancel: {
+                label: 'Cerrar',
+                onClick: () => console.log('Pop up cerrado'),
+              },
             });
           }, 5000);
           const res = await api.post(
@@ -206,19 +243,43 @@ export default function Translator() {
             modelVersion: res.data.model_version
           });
           clearTimeout(timeoutId);
-
+          const endTime = performance.now();
+          const translationTime = endTime - startTime;
+          trackEvent('translation_success', {
+            src_text: srcText.slice(0, 100),
+            dst_text: res.data.dst_text.slice(0, 100),
+            src_lang: srcLang,
+            dst_lang: dstLang,
+            model_name: res.data.model_name,
+            model_version: res.data.model_version,
+            translation_time_ms: translationTime,
+            is_timeout: translationTime > 5000,
+            is_mobile: window.innerWidth <= 850,
+            is_question: srcText.includes('?'),
+            word_count: srcText.split(/\s+/).length,
+            page: 'translator'
+          });
         } 
         catch (error) {
           console.log(error)
           if (error.response.status === 400){
             toast("Error",{
-              description: "Por favor reintente la traducción"
+              description: "Por favor reintente la traducción",
+              cancel: {
+                label: 'Cerrar',
+                onClick: () => console.log('Pop up cerrado'),
+              },
             })
+            trackEvent('translation_error', {
+              status: error.response.status,
+              page: 'translator'
+            }); 
           }
           console.log('Error in translation')
         } 
         finally {
           setLoadingState(false);
+
         }
         
       }
@@ -241,7 +302,7 @@ export default function Translator() {
     <div className="translator-container">
 
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
-      <DialogContent className='h-fit w-1/2 gap-y-4 py-5'>
+      <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-3/4'>
         <DialogHeader>
           <DialogTitle>Modelo en fase de desarrollo</DialogTitle>
         </DialogHeader>
@@ -265,13 +326,26 @@ export default function Translator() {
       />
 
       <div
-        className="translator-switch-button"
-        onClick={() => translate()}
+        className="delayed-fade-in w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white absolute max-[850px]:top-1/2 max-[850px]:left-[45px] left-1/2 top-[100px] z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]"
+        onClick={() => handleCrossLang()}
       >
         <FontAwesomeIcon
-          icon={faArrowsRotate}
-          className={`fa-2xl ${loadingState ? "fa-spin" : ""}`}
+          icon={faArrowRightArrowLeft }
+          className={`fa-xl max-[850px]:rotate-90 transform transition-all duration-300 hover:scale-110`}
           color="#0a8cde"
+        />
+      </div>
+
+      <div
+        className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]`}
+        onClick={() => handleTranslate()}
+        style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
+      >
+        <FontAwesomeIcon
+          icon={loadingState ? faArrowsRotate : faArrowRight}
+          className={`fa-2xl transform transition-all duration-300 hover:scale-110 max-[850px]:rotate-90`}
+          color="#0a8cde"
+          style={loadingState ? { animation: 'spin 1s linear infinite' } : {}}
         />
       </div>
 

@@ -26,6 +26,8 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Token ${token}`;
       }
+      config.headers['Content-Type'] = 'application/json';
+      config.headers['Accept'] = 'application/json';
       return config;
     },
     (error) => {

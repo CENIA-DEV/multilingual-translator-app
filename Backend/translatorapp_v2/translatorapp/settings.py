@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+from urllib.parse import urlparse
 
 from django.utils.translation import gettext_lazy as _
 from dotenv import load_dotenv
@@ -50,6 +51,7 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="app_")
 
     frontend_url: str
+    backend_url: str
     inference_model_name: str
     raw_inference_model_name: str
     inference_model_url: str
@@ -71,8 +73,39 @@ DEBUG = True if os.environ.get("PRODUCTION") == "False" else False
 SESSION_COOKIE_SECURE = True if os.environ.get("PRODUCTION") == "True" else False
 CSRF_COOKIE_SECURE = True if os.environ.get("PRODUCTION") == "True" else False
 
-ALLOWED_HOSTS = ["*"]
 
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True if DEBUG else False
+CORS_ALLOWED_ORIGINS = [
+    APP_SETTINGS.frontend_url,
+    APP_SETTINGS.frontend_url.strip("www."),
+]
+
+# Debug prints for CORS settings
+print(f"Frontend URL: {APP_SETTINGS.frontend_url}")
+print(f"Backend URL: {APP_SETTINGS.backend_url}")
+# print(f"CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
+
+# Extract domain from backend URL for ALLOWED_HOSTS
+backend_domain = urlparse(APP_SETTINGS.backend_url).netloc
+print(f"Backend Domain: {backend_domain}")
+
+ALLOWED_HOSTS = (
+    [backend_domain] if not DEBUG else ["*"]  # Use just the domain part of the URL
+)
+
+# Ensure CORS middleware is at the top of the middleware stack
+MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",  # Must be at the top
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
 
 # Application definition
 
@@ -87,18 +120,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
-]
-
-MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.locale.LocaleMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 REST_FRAMEWORK = {
