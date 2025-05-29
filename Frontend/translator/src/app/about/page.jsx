@@ -354,6 +354,7 @@ export default function LandingPage() {
                   <li>Estefanía Pakarati</li>
                   <li>Andrés Carvallo</li>
                   <li>Álvaro Soto</li>
+                  <li>Agustín Ghent</li>
                 </ul>
               </div>
 
@@ -379,7 +380,7 @@ export default function LandingPage() {
                   <li>Josefina Irribarra</li>
                   <li>Daniela Contreras</li>
                   <li>Constanza Cruz</li>
-                  <li>Gianizer González</li>
+                  <li>Gianyser González</li>
                   <li>Pia Cassone</li>
                   <li>Irma Palominos</li>
                 </ul>
