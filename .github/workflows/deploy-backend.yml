@@ -40,7 +40,7 @@ jobs:
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
       REGION: 'us-central1'
-      INSTANCE_NAME: ${{ secrets.INSTANCE_NAME }}
+      INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
       ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
