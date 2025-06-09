@@ -232,14 +232,14 @@ class NLLBModelWrapper(ModelWrapper):
 
 class MadLadWrapper(ModelWrapper):
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
-        for sentence, idx in enumerate(sentences):
+        for idx, sentence in enumerate(sentences):
             if target_lang in madlad_language_token_map:
                 mapped_target_lang = madlad_language_token_map[target_lang]
                 self.logger.debug(f"Target lang mapped: {mapped_target_lang}")
-                sentence = mapped_target_lang + " " + sentence
-                self.logger.debug(f"Sentence with target lang: {sentence}")
+                updated_sentence = mapped_target_lang + " " + sentence
+                self.logger.debug(f"Sentence with target lang: {updated_sentence}")
                 # update sentence for correct tokenization
-                sentences[idx] = sentence
+                sentences[idx] = updated_sentence
             else:
                 raise ValueError(f"Target language {target_lang} not supported")
         return self.tokenizer(sentences, return_tensors="pt", padding="longest").to(
