@@ -41,6 +41,7 @@ jobs:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
       REGION: 'us-central1'
       INSTANCE_NAME_TEST: ${{ secrets.INSTANCE_NAME_TEST }}
+      ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -67,7 +68,7 @@ jobs:
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
         run: |
-          echo "${{ vars.ENV_FILE_TEST }}" > .env
+          echo "${{ vars.ENV_FILE_BACK }}" > .env
           echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/
