@@ -68,7 +68,7 @@ jobs:
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
         run: |
-          echo "${{ vars.ENV_FILE_BACK }}" > .env
+          echo "${{ env.ENV_FILE_BACK }}" > .env
           echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/
