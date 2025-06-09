@@ -242,6 +242,7 @@ class MadLadWrapper(ModelWrapper):
                 sentences[idx] = updated_sentence
             else:
                 raise ValueError(f"Target language {target_lang} not supported")
+        self.logger.debug(f"TRANSLATING sentences after updating: {sentences}")
         return self.tokenizer(sentences, return_tensors="pt", padding="longest").to(
             self._device
         )
