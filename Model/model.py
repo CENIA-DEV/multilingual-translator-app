@@ -171,8 +171,16 @@ class ModelWrapper(ABC):
                 Warmup model before usage.
         """
         if tf32:
-            self.logger.info("Setting TensorFloat32 precision...")
-            torch.set_float32_matmul_precision("high")
+            device_is_cuda = (
+                hasattr(self._device, "type") and self._device.type == "cuda"
+            ) or ("cuda" == self._device)
+            if device_is_cuda and min(torch.cuda.get_device_capability()) >= 7:
+                self.logger.info("Setting TensorFloat32 precision...")
+                torch.set_float32_matmul_precision("high")
+            else:
+                self.logger.warning(
+                    "TensorFloat32 precision not available. Using default precision."
+                )
 
         if better_transformer:
             self.logger.info("Optimizing model with BetterTransformer...")
