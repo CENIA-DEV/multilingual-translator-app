@@ -36,6 +36,7 @@ jobs:
 
   pytest:
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
       REGION: 'us-central1'
