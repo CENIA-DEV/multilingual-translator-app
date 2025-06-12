@@ -94,6 +94,44 @@ ALLOWED_HOSTS = (
     [backend_domain] if not DEBUG else ["*"]  # Use just the domain part of the URL
 )
 
+# Configure logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": "debug.log",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "DEBUG" if DEBUG else "INFO",
+    },
+    "loggers": {
+        "main": {  # This matches your views.py logger
+            "handlers": ["console", "file"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "propagate": True,
+        },
+    },
+}
+
 # Ensure CORS middleware is at the top of the middleware stack
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # Must be at the top

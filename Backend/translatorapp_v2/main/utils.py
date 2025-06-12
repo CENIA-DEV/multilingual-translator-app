@@ -12,8 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import hashlib
 import json
+import logging
 from datetime import datetime, timezone
 
 import requests
@@ -21,6 +23,8 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+
+logger = logging.getLogger(__name__)
 
 
 def filter_cache(src_lang, dst_lang, cache_results):
@@ -77,16 +81,19 @@ def get_prediction(src_text, src_lang, dst_lang, deployment):
 
     # Process the response
     if "outputs" in response:
+        logger.debug(
+            f"Model prediction successful: {response['outputs'][0]['data'][0]}"
+        )
         return (
             response["outputs"][0]["data"][0],
             response["model_name"],
             response["model_version"],
         )
     elif "error" in response:
-        print(response["error"])
+        logger.error(f"Error in model prediction: {response['error']}")
         raise Exception("Error in model prediction")
     else:
-        print("API responded with status code", response.status_code)
+        logger.error("API responded with status code", response.status_code)
         raise Exception("Error in model prediction")
 
 
@@ -100,6 +107,10 @@ def translate(src_text, src_lang, dst_lang):
         f"{settings.APP_SETTINGS.raw_inference_model_url}/v2/models/"
         f"{settings.APP_SETTINGS.raw_inference_model_name}/infer"
     )
+
+    logger.debug(f"Translating {src_text} from {src_lang.code} to {dst_lang.code}")
+    logger.debug(f"Native deployment: {native_deployment}")
+    logger.debug(f"Raw deployment: {raw_deployment}")
     if src_lang.is_native and dst_lang.code != "spa_Latn":
         try:
             first_translation, model_name, model_version = get_prediction(
@@ -108,7 +119,9 @@ def translate(src_text, src_lang, dst_lang):
                 dst_lang="spa_Latn",
                 deployment=native_deployment,
             )
-            print(f"{src_lang.code} - {src_text} -> spa_Latn - {first_translation} ")
+            logger.debug(
+                f"{src_lang.code} - {src_text} -> spa_Latn - {first_translation} "
+            )
         except Exception as e:
             raise e
         try:
@@ -120,7 +133,7 @@ def translate(src_text, src_lang, dst_lang):
             )
         except Exception as e:
             raise e
-        print(
+        logger.debug(
             f"spa_Latn - {first_translation} -> {dst_lang.code} - {final_translation} "
         )
         return {
@@ -131,14 +144,16 @@ def translate(src_text, src_lang, dst_lang):
 
     elif src_lang.code != "spa_Latn" and dst_lang.is_native:
         try:
-            print("src_lang", src_lang.code)
+            logger.debug(f"src_lang: {src_lang.code}")
             first_translation, model_name, model_version = get_prediction(
                 src_text,
                 src_lang=src_lang.code,
                 dst_lang="spa_Latn",
                 deployment=raw_deployment,
             )
-            print(f"{src_lang.code} - {src_text} -> spa_Latn - {first_translation} ")
+            logger.debug(
+                f"{src_lang.code} - {src_text} -> spa_Latn - {first_translation} "
+            )
         except Exception as e:
             raise e
         try:
@@ -148,7 +163,7 @@ def translate(src_text, src_lang, dst_lang):
                 dst_lang=dst_lang.code,
                 deployment=native_deployment,
             )
-            print(
+            logger.debug(
                 f"spa_Latn - {first_translation} -> {dst_lang.code}-{final_translation}"
             )
         except Exception as e:
@@ -164,7 +179,9 @@ def translate(src_text, src_lang, dst_lang):
             translation, model_name, model_version = get_prediction(
                 src_text, src_lang.code, dst_lang.code, deployment=raw_deployment
             )
-            print(f"{src_lang.code} - {src_text} -> {dst_lang.code} - {translation} ")
+            logger.debug(
+                f"{src_lang.code} - {src_text} -> {dst_lang.code} - {translation} "
+            )
         except Exception as e:
             raise e
         return {
@@ -179,7 +196,9 @@ def translate(src_text, src_lang, dst_lang):
             translation, model_name, model_version = get_prediction(
                 src_text, src_lang.code, dst_lang.code, deployment=native_deployment
             )
-            print(f"{src_lang.code} - {src_text} -> {dst_lang.code} - {translation} ")
+            logger.debug(
+                f"{src_lang.code} - {src_text} -> {dst_lang.code} - {translation} "
+            )
         except Exception as e:
             raise e
         return {

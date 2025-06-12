@@ -36,10 +36,13 @@ jobs:
 
   pytest:
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
       REGION: 'us-central1'
-      INSTANCE_NAME_TEST: ${{ secrets.INSTANCE_NAME_TEST }}
+      INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
+      ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -62,17 +65,19 @@ jobs:
           chmod +x cloud_sql_proxy
       - name: Start Cloud SQL Proxy
         # the tailing & allows the proxy to run in the background so subsequent action steps can run
-        run: ./cloud_sql_proxy -instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME_TEST }}=tcp:5432 &
+        run: ./cloud_sql_proxy -instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }}=tcp:5432 &
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
         run: |
-          echo "${{ vars.ENV_FILE_TEST }}" > .env
+          echo "${{ env.ENV_FILE_BACK }}" > .env
+          echo "DB_HOST=localhost" >> .env
+          echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
           echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements/base.txt
+          pip install -r requirements.txt
       - name: Run pytest
         working-directory: Backend/translatorapp_v2/
         run: |
@@ -96,6 +101,7 @@ jobs:
         VPC_NAME: ${{ vars.VPC_NAME }}
         SUBNET_NAME: ${{ vars.BACKEND_SUBNET }}
         ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         PORT: 8000
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
     steps:
@@ -127,7 +133,9 @@ jobs:
           version: '>= 416.0.0'
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
-        run: echo "${{ env.ENV_FILE_BACK }}" > .env
+        run: |
+          echo "${{ env.ENV_FILE_BACK }}" > .env
+          echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
 
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/

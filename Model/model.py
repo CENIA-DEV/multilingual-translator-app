@@ -269,11 +269,17 @@ class MadLadWrapper(ModelWrapper):
         return prediction
 
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
-        for sentence in sentences:
+        for idx, sentence in enumerate(sentences):
             if target_lang in madlad_language_token_map:
-                sentence = madlad_language_token_map[target_lang] + " " + sentence
+                mapped_target_lang = madlad_language_token_map[target_lang]
+                self.logger.debug(f"Target lang mapped: {mapped_target_lang}")
+                updated_sentence = mapped_target_lang + " " + sentence
+                self.logger.debug(f"Sentence with target lang: {updated_sentence}")
+                # update sentence for correct tokenization
+                sentences[idx] = updated_sentence
             else:
                 raise ValueError(f"Target language {target_lang} not supported")
+        self.logger.debug(f"TRANSLATING sentences after updating: {sentences}")
         return self.tokenizer(sentences, return_tensors="pt", padding="longest").to(
             self._device
         )
