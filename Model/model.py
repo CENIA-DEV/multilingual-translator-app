@@ -2,11 +2,13 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
+from typing import Optional, Union
 
 import torch
 from dotenv import load_dotenv
 from optimum.bettertransformer import BetterTransformer
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers.tokenization_utils import BatchEncoding
 
 load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -113,6 +115,14 @@ class ModelWrapper(ABC):
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
         pass
 
+    @abstractmethod
+    def generate(
+        self,
+        inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
+        **kwargs,
+    ):
+        pass
+
     @torch.inference_mode()
     def predict(
         self, sentences: list[str], source_lang: str, target_lang: str
@@ -139,10 +149,7 @@ class ModelWrapper(ABC):
         inputs = self.tokenize(sentences, target_lang, source_lang)
 
         self.logger.debug(f"Inputs Shape: {inputs['input_ids'].shape}")
-        prediction = self.model.generate(
-            **inputs,
-            forced_bos_token_id=self.tokenizer.convert_tokens_to_ids(target_lang),
-        )
+        prediction = self.generate(inputs, target_lang=target_lang)
         self.logger.debug(f"Prediction Shape: {prediction.shape}")
         translation = self.tokenizer.batch_decode(prediction, skip_special_tokens=True)
         self.logger.debug(f"Translation: {translation}")
@@ -164,8 +171,16 @@ class ModelWrapper(ABC):
                 Warmup model before usage.
         """
         if tf32:
-            self.logger.info("Setting TensorFloat32 precision...")
-            torch.set_float32_matmul_precision("high")
+            device_is_cuda = (
+                hasattr(self._device, "type") and self._device.type == "cuda"
+            ) or ("cuda" == self._device)
+            if device_is_cuda and min(torch.cuda.get_device_capability()) >= 7:
+                self.logger.info("Setting TensorFloat32 precision...")
+                torch.set_float32_matmul_precision("high")
+            else:
+                self.logger.warning(
+                    "TensorFloat32 precision not available. Using default precision."
+                )
 
         if better_transformer:
             self.logger.info("Optimizing model with BetterTransformer...")
@@ -206,6 +221,20 @@ class ModelWrapper(ABC):
 
 
 class NLLBModelWrapper(ModelWrapper):
+    def generate(
+        self,
+        inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
+        target_lang: Optional[str] = None,
+    ):
+        if target_lang is None:
+            raise ValueError("`target_lang` is required in NLLB models.")
+
+        forced_bos_token_id = self.tokenizer.convert_tokens_to_ids(target_lang)
+        prediction = self.model.generate(
+            **inputs,
+            forced_bos_token_id=forced_bos_token_id,
+        )
+        return prediction
 
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str):
         source_lang = (
@@ -231,6 +260,14 @@ class NLLBModelWrapper(ModelWrapper):
 
 
 class MadLadWrapper(ModelWrapper):
+    def generate(
+        self,
+        inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
+        **kwargs,  # ignore any extra arguments like `target_lang`
+    ):
+        prediction = self.model.generate(**inputs)  # start with `<unk>` token
+        return prediction
+
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
         for sentence in sentences:
             if target_lang in madlad_language_token_map:
