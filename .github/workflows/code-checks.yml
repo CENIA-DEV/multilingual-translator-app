@@ -30,15 +30,14 @@ jobs:
           pre-commit run --all-files
 
   pytest:
-    name: Pytest tests
     runs-on: ubuntu-latest
-    environment: STAGING
+    environment: ${{ github.event.inputs.environment }}
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
-      REGION: ${{vars.DB_REGION}}
-      INSTANCE_NAME_TEST: ${{ secrets.DB_INSTANCE_NAME }}
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      REGION: 'us-central1'
+      INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
       ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -61,17 +60,14 @@ jobs:
           chmod +x cloud_sql_proxy
       - name: Start Cloud SQL Proxy
         # the tailing & allows the proxy to run in the background so subsequent action steps can run
-        run: ./cloud_sql_proxy -instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME_TEST }}=tcp:5432 &
+        run: ./cloud_sql_proxy -instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }}=tcp:5432 &
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
         run: |
           echo "${{ env.ENV_FILE_BACK }}" > .env
-          echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
-          echo "SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}" >> .env
           echo "DB_HOST=localhost" >> .env
-          echo "APP_FRONTEND_URL=localhost:3000" >> .env
-          echo "APP_BACKEND_URL=localhost:8000" >> .env
-          echo "INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME_TEST }}" >> .env
+          echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
+          echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/
         run: |
