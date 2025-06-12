@@ -30,8 +30,9 @@ jobs:
           pre-commit run --all-files
 
   pytest:
+    name: Pytest backend tests
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    environment: STAGING
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
       REGION: 'us-central1'
