@@ -34,6 +34,7 @@ class ModelWrapper(ABC):
         logger: logging.Logger,
         optimize: bool = False,
         gpu: bool = True,
+        max_new_tokens: int = 256,
     ):
         """
         Wrapper for prediction models.
@@ -67,7 +68,8 @@ class ModelWrapper(ABC):
         self.logger.info(f"Model info: {json.dumps(model_info, indent=2)}")
         self.model.eval()
         self.logger.debug(f"Model loaded on device: {self._device}")
-
+        self.max_new_tokens = max_new_tokens
+        self.logger.info(f"Max new tokens set to: {self.max_new_tokens}")
         if optimize:
             self.logger.debug("Optimizing model...")
             self.optimize()
@@ -221,6 +223,7 @@ class NLLBModelWrapper(ModelWrapper):
         prediction = self.model.generate(
             **inputs,
             forced_bos_token_id=forced_bos_token_id,
+            max_new_tokens=self.max_new_tokens,
         )
         return prediction
 
@@ -253,7 +256,9 @@ class MadLadWrapper(ModelWrapper):
         inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
         **kwargs,  # ignore any extra arguments like `target_lang`
     ):
-        prediction = self.model.generate(**inputs)  # start with `<unk>` token
+        prediction = self.model.generate(
+            **inputs, max_new_tokens=self.max_new_tokens
+        )  # start with `<unk>` token
         return prediction
 
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
