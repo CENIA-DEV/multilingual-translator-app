@@ -6,7 +6,6 @@ from typing import Optional, Union
 
 import torch
 from dotenv import load_dotenv
-from optimum.bettertransformer import BetterTransformer
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers.tokenization_utils import BatchEncoding
 
