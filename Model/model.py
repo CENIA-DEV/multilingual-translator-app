@@ -182,20 +182,7 @@ class ModelWrapper(ABC):
                 )
 
         if better_transformer:
-            self.logger.info("Optimizing model with BetterTransformer...")
-            try:
-                model = BetterTransformer.transform(
-                    self.model, keep_original_model=True
-                )
-                model.eval()
-            except ValueError:
-                self.logger.warning(
-                    "BetterTransformer not available, using original model..."
-                )
-                model = self.model
-
-            self.model = model
-            torch.cuda.empty_cache()
+            self.model = torch.compile(self.model)
         if warmup:
             n_warmup = 5
             self.logger.info("Warming up model...")
