@@ -6,7 +6,6 @@ from typing import Optional, Union
 
 import torch
 from dotenv import load_dotenv
-from optimum.bettertransformer import BetterTransformer
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers.tokenization_utils import BatchEncoding
 
@@ -35,6 +34,7 @@ class ModelWrapper(ABC):
         logger: logging.Logger,
         optimize: bool = False,
         gpu: bool = True,
+        max_new_tokens: int = 256,
     ):
         """
         Wrapper for prediction models.
@@ -68,7 +68,8 @@ class ModelWrapper(ABC):
         self.logger.info(f"Model info: {json.dumps(model_info, indent=2)}")
         self.model.eval()
         self.logger.debug(f"Model loaded on device: {self._device}")
-
+        self.max_new_tokens = max_new_tokens
+        self.logger.info(f"Max new tokens set to: {self.max_new_tokens}")
         if optimize:
             self.logger.debug("Optimizing model...")
             self.optimize()
@@ -157,7 +158,7 @@ class ModelWrapper(ABC):
         return translation
 
     def optimize(
-        self, tf32: bool = True, better_transformer: bool = True, warmup: bool = True
+        self, tf32: bool = True, torch_compile: bool = True, n_warmup: int = 5
     ):
         """
         Optimize the model for inference.
@@ -165,15 +166,15 @@ class ModelWrapper(ABC):
         Args:
             tf32 (`bool`, *optional*, defaults to `True`):
                 Use TensorFloat32 precision (if available on hardware) for calculations.
-            better_transformer (`bool`, *optional*, defaults to `True`):
-                Use BetterTransformer class from Optimum library to optimize model.
-            warmup (`bool`, *optional*, defaults to `True`):
-                Warmup model before usage.
+            torch_compile (`bool`, *optional*, defaults to `True`):
+                Use torch.compile to optimize model.
+            n_warmup (`int`, *optional*, defaults to `5`):
+                Number of warmup iterations for torch.compile.
         """
+        device_is_cuda = (
+            hasattr(self._device, "type") and self._device.type == "cuda"
+        ) or ("cuda" == self._device)
         if tf32:
-            device_is_cuda = (
-                hasattr(self._device, "type") and self._device.type == "cuda"
-            ) or ("cuda" == self._device)
             if device_is_cuda and min(torch.cuda.get_device_capability()) >= 7:
                 self.logger.info("Setting TensorFloat32 precision...")
                 torch.set_float32_matmul_precision("high")
@@ -182,23 +183,11 @@ class ModelWrapper(ABC):
                     "TensorFloat32 precision not available. Using default precision."
                 )
 
-        if better_transformer:
-            self.logger.info("Optimizing model with BetterTransformer...")
-            try:
-                model = BetterTransformer.transform(
-                    self.model, keep_original_model=True
-                )
-                model.eval()
-            except ValueError:
-                self.logger.warning(
-                    "BetterTransformer not available, using original model..."
-                )
-                model = self.model
+        if torch_compile:
+            self.logger.info("Compiling model with torch.compile...")
+            self.model = torch.compile(self.model)
 
-            self.model = model
-            torch.cuda.empty_cache()
-        if warmup:
-            n_warmup = 5
+            # in this case, warmup is necessary to initialize optimized kernels
             self.logger.info("Warming up model...")
             with torch.inference_mode():
                 for _ in range(n_warmup):
@@ -211,7 +200,8 @@ class ModelWrapper(ABC):
                         # to equal nllb and madlad models
                         forced_bos_token_id=self.tokenizer.unk_token_id,
                     )[0]
-            self.logger.info("Model warmed up!")
+            self.logger.info("Model warmed up and compiled!")
+            torch.cuda.empty_cache()
 
     def __repr__(self):
         return self.model.__repr__()
@@ -233,6 +223,7 @@ class NLLBModelWrapper(ModelWrapper):
         prediction = self.model.generate(
             **inputs,
             forced_bos_token_id=forced_bos_token_id,
+            max_new_tokens=self.max_new_tokens,
         )
         return prediction
 
@@ -265,7 +256,9 @@ class MadLadWrapper(ModelWrapper):
         inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
         **kwargs,  # ignore any extra arguments like `target_lang`
     ):
-        prediction = self.model.generate(**inputs)  # start with `<unk>` token
+        prediction = self.model.generate(
+            **inputs, max_new_tokens=self.max_new_tokens
+        )  # start with `<unk>` token
         return prediction
 
     def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):

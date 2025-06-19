@@ -61,14 +61,22 @@ class _InferFuncWrapper:
         return {"translation": translations}
 
 
-def _infer_function_factory(num_copies, logger, folder_path, optimize, gpu, model_type):
+def _infer_function_factory(
+    num_copies, logger, folder_path, optimize, gpu, model_type, max_new_tokens
+):
     infer_fns = []
     for _ in range(num_copies):
         logger.info(f"Loading model at {folder_path}")
         # TO DO: CHECK IF MODEL NAME IN FOLDER PATH
 
         model_cls = NLLBModelWrapper if model_type == "nllb" else MadLadWrapper
-        model = model_cls(folder_path, logger=logger, optimize=optimize, gpu=gpu)
+        model = model_cls(
+            folder_path,
+            logger=logger,
+            optimize=optimize,
+            gpu=gpu,
+            max_new_tokens=max_new_tokens,
+        )
         logger.info("Model loaded!")
         infer_fns.append(_InferFuncWrapper(model=model, logger=logger))
     return infer_fns
@@ -126,6 +134,12 @@ def _parse_args():
         default="nllb",
         choices=["nllb", "madlad"],
     )
+    parser.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=256,
+        help="Max new tokens to generate",
+    )
     return parser.parse_args()
 
 
@@ -163,6 +177,7 @@ def main():
                 optimize=args.optimize,
                 gpu=args.gpu,
                 model_type=args.model_type,
+                max_new_tokens=args.max_new_tokens,
             ),
             inputs=[
                 Tensor(name="input_text", dtype=np.bytes_, shape=(1,)),
