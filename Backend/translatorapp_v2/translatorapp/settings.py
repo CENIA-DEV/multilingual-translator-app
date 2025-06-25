@@ -91,7 +91,9 @@ backend_domain = urlparse(APP_SETTINGS.backend_url).netloc
 print(f"Backend Domain: {backend_domain}")
 
 ALLOWED_HOSTS = (
-    [backend_domain] if not DEBUG else ["*"]  # Use just the domain part of the URL
+    [backend_domain, backend_domain.strip("www.")]
+    if not DEBUG
+    else ["*"]  # Use just the domain part of the URL
 )
 
 # Configure logging
