@@ -74,11 +74,11 @@ jobs:
             echo "NEXT_PUBLIC_API_URL=${BACKEND_URL}" >> .env.production
           else
             if [ "${{ steps.set-variant.outputs.variant }}" = "rap" ]; then
-              echo "BACKEND_URL: ${{ vars.BACKEND_URL_RAP }}"
-              echo "NEXT_PUBLIC_API_URL=${{ vars.BACKEND_URL_RAP }}" >> .env.production
+              echo "BACKEND_URL: ${{ vars.URL_RAP }}"
+              echo "NEXT_PUBLIC_API_URL=${{ vars.URL_RAP }}" >> .env.production
             elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" ]; then
-              echo "BACKEND_URL: ${{ vars.BACKEND_URL_ARN }}"
-              echo "NEXT_PUBLIC_API_URL=${{ vars.BACKEND_URL_ARN }}" >> .env.production
+              echo "BACKEND_URL: ${{ vars.URL_ARN }}"
+              echo "NEXT_PUBLIC_API_URL=${{ vars.URL_ARN }}" >> .env.production
             fi
           fi
       - name: Build Docker Image
