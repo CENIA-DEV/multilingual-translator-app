@@ -63,9 +63,6 @@ jobs:
       - name: 'Create production env file'
         working-directory: Frontend/translator/
         run: |-
-          API_URL=$(gcloud run services describe ${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }} --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
-          echo "API URL: $API_URL"
-          echo "NEXT_PUBLIC_API_URL=$API_URL" >> .env.production
           echo "NEXT_PUBLIC_VARIANT=${{ steps.set-variant.outputs.variant }}" >> .env.production
           echo "NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ steps.set-ga-id.outputs.ga_id }}" >> .env.production
           # if not production, set the api url to the backend url so we dont use relative path
@@ -75,6 +72,14 @@ jobs:
             BACKEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
             echo "BACKEND_URL: ${BACKEND_URL}"
             echo "NEXT_PUBLIC_API_URL=${BACKEND_URL}" >> .env.production
+          else
+            if [ "${{ steps.set-variant.outputs.variant }}" = "rap" ]; then
+              echo "BACKEND_URL: ${{ vars.BACKEND_URL_RAP }}"
+              echo "NEXT_PUBLIC_API_URL=${{ vars.BACKEND_URL_RAP }}" >> .env.production
+            elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" ]; then
+              echo "BACKEND_URL: ${{ vars.BACKEND_URL_ARN }}"
+              echo "NEXT_PUBLIC_API_URL=${{ vars.BACKEND_URL_ARN }}" >> .env.production
+            fi
           fi
       - name: Build Docker Image
         working-directory: Frontend/translator/
