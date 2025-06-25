@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
+
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -51,6 +53,8 @@ from .utils import (
     send_recovery_email,
     translate,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CustomAuthToken(ObtainAuthToken):
@@ -551,12 +555,22 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return [s for s in results]
 
     def create(self, request):
+        logger.info(f"Received translation request: {request.data}")
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             src_lang = serializer.validated_data["src_lang"]
             dst_lang = serializer.validated_data["dst_lang"]
             src_text = serializer.validated_data["src_text"]
+            logger.debug(
+                f"Validated translation request: src_lang={src_lang}, "
+                f"dst_lang={dst_lang}, src_text={src_text}"
+            )
+
             if src_lang == dst_lang:  # same lang return same text
+                logger.debug(
+                    "Source and destination languages are the same, "
+                    "returning original text"
+                )
                 # this save doesnt actually save a translation pair
                 # but its necessary to format correct response
                 serializer.save(dst_text=src_text)
@@ -569,22 +583,26 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     src_lang, dst_lang, cache_results
                 )
                 if cache_result is None:
+                    logger.debug("No cache hit, calling translation model")
                     # if no cache then call model translate endpoint
                     try:
                         translation = translate(src_text, src_lang, dst_lang)
                         serializer.save(**translation)
                     except Exception as e:
-                        print(e)
+                        logger.error(f"Translation model error: {str(e)}")
                         return Response(
                             "Error en la predicción del modelo",
                             status=HTTP_400_BAD_REQUEST,
                         )
                 else:
+                    logger.debug("Cache hit found, returning cached translation")
                     # return cache
                     translation = cache_result
                     serializer.save(dst_text=cache_result, dst_lang=cache_dst_lang)
+            logger.info(f"Translation response: {serializer.data}")
             return Response(serializer.data)
         else:
+            logger.warning(f"Invalid translation request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)
 
 
