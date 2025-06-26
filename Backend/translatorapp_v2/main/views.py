@@ -34,7 +34,7 @@ from .models import (
     RequestAccess,
     TranslationPair,
 )
-from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth  
+from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
 from .serializers import (
     FullUserSerializer,
     InvitationSerializer,

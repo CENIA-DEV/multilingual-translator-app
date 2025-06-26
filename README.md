@@ -88,8 +88,8 @@ NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH = "false"
 
 The application supports dynamic translation restrictions that can be configured per deployment:
 
-- **Public Access**: Set `NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH = "false"` to allow all users to translate. The default for backend is public so no extra steps needed. 
-- **Restricted Access**: 
+- **Public Access**: Set `NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH = "false"` to allow all users to translate. The default for backend is public so no extra steps needed.
+- **Restricted Access**:
   - Frontend: Set `NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH = "true"` to require user authentication
   - Backend: Set `TRANSLATION_REQUIRES_AUTH = "True"` to require user authentication.
 
