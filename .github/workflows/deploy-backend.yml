@@ -14,6 +14,15 @@ on:
         required: false
         type: boolean
         default: false
+      model_name:
+        description: 'Model name'
+        required: true
+        type: string
+      raw_model_name:
+        description: 'Raw model name'
+        required: true
+        type: string
+        default: 'nllb-200-3.3B'
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -137,8 +146,8 @@ jobs:
             DB_NAME=${{ steps.set-variant.outputs.variant }}
             INVITATION_GUIDE_URL=${{ env.FRONTEND_URL }}
             INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }}
-            APP_INFERENCE_MODEL_NAME=${{ vars.INFERENCE_MODEL_NAME }}-${{ steps.set-variant.outputs.variant }}
-            APP_RAW_INFERENCE_MODEL_NAME=${{ vars.RAW_INFERENCE_MODEL_NAME }}
+            APP_INFERENCE_MODEL_NAME=${{ github.event.inputs.model_name }}
+            APP_RAW_INFERENCE_MODEL_NAME=${{ github.event.inputs.raw_model_name }}
             APP_INFERENCE_MODEL_URL=${{ env.INFERENCE_URL }}
             APP_RAW_INFERENCE_MODEL_URL=${{ env.RAW_INFERENCE_URL }}
           region: '${{ env.SERVICE_REGION }}'
