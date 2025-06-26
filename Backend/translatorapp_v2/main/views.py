@@ -34,7 +34,7 @@ from .models import (
     RequestAccess,
     TranslationPair,
 )
-from .roles import IsAdmin, IsNativeAdmin
+from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth  
 from .serializers import (
     FullUserSerializer,
     InvitationSerializer,
@@ -538,7 +538,7 @@ class RequestViewSet(viewsets.ModelViewSet):
 
 class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     # since we only want to implement create endpoint we inherit create mixin
-    permission_classes = [AllowAny]  # any user can translate
+    permission_classes = [TranslationRequiresAuth]  # any user can translate
     serializer_class = TranslationPairSerializer
 
     def get_queryset(self, src_lang=None, dst_lang=None, src_text=None):

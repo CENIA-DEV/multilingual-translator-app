@@ -14,7 +14,7 @@
 # limitations under the License.
 from main.models import Profile
 from rest_framework import permissions
-
+from django.conf import settings
 
 class VerifyRolePermission(permissions.BasePermission):
 
@@ -36,3 +36,16 @@ class IsAdmin(VerifyRolePermission):
 
     def __init__(self):
         super().__init__(role=Profile.ADMIN)
+        
+class TranslationRequiresAuth(permissions.BasePermission):
+    """
+    Dynamic permission that requires authentication only if TRANSLATION_REQUIRES_AUTH is True.
+    If TRANSLATION_REQUIRES_AUTH is False, allows all users.
+    """
+    def has_permission(self, request, view):
+        translation_requires_auth = getattr(settings, 'TRANSLATION_REQUIRES_AUTH', False)
+        
+        if not translation_requires_auth:
+           return True
+        
+        return request.user and request.user.is_authenticated
