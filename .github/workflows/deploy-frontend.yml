@@ -9,13 +9,6 @@ on:
         options:
           - rap
           - arn
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        type: choice
-        options:
-          - PRODUCTION
-          - STAGING
       requires_auth:
         description: 'Translation requires authentication'
         required: true
@@ -25,7 +18,7 @@ jobs:
   build-push-gcp:
     name: Build and Push to GCP
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    environment: ${{ github.ref == 'refs/heads/main' && 'PRODUCTION' || 'STAGING' }}
 
     env:
         PROJECT_ID: ${{ secrets.PROJECT_ID }}
