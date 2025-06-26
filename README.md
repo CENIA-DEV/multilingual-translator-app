@@ -80,7 +80,24 @@ Create a file named `.env` inside `Frontend/translator`. The file should look so
 ```
 NEXT_PUBLIC_API_URL = "http://127.0.0.1:8000"
 NEXT_PUBLIC_VARIANT = "<arn or rap>"
+# Optional: Control translation access
+NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH = "false"
 ```
+
+### Translation Restriction Feature
+
+The application supports dynamic translation restrictions that can be configured per deployment:
+
+- **Public Access**: Set `NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH = "false"` to allow all users to translate. The default for backend is public so no extra steps needed. 
+- **Restricted Access**: 
+  - Frontend: Set `NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH = "true"` to require user authentication
+  - Backend: Set `TRANSLATION_REQUIRES_AUTH = "True"` to require user authentication.
+
+When restricted, non-authenticated users will see:
+- Lock icon on translate button
+- Restriction notice with login option
+- Disabled feedback section
+- Toast notifications when attempting to translate
 
 # Run Frontend
 Open the `Frontend/translator` folder and run `npm run dev`
