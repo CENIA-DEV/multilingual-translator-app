@@ -35,7 +35,7 @@ def create_user(username, password, first_name, last_name, role, is_active=True)
             profile.date_of_birth = datetime.now() - timedelta(days=365 * 20)
             profile.organization = "Cenia"
             profile.save()
-        except:
+        except Profile.DoesNotExist:
             Profile.objects.create(
                 user=user,
                 role=role,
