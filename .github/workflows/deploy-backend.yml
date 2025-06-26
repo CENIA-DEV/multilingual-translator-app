@@ -16,6 +16,11 @@ on:
         options:
           - STAGING
           - PRODUCTION
+      translation_requires_auth:
+        description: 'Translation requires auth'
+        required: false
+        type: boolean
+        default: false
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -131,6 +136,7 @@ jobs:
           env_vars: |-
             SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}
             PRODUCTION=True
+            TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
             VARIANT=${{ steps.set-variant.outputs.variant }}
             DB_HOST=${{ env.DB_HOST }}
             APP_FRONTEND_URL=${{ env.FRONTEND_URL }}
