@@ -35,6 +35,14 @@ export const VARIANT_LANG = process.env.NEXT_PUBLIC_VARIANT;
 export const LANG_TITLE = VARIANT_LANG === 'rap' ? 'Rapa Nui' : 'Mapuzungun';
 export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-request', '/request-access', '/invitation' , '/about', '/translator'];
 
+// Translation restriction configuration
+export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
+
+// Helper function to check if translation is restricted for current user
+export const isTranslationRestricted = (currentUser) => {
+  return TRANSLATION_REQUIRES_AUTH && !currentUser;
+};
+
 export const ROLES = [
   {name: "Administrador", value: "NativeAdmin"},
   {name: "Equipo técnico", value: "Admin"},

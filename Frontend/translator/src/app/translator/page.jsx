@@ -13,20 +13,22 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 'use client'
 
-import { useState , useEffect} from 'react'
+import { useState , useEffect, useContext} from 'react'
 import "./translator.css"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faThumbsDown , faThumbsUp , faArrowsRotate, faArrowRightArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
+import { faThumbsDown , faThumbsUp , faArrowsRotate, faArrowRightArrowLeft, faArrowRight, faLock } from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
-import { Button } from "@/components/ui/button";
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { API_ENDPOINTS } from '../constants';
+import { API_ENDPOINTS, isTranslationRestricted } from '../constants';
 import { VARIANT_LANG,  } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { AuthContext } from '../contexts';
+import { useRouter } from 'next/navigation';
+import { Button } from "@/components/ui/button";
 export default function Translator() {
 
   const [srcText, setSrcText] = useState('');
@@ -59,9 +61,16 @@ export default function Translator() {
 
   const [showDevModal, setShowDevModal] = useState(true);
 
+  const router = useRouter()
+
   const [isMobile, setIsMobile] = useState(false);
 
   const { trackEvent } = useAnalytics();
+  const currentUser = useContext(AuthContext);
+
+  // Check if translation is restricted for current user
+  const translationRestricted = isTranslationRestricted(currentUser);
+  const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(translationRestricted);
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -203,16 +212,41 @@ export default function Translator() {
     });
   }
 
+  const handleLogin = () => {
+    router.push('/login');
+  }
+
   const handleSrcText = (text) => {
     setSrcText(text);
   }
 
   const translate = async () => {
+    if(translationRestricted){
+      setTranslationRestrictedDialogOpen(true);
+      return;
+    }
     if(!loadingState){
       if(srcText.length === 0){
         setDstText('');
       }
       else{
+        // Check if translation is restricted for current user
+        if (translationRestricted) {
+          toast("Acceso restringido", {
+            description: "Debe iniciar sesión para usar el traductor en esta versión",
+            cancel: {
+              label: 'Iniciar sesión',
+              onClick: () => handleLogin(),
+            },
+          });
+          trackEvent('translation_restricted_access', {
+            page: 'translator',
+            src_lang: srcLang,
+            dst_lang: dstLang
+          });
+          return;
+        }
+
         setLoadingState(true);
         
         const startTime = performance.now();
@@ -291,12 +325,18 @@ export default function Translator() {
   }
 
   useEffect(() => {
+    // Don't auto-translate if translation is restricted and user is not authenticated
+    if (translationRestricted) {
+      setTranslationRestrictedDialogOpen(true);
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
       translate();
     }, 1500);
 
     return () => clearTimeout(timeoutId);
-  }, [srcText, srcLang, dstLang]);
+  }, [srcText, srcLang, dstLang, translationRestricted]);
 
   return (
     <div className="translator-container">
@@ -316,6 +356,30 @@ export default function Translator() {
         </div>
         </DialogContent>
       </Dialog>
+      <Dialog open={translationRestrictedDialogOpen} onOpenChange={setTranslationRestrictedDialogOpen}>
+      <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-3/4'>
+        <DialogHeader>
+          <DialogTitle>Acceso restringido</DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          <p>
+            El traductor se encuentra en una fase preliminar de prueba por lo que 
+            debe <strong>iniciar sesión</strong> para usar el traductor en esta versión.
+          </p>
+        </div>
+        <div className="flex justify-center">
+          <Button 
+            className='bg-[#068cdc1a] 
+                text-default text-xs font-bold 
+                hover:bg-default hover:text-white' 
+            onClick={() => handleLogin()}
+          >
+            Iniciar sesión
+          </Button>
+        </div>
+        </DialogContent>
+      </Dialog>
+      
       <Card
         side={"left"}
         srcText={srcText}
@@ -337,14 +401,14 @@ export default function Translator() {
       </div>
 
       <div
-        className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]`}
+        className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${translationRestricted ? 'opacity-50' : ''}`}
         onClick={() => handleTranslate()}
         style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
       >
         <FontAwesomeIcon
-          icon={loadingState ? faArrowsRotate : faArrowRight}
-          className={`fa-2xl transform transition-all duration-300 hover:scale-110 max-[850px]:rotate-90`}
-          color="#0a8cde"
+          icon={loadingState ? faArrowsRotate : (translationRestricted ? faLock : faArrowRight)}
+          className={`fa-2xl transform transition-all duration-300 hover:scale-110 max-[850px]:rotate-90 ${translationRestricted ? 'opacity-50' : ''}`}
+          color={translationRestricted ? "#666" : "#0a8cde"}
           style={loadingState ? { animation: 'spin 1s linear infinite' } : {}}
         />
       </div>
@@ -359,19 +423,23 @@ export default function Translator() {
 
       <div className="translator-footer">
 
-        <strong>¿Qué te ha parecido esta traducción?</strong>
+        {translationRestricted ? (<></>) : (
+          <>
+            <strong>¿Qué te ha parecido esta traducción?</strong>
 
-        <FontAwesomeIcon
-          icon={faThumbsUp}
-          size="lg"
-          onClick={() => handlePositiveFeedback()}
-        />
+            <FontAwesomeIcon
+              icon={faThumbsUp}
+              size="lg"
+              onClick={() => handlePositiveFeedback()}
+            />
 
-        <FontAwesomeIcon
-          icon={faThumbsDown}
-          size="lg"
-          onClick={() => handleNegativeFeedback()}
-        />
+            <FontAwesomeIcon
+              icon={faThumbsDown}
+              size="lg"
+              onClick={() => handleNegativeFeedback()}
+            />
+          </>
+        )}
 
       </div>
 

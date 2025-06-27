@@ -273,3 +273,8 @@ EMAIL_USE_SSL = False
 INVITATION_GUIDE_URL = os.environ.get("INVITATION_GUIDE_URL")
 SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL")
 VARIANT = os.environ.get("VARIANT")
+
+# Convert string environment variable to boolean
+TRANSLATION_REQUIRES_AUTH = (
+    os.environ.get("TRANSLATION_REQUIRES_AUTH", "false").lower() == "true"
+)

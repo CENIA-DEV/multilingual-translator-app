@@ -15,15 +15,17 @@
 from unittest.mock import patch
 
 import pytest
+from django.test import override_settings
 from fixtures import api_client, create_languages, mock_get_prediction, user_auth
 from main.models import TranslationPair
 from main.serializers import LanguageSerializer
 from unittest.mock import call, ANY
 
-# 1. translate - Success (No Cache Hit)
+# 1. translate - base2native - Success (No Cache Hit)
 @pytest.mark.django_db
-def test_translate_spanish_to_rapanui(
-    api_client, user_auth, create_languages, mock_get_prediction
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_spanish_to_rapanui_no_auth_required(
+    api_client, create_languages, mock_get_prediction
 ):
     
     english, spanish, rapanui, french = create_languages
@@ -42,8 +44,10 @@ def test_translate_spanish_to_rapanui(
     assert response.data["dst_text"] == "Iorana"
     mock_get_prediction.assert_called_once_with("Hola", spanish.code, rapanui.code, deployment=ANY)
         
+# 2. translate - native2base - Success (No Cache Hit)
 @pytest.mark.django_db
-def test_translate_rapanui_to_spanish(api_client, user_auth, create_languages, mock_get_prediction):
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_rapanui_to_spanish_no_auth_required(api_client, create_languages, mock_get_prediction):
     english, spanish, rapanui, french = create_languages
 
     url = "/api/translate/"
@@ -58,8 +62,10 @@ def test_translate_rapanui_to_spanish(api_client, user_auth, create_languages, m
     assert response.data["dst_text"] == "Hola"
     mock_get_prediction.assert_called_once_with("Iorana", rapanui.code, spanish.code, deployment=ANY)
     
+# 3. translate - any2native - Success (No Cache Hit)
 @pytest.mark.django_db
-def test_translate_french_to_rapanui(api_client, user_auth, create_languages, mock_get_prediction):
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_french_to_rapanui_no_auth_required(api_client, create_languages, mock_get_prediction):
     english, spanish, rapanui, french = create_languages
     
     url = "/api/translate/"
@@ -78,9 +84,10 @@ def test_translate_french_to_rapanui(api_client, user_auth, create_languages, mo
         call("Hola", src_lang=spanish.code, dst_lang=rapanui.code, deployment=ANY)
     ])
 
-    
+# 4. translate - native2any - Success (No Cache Hit)
 @pytest.mark.django_db
-def test_translate_rapanui_to_french(api_client, user_auth, create_languages, mock_get_prediction):
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_rapanui_to_french_no_auth_required(api_client, create_languages, mock_get_prediction):
     english, spanish, rapanui, french = create_languages
 
     url = "/api/translate/"
@@ -99,8 +106,11 @@ def test_translate_rapanui_to_french(api_client, user_auth, create_languages, mo
         call("Hola", src_lang=spanish.code, dst_lang=french.code, deployment=ANY)
     ])
 
+
+# 5. translate - any2any - Success (No Cache Hit)
 @pytest.mark.django_db
-def test_translate_french_to_english(api_client, user_auth, create_languages, mock_get_prediction):
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_french_to_english_no_auth_required(api_client, create_languages, mock_get_prediction):
     english, spanish, rapanui, french = create_languages
     
     url = "/api/translate/"
@@ -115,10 +125,11 @@ def test_translate_french_to_english(api_client, user_auth, create_languages, mo
     assert response.data["dst_text"] == "Hello"
     mock_get_prediction.assert_called_once_with("Bonjour", french.code, english.code, deployment=ANY)
 
-# 2. translate - Success (Cache Hit)
+# 6. translate - Success (Cache Hit)
 @pytest.mark.django_db
-def test_translate_success_cache_hit(
-    api_client, create_languages, mock_get_prediction
+@override_settings(TRANSLATION_REQUIRES_AUTH=True)
+def test_translate_success_cache_hit_user_auth_required(
+    api_client, user_auth, create_languages, mock_get_prediction
 ):
     # assert no user auth needed
     english, spanish, rapanui, french = create_languages
@@ -139,14 +150,31 @@ def test_translate_success_cache_hit(
     }
 
     response = api_client.post(url, data, format="json")
-    print(response.data)
     assert response.status_code == 200
     assert response.data["dst_text"] == "Hola"
     mock_get_prediction.assert_not_called()  # translate function not called -> cache hit
 
-
-# 3. translate - Same Language
+# 7. translate - Fail (Cache Hit - Unauthorized)
 @pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=True)
+def test_translate_success_cache_hit_auth_required(
+    api_client, create_languages, mock_get_prediction
+):
+    english, spanish, rapanui, french = create_languages
+    url = "/api/translate/"
+    data = {
+        "src_text": "hello",  # try lower case
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 401 #unauthorized
+    
+
+
+# 8. translate - Same Language
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=True)
 def test_translate_same_language(api_client, user_auth, create_languages):
     english, _, _, _ = create_languages
 
@@ -165,8 +193,9 @@ def test_translate_same_language(api_client, user_auth, create_languages):
     )  # Source and destination text should be the same
 
 
-# 4. translate - Invalid Data
+# 9. translate - Invalid Data
 @pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=True)
 def test_translate_invalid_data(api_client, user_auth, create_languages):
     _, spanish, _, _ = create_languages
     url = "/api/translate/"
@@ -179,3 +208,63 @@ def test_translate_invalid_data(api_client, user_auth, create_languages):
     print(response.data)
     assert response.status_code == 400
     assert "src_lang" in response.data
+
+
+# Additional tests for permission behavior
+
+# 10. translate - Anonymous User - No Auth Required
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_anonymous_user_when_auth_not_required(api_client, create_languages, mock_get_prediction):
+    """Test that anonymous users can translate when TRANSLATION_REQUIRES_AUTH=False."""
+    english, spanish, _, _ = create_languages
+
+    url = "/api/translate/"
+    data = {
+        "src_text": "Hello",
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Hola"
+    mock_get_prediction.assert_called_once()
+
+
+# 11. translate - Anonymous User - Auth Required
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=True)
+def test_translate_anonymous_user_when_auth_required(api_client, create_languages):
+    """Test that anonymous users cannot translate when TRANSLATION_REQUIRES_AUTH=True."""
+    english, spanish, _, _ = create_languages
+
+    url = "/api/translate/"
+    data = {
+        "src_text": "Hello",
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 401  # Unauthorized
+
+
+# 12. translate - Authenticated User - Auth Required
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=True)
+def test_translate_authenticated_user_when_auth_required(api_client, user_auth, create_languages, mock_get_prediction):
+    """Test that authenticated users can translate when TRANSLATION_REQUIRES_AUTH=True."""
+    english, spanish, _, _ = create_languages
+
+    url = "/api/translate/"
+    data = {
+        "src_text": "Hello",
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Hola"
+    mock_get_prediction.assert_called_once()
