@@ -25,6 +25,7 @@ import { API_ENDPOINTS, isTranslationRestricted } from '../constants';
 import { VARIANT_LANG,  } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { AuthContext } from '../contexts';
 import { useRouter } from 'next/navigation';
@@ -58,6 +59,7 @@ export default function Translator() {
   const [modelData, setModelData] = useState(null);
 
   const [loadingState, setLoadingState] = useState(false);
+  const [copyReady, setCopyReady] = useState(false);
 
   const [showDevModal, setShowDevModal] = useState(true);
 
@@ -220,6 +222,27 @@ export default function Translator() {
     setSrcText(text);
   }
 
+  const handleCopyText = async () => {
+    if (dstText && dstText.length > 0) {
+      try {
+        await navigator.clipboard.writeText(dstText);
+        setCopyReady(true);
+        setTimeout(() => {
+          setCopyReady(false);
+        }, 2000);
+      }
+      catch (error) {
+        toast("Error al copiar", {
+          description: "No se pudo copiar el texto al portapapeles",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => console.log('Pop up cerrado'),
+          },
+        });
+      }
+    }
+  } 
+
   const translate = async () => {
     if(translationRestricted){
       setTranslationRestrictedDialogOpen(true);
@@ -230,22 +253,6 @@ export default function Translator() {
         setDstText('');
       }
       else{
-        // Check if translation is restricted for current user
-        if (translationRestricted) {
-          toast("Acceso restringido", {
-            description: "Debe iniciar sesión para usar el traductor en esta versión",
-            cancel: {
-              label: 'Iniciar sesión',
-              onClick: () => handleLogin(),
-            },
-          });
-          trackEvent('translation_restricted_access', {
-            page: 'translator',
-            src_lang: srcLang,
-            dst_lang: dstLang
-          });
-          return;
-        }
 
         setLoadingState(true);
         
@@ -380,46 +387,50 @@ export default function Translator() {
         </DialogContent>
       </Dialog>
       
-      <Card
-        side={"left"}
-        srcText={srcText}
-        lang={srcLang}
-        handleSrcText={handleSrcText}
-        handleSrcLang={handleSrcLang}
-        handleLangModalBtn={handleLangModalBtnLeft}
-      />
-
-      <div
-        className="delayed-fade-in w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white absolute max-[850px]:top-1/2 max-[850px]:left-[45px] left-1/2 top-[100px] z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]"
-        onClick={() => handleCrossLang()}
-      >
-        <FontAwesomeIcon
-          icon={faArrowRightArrowLeft }
-          className={`fa-xl max-[850px]:rotate-90 transform transition-all duration-300 hover:scale-110`}
-          color="#0a8cde"
+      <TooltipProvider>
+        <Card
+          side={"left"}
+          srcText={srcText}
+          lang={srcLang}
+          handleSrcText={handleSrcText}
+          handleSrcLang={handleSrcLang}
+          handleLangModalBtn={handleLangModalBtnLeft}
         />
-      </div>
 
-      <div
-        className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${translationRestricted ? 'opacity-50' : ''}`}
-        onClick={() => handleTranslate()}
-        style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
-      >
-        <FontAwesomeIcon
-          icon={loadingState ? faArrowsRotate : (translationRestricted ? faLock : faArrowRight)}
-          className={`fa-2xl transform transition-all duration-300 hover:scale-110 max-[850px]:rotate-90 ${translationRestricted ? 'opacity-50' : ''}`}
-          color={translationRestricted ? "#666" : "#0a8cde"}
-          style={loadingState ? { animation: 'spin 1s linear infinite' } : {}}
+        <div
+          className="delayed-fade-in w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white absolute max-[850px]:top-1/2 max-[850px]:left-[45px] left-1/2 top-[100px] z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]"
+          onClick={() => handleCrossLang()}
+        >
+          <FontAwesomeIcon
+            icon={faArrowRightArrowLeft }
+            className={`fa-xl max-[850px]:rotate-90 transform transition-all duration-300 hover:scale-110`}
+            color="#0a8cde"
+          />
+        </div>
+
+        <div
+          className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${translationRestricted ? 'opacity-50' : ''}`}
+          onClick={() => handleTranslate()}
+          style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
+        >
+          <FontAwesomeIcon
+            icon={loadingState ? faArrowsRotate : (translationRestricted ? faLock : faArrowRight)}
+            className={`fa-2xl transform transition-all duration-300 hover:scale-110 max-[850px]:rotate-90 ${translationRestricted ? 'opacity-50' : ''}`}
+            color={translationRestricted ? "#666" : "#0a8cde"}
+            style={loadingState ? { animation: 'spin 1s linear infinite' } : {}}
+          />
+        </div>
+
+        <Card
+          side={"right"}
+          dstText={dstText}
+          lang={dstLang}
+          handleDstLang={handleDstLang}
+          handleLangModalBtn={handleLangModalBtnRight}
+          handleCopyText={handleCopyText}
+          copyReady={copyReady}
         />
-      </div>
-
-      <Card
-        side={"right"}
-        dstText={dstText}
-        lang={dstLang}
-        handleDstLang={handleDstLang}
-        handleLangModalBtn={handleLangModalBtnRight}
-      />
+      </TooltipProvider>
 
       <div className="translator-footer">
 

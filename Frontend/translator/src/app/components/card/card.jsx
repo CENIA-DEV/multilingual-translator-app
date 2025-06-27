@@ -13,12 +13,20 @@
 // limitations under the License.
 'use client'
 
-import "./card.css"
 import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
 import { TypeAnimation } from "react-type-animation";
 import Image from "next/image";
 import { VARIANT_LANG, LANG_TITLE } from "@/app/constants";
+import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { faCopy, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
   const side = props.side;
@@ -27,16 +35,32 @@ export default function Card(props) {
   const handleSrcText = props.handleSrcText;
   const dstText = props.dstText;
   const srcText = props.srcText;
+  const handleCopyText = props.handleCopyText;
+  const copyReady = props.copyReady;
 
   return(
-    <div className={side === 'left'? "card-container-left" : "card-container-right"} 
+    <div 
+      className={`w-[50dvw] h-[100dvh] flex flex-col items-center relative ${
+        side === 'left' 
+          ? 'bg-gradient-to-b from-white to-white/10 bg-bottom bg-no-repeat bg-contain bg-white rounded-r-[30px] shadow-[0px_0_70px_rgba(0,0,0,0.50)] z-[1] animate-[card-slide-in-left_1.5s_cubic-bezier(0.390,0.575,0.565,1.000)_0.1s_both]' 
+          : 'bg-gradient-to-b from-[rgb(10,141,222,1)] to-[rgba(10,141,222,0.1)] bg-bottom bg-no-repeat bg-contain z-0 animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]'
+      }`}
       style={ side === 'left'? {backgroundImage: `url('/images/${VARIANT_LANG}-white.png')`} : {backgroundImage: `url('/images/${VARIANT_LANG}-2-blue.png')`}}
     >
 
-      <div className={side === 'left'? "card-header-left" : "card-header-right"}>
+      <div className={`flex h-[70px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
+        side === 'left' ? '' : 'w-full'
+      }`}>
 
         {side === 'left'?
-            <Image src={`/logo-${VARIANT_LANG}.png`} alt={`logo-${LANG_TITLE}`} priority={false} width={100} height={100} style={{objectFit: "contain"}}/>
+            <Image 
+              src={`/logo-${VARIANT_LANG}.png`} 
+              alt={`logo-${LANG_TITLE}`} 
+              priority={false} 
+              width={100} 
+              height={100} 
+              className="m-[15px_30px] h-[50px] object-contain"
+            />
             :
             <></>
           }
@@ -57,22 +81,39 @@ export default function Card(props) {
       />
 
       {side === 'left'?
-        <textarea
+        <Textarea
           value={srcText}
           placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
           onChange={e => handleSrcText(e.target.value)}
-          className="card-textbox-left"
+          className="mt-[15px] w-[calc(100%-80px)] h-[calc(80%-80px)] border-none resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] focus-visible:ring-0"
         /> 
         :
-        <TypeAnimation
-          key={dstText}
-          wrapper="span"
-          cursor={false}
-          speed={70}
-          deletionSpeed={70}
-          sequence={[dstText]}
-          className="card-textbox-right"
-        />
+        <>
+          <div className="flex flex-row w-[calc(100%-80px)] mt-[15px]">
+            <Textarea
+              key={dstText}
+              wrapper="span"
+              cursor={false}
+              speed={70}
+              deletionSpeed={70}
+            value={dstText}
+              className="w-[calc(100%-80px)] h-[calc(80%-80px)] border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
+            />
+              {dstText && dstText.length > 0 && (
+                <Tooltip delayDuration={1000} >
+                  <TooltipTrigger asChild>
+                  <Button variant="ghost" onClick={handleCopyText}>
+                  <FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
+                  </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-default border-white text-white rounded-full border-2">
+                    <p>Copiar traducción</p>
+                  </TooltipContent>
+                </Tooltip>
+            
+          )}
+          </div>
+        </>
       }
       
     </div>
