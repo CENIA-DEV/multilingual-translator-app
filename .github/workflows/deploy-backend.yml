@@ -45,6 +45,14 @@ jobs:
         PORT: 8000
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
     steps:
+      - name: Set environment
+        id: set-environment
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment=PRODUCTION" >> $GITHUB_OUTPUT
+          else
+            echo "environment=STAGING" >> $GITHUB_OUTPUT
+          fi
       - name: Set variant from dispatch event or branch
         id: set-variant
         run: |
@@ -105,7 +113,7 @@ jobs:
           echo "Service Name Raw Inference: $SERVICE_NAME_RAW_INFERENCE"
           INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
           RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
-          if [[ "${{ github.event.inputs.environment }}" == "PRODUCTION" ]]; then
+          if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
             if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
               # in production, both urls are the same
               FRONTEND_URL=${{ vars.URL_RAP }}
