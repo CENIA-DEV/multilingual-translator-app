@@ -147,6 +147,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def create_by_invitation(self, request):
         form = request.data.copy()
+        print(form)
         token = form.pop("token")
         # hashed_token = get_hashed_token(token)
         invitation = get_object_or_404(InvitationToken.objects.all(), token=token)
@@ -154,7 +155,10 @@ class UserViewSet(viewsets.ModelViewSet):
         if invitation.is_expired():
             invitation.delete()
             return Response({"detail": "Token is expired"}, status=HTTP_400_BAD_REQUEST)
-        form["profile"]["role"] = invitation.role  # set role from invitation
+        # set role from invitation in form profile for serializer
+        profile = form.get("profile", {})
+        profile["role"] = invitation.role
+        form["profile"] = profile
         serializer = self.get_serializer(data=form)
         # Perform validation, but don't raise an exception yet. Able to reactivate user
         if not serializer.is_valid():
