@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react"
-import { API_ENDPOINTS, REQUEST_ACCESS_REASONS, VARIANT_LANG } from '../constants';
+import { API_ENDPOINTS, REQUEST_ACCESS_REASONS, LANG_TITLE } from '../constants';
 import { toast } from "sonner";
 
 export default function RequestAccess(){
@@ -169,7 +169,7 @@ export default function RequestAccess(){
                 Solicitud enviada
               </h2>
               <span className="text-sm ">
-              Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la Academia de la Lengua {VARIANT_LANG == 'rap' ? 'Rapa Nui' : 'Mapuzungun'}. Una vez aceptada tu solicitud se te enviará un correo confirmando aquello junto a un enlace para que puedas registrar tu cuenta.
+              Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la Academia de la Lengua {LANG_TITLE}. Una vez aceptada tu solicitud se te enviará un correo confirmando aquello junto a un enlace para que puedas registrar tu cuenta.
               </span>
             </div>
           </>

@@ -20,7 +20,7 @@ import ActionButton from "../../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff , ChevronDown } from "lucide-react"
 import api from "@/app/api";
-import { API_ENDPOINTS } from "@/app/constants";
+import { API_ENDPOINTS, LANG_TITLE } from "@/app/constants";
 import DatePicker from "../../components/datePicker/datePicker"
 
 export default function Invitation({params}){
@@ -61,31 +61,24 @@ export default function Invitation({params}){
 
   const handleSubmit = async () => {
     try {
+      const profileData = {
+        date_of_birth: dateOfBirth.toISOString().split("T")[0],
+        proficiency: languageProficiency
+      };
+
       if(organization){
-        await api.post(API_ENDPOINTS.USERS + "create_by_invitation/", {
-          username: email,
-          email: email,
-          first_name: firstName,
-          last_name: lastName,
-          password: password,
-          organization: organization,
-          proficiency: languageProficiency,
-          date_of_birth: dateOfBirth.toISOString().split("T")[0],
-          token: invitationtoken,
-        });
+        profileData.organization = organization;
       }
-      else{
-        await api.post(API_ENDPOINTS.USERS + "create_by_invitation/", {
-          username: email,
-          email: email,
-          first_name: firstName,
-          last_name: lastName,
-          password: password,
-          proficiency: languageProficiency,
-          date_of_birth: dateOfBirth.toISOString().split("T")[0],
-          token: invitationtoken,
-        });
-      }
+
+      await api.post(API_ENDPOINTS.USERS + "create_by_invitation/", {
+        username: email,
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        password: password,
+        profile: profileData,
+        token: invitationtoken,
+      });
       
       router.push('/login');
 
@@ -175,7 +168,7 @@ export default function Invitation({params}){
             Crea tu cuenta
           </h2>
           <span>
-            ¡Felicidades! Has recibido una invitación para acceder al sistema de traducción Rapa Nui
+              ¡Felicidades! Has recibido una invitación para acceder al sistema de traducción {LANG_TITLE}
           </span>
         </div>
 
@@ -274,7 +267,7 @@ export default function Invitation({params}){
               htmlFor="reason"
               className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
             >
-              ¿Cuál es tu nivel de manejo de la lengua Rapa Nui?
+              ¿Cuál es tu nivel de manejo de la lengua {LANG_TITLE}?
             </label>
 
             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />

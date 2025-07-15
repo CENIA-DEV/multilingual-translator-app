@@ -22,7 +22,7 @@ import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
 import { API_ENDPOINTS, isTranslationRestricted } from '../constants';
-import { VARIANT_LANG,  } from "@/app/constants";
+import { VARIANT_LANG  } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
