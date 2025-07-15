@@ -22,7 +22,7 @@ import { Eye, EyeOff , ChevronDown } from "lucide-react"
 import api from "@/app/api";
 import { API_ENDPOINTS, LANG_TITLE } from "@/app/constants";
 import DatePicker from "../../components/datePicker/datePicker"
-
+import { toast } from "sonner";
 export default function Invitation({params}){
 
   const router = useRouter();
@@ -79,13 +79,25 @@ export default function Invitation({params}){
         profile: profileData,
         token: invitationtoken,
       });
+
+      toast("Cuenta creada con éxito",{
+        description: "Ahora puedes iniciar sesión",
+        cancel: {
+          label: 'Cerrar',
+        },
+      });ß
       
       router.push('/login');
 
     } 
     catch (error) {
       console.log('Error registering user');
-      setErrorMessage('Faltan campos por completar')
+      toast("Error al crear cuenta",{
+        description: "Por favor, intente nuevamente",
+        cancel: {
+          label: 'Cerrar',
+        },
+      });
     }
   }
   
@@ -109,7 +121,7 @@ export default function Invitation({params}){
             setOrganization(res.data.organization);
           }
           else{
-            setOrganization("Ninguna");
+            setOrganization(null);
           }
           
         }
@@ -233,8 +245,8 @@ export default function Invitation({params}){
               <input
                 id="organization"
                 type="text"
-                value={organization}
-                disabled={organization === 'Ninguna'}
+                value={organization ? organization : 'Ninguna'}
+                disabled={!organization}
                 onChange={(e) => setOrganization(e.target.value)}
                 className="block h-full px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed appearance-none focus:outline-none focus:ring-0 focus:border-default peer"
                 placeholder=" "
