@@ -231,10 +231,11 @@ def send_invite_email(invited_by_user, user_email, invitation_token):
 
     email_without_domain = user_email.partition("@")[0].strip()
     name = email_without_domain[0].upper() + email_without_domain[1:]
-
+    lang_name = "Rapa Nui" if settings.VARIANT == "rap" else "Mapuzungun"
     # Define the context variables
     context = {
         "name": name,
+        "lang_name": lang_name,
         "invite_sender_name": invited_by,
         "support_email": settings.SUPPORT_EMAIL,
         "guide_url": settings.INVITATION_GUIDE_URL,
@@ -243,12 +244,10 @@ def send_invite_email(invited_by_user, user_email, invitation_token):
     }
 
     # Render the template with the context
-    # TO DO: load the template that corresponds to os.environ.get("VARIANT")
-    html_content = render_to_string("invitation_template_rap.html", context)
+    html_content = render_to_string("invitation_template.html", context)
     text_content = strip_tags(html_content)  # Convert HTML to plain text
-    subject_lang = "Rapa Nui" if settings.VARIANT == "rap" else "Mapuzungun"
     subject = f"{invited_by} te ha invitado a usar el \
-                sistema de traducción automática {subject_lang} - español"
+                sistema de traducción automática {lang_name} - Español"
     from_email = None  # will be loaded from the environment varible
 
     # Create the email
