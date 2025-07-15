@@ -84,20 +84,32 @@ export default function Invitation({params}){
         description: "Ahora puedes iniciar sesión",
         cancel: {
           label: 'Cerrar',
+          onClick: () => console.log('Cerrado')
         },
-      });ß
+      });
       
       router.push('/login');
 
     } 
     catch (error) {
-      console.log('Error registering user');
-      toast("Error al crear cuenta",{
-        description: "Por favor, intente nuevamente",
-        cancel: {
-          label: 'Cerrar',
-        },
-      });
+      if (error.status === 404){
+        toast("Su token de invitación ha expirado",{
+          description: "Por favor, solicite una nueva invitación",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => router.push('/request-access')
+          },
+        });
+      }
+      else {
+        toast("Error al crear cuenta",{
+          description: "Por favor, intente nuevamente",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => router.push('/request-access')
+          },
+        });
+      }
     }
   }
   
@@ -128,13 +140,25 @@ export default function Invitation({params}){
       } 
       catch (error) {
         if (error.status === 404) {
+          toast("Su token de invitación ha expirado",{
+            description: "Por favor, solicite una nueva invitación",
+            cancel: {
+              label: 'Cerrar',
+              onClick: () => router.push('/request-access')
+            },
+          });
           console.log('Token not found')
         } 
         else if (error.status === 400) {
+          toast("Token inválido",{
+            description: "Por favor, solicite una nueva invitación",
+            cancel: {
+              label: 'Cerrar',
+              onClick: () => router.push('/request-access')
+            },
+          });
           console.log('Token expired')
         }
-        // redirect to login
-        router.push('/login')
       }
     }
     verifyToken();

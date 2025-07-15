@@ -169,7 +169,8 @@ export default function RequestAccess(){
                 Solicitud enviada
               </h2>
               <span className="text-sm ">
-              Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la Academia de la Lengua {LANG_TITLE}. Una vez aceptada tu solicitud se te enviará un correo confirmando aquello junto a un enlace para que puedas registrar tu cuenta.
+              Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la <strong>Academia de la Lengua {LANG_TITLE}</strong>. 
+              Una vez aceptada tu solicitud se te enviará un <strong>correo electrónico</strong> confirmando aquello junto a un enlace para que puedas registrar tu cuenta.
               </span>
             </div>
           </>
