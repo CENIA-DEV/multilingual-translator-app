@@ -21,7 +21,7 @@ import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { API_ENDPOINTS, isTranslationRestricted } from '../constants';
+import { API_ENDPOINTS, isTranslationRestricted, MAX_WORDS_TRANSLATION } from '../constants';
 import { VARIANT_LANG  } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 export default function Translator() {
 
   const [srcText, setSrcText] = useState('');
+  const [showSrcTextMessage, setShowSrcTextMessage] = useState(false);
   const [dstText, setDstText] = useState('');
   const [srcLang, setSrcLang] = useState({
     "name": "Español",
@@ -218,8 +219,47 @@ export default function Translator() {
     router.push('/login');
   }
 
+  function limitWordsPreserveLines(text, maxWords) {
+    let wordCount = 0;
+    let inWord = false; // if we are in a word
+    let i = 0;
+    for (; i < text.length; i++) {
+      if (/\S/.test(text[i])) { // not whitespace
+        if (!inWord) { // then start of a word
+          wordCount++;
+          inWord = true;
+          if (wordCount > maxWords) break;
+        }
+      } else { // then end of a word 
+        inWord = false;
+      }
+    }
+    return text.slice(0, i);
+  }
+
   const handleSrcText = (text) => {
-    setSrcText(text);
+    console.log(text);
+    console.log(text.trim().split(/\n+/).length);
+    const textList = text.trim().split(/\s+/).filter(word => word.length > 0);
+    const wordCount = textList.length;
+    console.log(wordCount);
+    // if the text is longer than the max words, limit the text to the max words
+    // while preserving the structure (newlines)
+    if (wordCount > MAX_WORDS_TRANSLATION){
+      text = limitWordsPreserveLines(text, MAX_WORDS_TRANSLATION);
+      setSrcText(text);
+      setShowSrcTextMessage(true);
+      setTimeout(() => {
+        setShowSrcTextMessage(false);
+        console.log(text.split(/\n+/).length);
+      }, 3000);
+    }
+    else{
+      setShowSrcTextMessage(false);
+      setSrcText(text);
+      console.log(text.split(/\n+/).length);
+    }
+
   }
 
   const handleCopyText = async () => {
@@ -394,6 +434,7 @@ export default function Translator() {
           lang={srcLang}
           handleSrcText={handleSrcText}
           handleSrcLang={handleSrcLang}
+          showTextMessage={showSrcTextMessage}
           handleLangModalBtn={handleLangModalBtnLeft}
         />
 

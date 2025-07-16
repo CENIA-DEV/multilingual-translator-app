@@ -37,7 +37,7 @@ export default function Card(props) {
   const srcText = props.srcText;
   const handleCopyText = props.handleCopyText;
   const copyReady = props.copyReady;
-
+  const showTextMessage = props.showTextMessage;
   return(
     <div 
       className={`w-[50dvw] h-[100dvh] flex flex-col items-center relative ${
@@ -81,12 +81,19 @@ export default function Card(props) {
       />
 
       {side === 'left'?
-        <Textarea
-          value={srcText}
-          placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
-          onChange={e => handleSrcText(e.target.value)}
-          className="mt-[15px] w-[calc(100%-80px)] h-[calc(80%-80px)] border-none resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] focus-visible:ring-0"
+        <>
+          <Textarea
+            value={srcText}
+            placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
+            onChange={e => handleSrcText(e.target.value)}
+          className={`mt-[15px] w-[calc(100%-80px)] h-[calc(60%-80px)] ${showTextMessage ? 'border-red-500' : 'border-white-100'} resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
         /> 
+        {showTextMessage &&
+          <p className="text-red-500 text-sm">
+            El texto no puede tener más de 150 palabras
+          </p>
+        } 
+        </>
         :
         <>
           <div className="flex flex-row w-[calc(100%-80px)] mt-[15px]">
@@ -97,7 +104,7 @@ export default function Card(props) {
               speed={70}
               deletionSpeed={70}
             value={dstText}
-              className="w-[calc(100%-80px)] h-[calc(80%-80px)] border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
+              className="w-[calc(100%-80px)] h-[calc(60%-80px)] border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
             />
               {dstText && dstText.length > 0 && (
                 <Tooltip delayDuration={1000} >
