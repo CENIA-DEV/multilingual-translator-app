@@ -565,6 +565,7 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             src_lang = serializer.validated_data["src_lang"]
             dst_lang = serializer.validated_data["dst_lang"]
             src_text = serializer.validated_data["src_text"]
+            print(src_text)
             logger.debug(
                 f"Validated translation request: src_lang={src_lang}, "
                 f"dst_lang={dst_lang}, src_text={src_text}"

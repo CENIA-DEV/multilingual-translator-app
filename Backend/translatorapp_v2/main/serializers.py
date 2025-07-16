@@ -14,6 +14,7 @@
 # limitations under the License.
 from datetime import datetime
 
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -481,6 +482,13 @@ class TranslationPairSerializer(SuggestionSerializer):
             "model_name": {"read_only": True},
             "model_version": {"read_only": True},
         }
+
+    def validate_src_text(self, src_text):
+        if len(src_text.strip().split()) > settings.MAX_WORDS_TRANSLATION:
+            raise serializers.ValidationError(
+                "El texto no puede tener más de 150 palabras", code=400
+            )
+        return src_text
 
     def create(self, validated_data):
         return validated_data
