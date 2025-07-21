@@ -380,6 +380,7 @@ export default function LandingPage() {
                   <li>Loreto Ulloa</li>
                   <li>Francisca del Valle</li>
 				  <li>Tomás Pesce</li>
+				  <li>Belen Villena</li>
                 </ul>
               </div>
 
