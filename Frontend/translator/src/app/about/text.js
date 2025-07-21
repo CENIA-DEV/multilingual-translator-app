@@ -170,8 +170,8 @@ export const text = {
       "spa-rap": "Desarrollado en conjunto con:",
       "rap": "Te aŋa nei i aŋa ai 'ararua ko te:",
       "eng-rap": "Developed in collaboration with:",
-      "spa-arn": "Desarrollado en conjunto con:",
-      "eng-arn": "Developed in collaboration with:"
+      "spa-arn": "Desarrollado por:",
+      "eng-arn": "Developed by:"
     }
   },
   "Institutions": {
