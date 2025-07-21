@@ -217,9 +217,10 @@ export default function LandingPage() {
         </section>
         <section id="owners" className="w-full py-12 md:py-12 lg:py-12 flex items-center justify-center">
           <div className="container px-4 md:px-6">
-          <h3 className="text-4xl tracking-tighter sm:text-4xl md:text-4xl text-center mb-8 ">{text.Owners.Title[language]}</h3>
+		    {VARIANT_LANG === 'rap' ? (
+            <h3 className="text-4xl tracking-tighter sm:text-4xl md:text-4xl text-center mb-8 ">{text.Owners.Title[language]}</h3>
             <div className="w-fullflex flex-col items-center justify-center space-y-4 text-center">
-              <h2 className="text-center text-xl">{text.Owners.Academy[language]}</h2>
+                <h2 className="text-center text-xl">{text.Owners.Academy[language]}</h2>
                 <div 
                   className="h-32 relative max-[850px]:h-20">
                   <Image
@@ -230,11 +231,26 @@ export default function LandingPage() {
                     className="object-contain"
                   />
                 </div>
-              </div>
+            </div>
+			)}
             <h3 className="text-4xl tracking-tighter sm:text-4xl md:text-4xl text-center my-8">{text.Owners.Subtitle[language]}</h3>
+			{VARIANT_LANG === 'arn' ? (
+			<div className="w-fullflex flex-col items-center justify-center space-y-4 text-center">
+                <h2 className="text-center text-xl">{text.Owners.Academy[language]}</h2>
+                <div 
+                  className="h-32 relative max-[850px]:h-20">
+                  <Image
+                    src={`/images/${VARIANT_LANG}-language-academy.png`}
+                    alt="Academia de Lengua logo"
+                    fill
+                    priority={false}
+                    className="object-contain"
+                  />
+                </div>
+            </div>
+			)}			
             <div className="grid gap-10 grid-cols-2 max-[850px]:grid-cols-1">
               <div className="space-y-4 ">
-                
                 <h2 className="text-center text-xl">Estudios Aplicados Antropología UC </h2>
                 <div 
                   className="h-32 relative max-[850px]:h-20">
@@ -248,7 +264,6 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="space-y-4 ">
-                
                 <h3 className="text-center text-xl">Centro Nacional de Inteligencia Artificial</h3>
                 <div className="h-32 relative max-[850px]:h-20">
                   <Image
@@ -364,6 +379,7 @@ export default function LandingPage() {
                   <li>Jaime Coquelet</li>
                   <li>Loreto Ulloa</li>
                   <li>Francisca del Valle</li>
+				  <li>Tomás Pesce</li>
                 </ul>
               </div>
 

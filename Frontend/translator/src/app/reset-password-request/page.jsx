@@ -16,7 +16,7 @@ import "./resetpasswordrequest.css"
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ActionButton from "../components/actionButton/actionButton";
-import { API_ENDPOINTS } from "../constants";
+import { API_ENDPOINTS, VARIANT_LANG } from "../constants";
 import api from "../api";
 import { toast } from "sonner";
 
@@ -78,7 +78,7 @@ export default function Resetpasswordrequest(){
       <div 
         className="
           animate-fade animate-once animate-duration-[1200ms] animate-delay-[700ms] animate-ease-in-out 
-          bg-[url('/images/rapanui-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
+          bg-[url('/images/${VARIANT_LANG}-2-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
           max-[850px]:bg-left-top
         "
       />
