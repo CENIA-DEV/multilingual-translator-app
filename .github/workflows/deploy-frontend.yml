@@ -14,6 +14,11 @@ on:
         required: true
         type: boolean
         default: false
+      max_words_translation:
+        description: 'Max words translation'
+        required: true
+        type: number
+        default: 150
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -29,7 +34,7 @@ jobs:
         VPC_NAME: ${{ vars.VPC_NAME }}
         SUBNET_NAME: ${{ vars.FRONTEND_SUBNET }}
         SERVICE_NAME_BACKEND: ${{ vars.SERVICE_NAME_BACKEND }}
-        MAX_WORDS_TRANSLATION: ${{ vars.MAX_WORDS_TRANSLATION }}
+        MAX_WORDS_TRANSLATION: ${{ github.event.inputs.max_words_translation }}
     steps:
       - name: Set variant from dispatch event or branch
         id: set-variant
