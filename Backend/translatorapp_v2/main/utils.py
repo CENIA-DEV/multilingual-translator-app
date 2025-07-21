@@ -109,6 +109,8 @@ def translate(src_text, src_lang, dst_lang):
     )
 
     logger.debug(f"Translating {src_text} from {src_lang.code} to {dst_lang.code}")
+    src_text_paragraphs = src_text.split("\n")
+    logger.debug(f"Src text paragraphs: {src_text_paragraphs}")
     logger.debug(f"Native deployment: {native_deployment}")
     logger.debug(f"Raw deployment: {raw_deployment}")
     if src_lang.is_native and dst_lang.code != "spa_Latn":
@@ -119,9 +121,8 @@ def translate(src_text, src_lang, dst_lang):
                 dst_lang="spa_Latn",
                 deployment=native_deployment,
             )
-            logger.debug(
-                f"{src_lang.code} - {src_text} -> spa_Latn - {first_translation} "
-            )
+            paragraphs = first_translation.split("\n")
+            logger.debug(f"Translation paragraphs: {paragraphs}")
         except Exception as e:
             raise e
         try:
@@ -136,6 +137,8 @@ def translate(src_text, src_lang, dst_lang):
         logger.debug(
             f"spa_Latn - {first_translation} -> {dst_lang.code} - {final_translation} "
         )
+        paragraphs = final_translation.split("\n")
+        logger.debug(f"Translation paragraphs: {paragraphs}")
         return {
             "dst_text": final_translation,
             "model_name": model_name,
@@ -154,6 +157,8 @@ def translate(src_text, src_lang, dst_lang):
             logger.debug(
                 f"{src_lang.code} - {src_text} -> spa_Latn - {first_translation} "
             )
+            paragraphs = first_translation.split("\n")
+            logger.debug(f"Translation paragraphs: {paragraphs}")
         except Exception as e:
             raise e
         try:
@@ -166,6 +171,8 @@ def translate(src_text, src_lang, dst_lang):
             logger.debug(
                 f"spa_Latn - {first_translation} -> {dst_lang.code}-{final_translation}"
             )
+            paragraphs = final_translation.split("\n")
+            logger.debug(f"Translation paragraphs: {paragraphs}")
         except Exception as e:
             raise e
         return {
@@ -182,6 +189,8 @@ def translate(src_text, src_lang, dst_lang):
             logger.debug(
                 f"{src_lang.code} - {src_text} -> {dst_lang.code} - {translation} "
             )
+            paragraphs = translation.split("\n")
+            logger.debug(f"Translation paragraphs: {paragraphs}")
         except Exception as e:
             raise e
         return {
@@ -199,6 +208,8 @@ def translate(src_text, src_lang, dst_lang):
             logger.debug(
                 f"{src_lang.code} - {src_text} -> {dst_lang.code} - {translation} "
             )
+            paragraphs = translation.split("\n")
+            logger.debug(f"Translation paragraphs: {paragraphs}")
         except Exception as e:
             raise e
         return {
@@ -231,10 +242,11 @@ def send_invite_email(invited_by_user, user_email, invitation_token):
 
     email_without_domain = user_email.partition("@")[0].strip()
     name = email_without_domain[0].upper() + email_without_domain[1:]
-
+    lang_name = "Rapa Nui" if settings.VARIANT == "rap" else "Mapuzungun"
     # Define the context variables
     context = {
         "name": name,
+        "lang_name": lang_name,
         "invite_sender_name": invited_by,
         "support_email": settings.SUPPORT_EMAIL,
         "guide_url": settings.INVITATION_GUIDE_URL,
@@ -243,12 +255,10 @@ def send_invite_email(invited_by_user, user_email, invitation_token):
     }
 
     # Render the template with the context
-    # TO DO: load the template that corresponds to os.environ.get("VARIANT")
-    html_content = render_to_string("invitation_template_rap.html", context)
+    html_content = render_to_string("invitation_template.html", context)
     text_content = strip_tags(html_content)  # Convert HTML to plain text
-    subject_lang = "Rapa Nui" if settings.VARIANT == "rap" else "Mapuzungun"
     subject = f"{invited_by} te ha invitado a usar el \
-                sistema de traducción automática {subject_lang} - español"
+                sistema de traducción automática {lang_name} - Español"
     from_email = None  # will be loaded from the environment varible
 
     # Create the email

@@ -20,9 +20,9 @@ import ActionButton from "../../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff , ChevronDown } from "lucide-react"
 import api from "@/app/api";
-import { API_ENDPOINTS } from "@/app/constants";
+import { API_ENDPOINTS, LANG_TITLE } from "@/app/constants";
 import DatePicker from "../../components/datePicker/datePicker"
-
+import { toast } from "sonner";
 export default function Invitation({params}){
 
   const router = useRouter();
@@ -61,38 +61,55 @@ export default function Invitation({params}){
 
   const handleSubmit = async () => {
     try {
+      const profileData = {
+        date_of_birth: dateOfBirth.toISOString().split("T")[0],
+        proficiency: languageProficiency
+      };
+
       if(organization){
-        await api.post(API_ENDPOINTS.USERS + "create_by_invitation/", {
-          username: email,
-          email: email,
-          first_name: firstName,
-          last_name: lastName,
-          password: password,
-          organization: organization,
-          proficiency: languageProficiency,
-          date_of_birth: dateOfBirth.toISOString().split("T")[0],
-          token: invitationtoken,
-        });
+        profileData.organization = organization;
       }
-      else{
-        await api.post(API_ENDPOINTS.USERS + "create_by_invitation/", {
-          username: email,
-          email: email,
-          first_name: firstName,
-          last_name: lastName,
-          password: password,
-          proficiency: languageProficiency,
-          date_of_birth: dateOfBirth.toISOString().split("T")[0],
-          token: invitationtoken,
-        });
-      }
+
+      await api.post(API_ENDPOINTS.USERS + "create_by_invitation/", {
+        username: email,
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        password: password,
+        profile: profileData,
+        token: invitationtoken,
+      });
+
+      toast("Cuenta creada con éxito",{
+        description: "Ahora puedes iniciar sesión",
+        cancel: {
+          label: 'Cerrar',
+          onClick: () => console.log('Cerrado')
+        },
+      });
       
       router.push('/login');
 
     } 
     catch (error) {
-      console.log('Error registering user');
-      setErrorMessage('Faltan campos por completar')
+      if (error.status === 404){
+        toast("Su token de invitación ha expirado",{
+          description: "Por favor, solicite una nueva invitación",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => router.push('/request-access')
+          },
+        });
+      }
+      else {
+        toast("Error al crear cuenta",{
+          description: "Por favor, intente nuevamente",
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => router.push('/request-access')
+          },
+        });
+      }
     }
   }
   
@@ -116,20 +133,32 @@ export default function Invitation({params}){
             setOrganization(res.data.organization);
           }
           else{
-            setOrganization("Ninguna");
+            setOrganization(null);
           }
           
         }
       } 
       catch (error) {
         if (error.status === 404) {
+          toast("Su token de invitación ha expirado",{
+            description: "Por favor, solicite una nueva invitación",
+            cancel: {
+              label: 'Cerrar',
+              onClick: () => router.push('/request-access')
+            },
+          });
           console.log('Token not found')
         } 
         else if (error.status === 400) {
+          toast("Token inválido",{
+            description: "Por favor, solicite una nueva invitación",
+            cancel: {
+              label: 'Cerrar',
+              onClick: () => router.push('/request-access')
+            },
+          });
           console.log('Token expired')
         }
-        // redirect to login
-        router.push('/login')
       }
     }
     verifyToken();
@@ -175,7 +204,7 @@ export default function Invitation({params}){
             Crea tu cuenta
           </h2>
           <span>
-            ¡Felicidades! Has recibido una invitación para acceder al sistema de traducción Rapa Nui
+              ¡Felicidades! Has recibido una invitación para acceder al sistema de traducción {LANG_TITLE}
           </span>
         </div>
 
@@ -240,8 +269,8 @@ export default function Invitation({params}){
               <input
                 id="organization"
                 type="text"
-                value={organization}
-                disabled={organization === 'Ninguna'}
+                value={organization ? organization : 'Ninguna'}
+                disabled={!organization}
                 onChange={(e) => setOrganization(e.target.value)}
                 className="block h-full px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed appearance-none focus:outline-none focus:ring-0 focus:border-default peer"
                 placeholder=" "
@@ -274,7 +303,7 @@ export default function Invitation({params}){
               htmlFor="reason"
               className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
             >
-              ¿Cuál es tu nivel de manejo de la lengua Rapa Nui?
+              ¿Cuál es tu nivel de manejo de la lengua {LANG_TITLE}?
             </label>
 
             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />

@@ -268,3 +268,78 @@ def test_translate_authenticated_user_when_auth_required(api_client, user_auth, 
     assert response.status_code == 200
     assert response.data["dst_text"] == "Hola"
     mock_get_prediction.assert_called_once()
+    
+#13. translate - success - Max Words - Border Case
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+@override_settings(MAX_WORDS_TRANSLATION=10)
+def test_translate_max_words(api_client, user_auth, create_languages, mock_get_prediction):
+    """Test that the translation service handles the maximum number of words correctly."""
+    english, spanish, _, _ = create_languages
+
+    url = "/api/translate/"
+    data = {
+        "src_text": "Hello \n" * 10,
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Hola"
+    
+
+#14. translate - Success - Max Words - Border Case - 1
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+@override_settings(MAX_WORDS_TRANSLATION=10)
+def test_translate_max_words_border_case_1(api_client, user_auth, create_languages, mock_get_prediction):
+    """Test that the translation service handles the maximum number of words correctly."""
+    english, spanish, _, _ = create_languages
+    url = "/api/translate/"
+    data = {
+        "src_text": "Hello " * 9,
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Hola"
+    
+#15. translate - fail - Max Words - Border Case + 1
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+@override_settings(MAX_WORDS_TRANSLATION=10)
+def test_translate_max_words_fail(api_client, user_auth, create_languages, mock_get_prediction):
+    """Test that the translation service handles the maximum number of words correctly."""
+    english, spanish, _, _ = create_languages
+    url = "/api/translate/"
+    data = {
+        "src_text": "Hello " * 11,
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+    
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 400
+    assert "src_text" in response.data # check that the error is in the src_text field
+
+
+#16. translate - fail - Max Words - Border Case + Newlines
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+@override_settings(MAX_WORDS_TRANSLATION=10)
+def test_translate_max_words_fail_newlines(api_client, user_auth, create_languages, mock_get_prediction):
+    """Test that the translation service handles the maximum number of words correctly."""
+    english, spanish, _, _ = create_languages
+    url = "/api/translate/"
+    data = {
+        "src_text": "Hello\n" * 11,
+        "src_lang": LanguageSerializer(english).data,
+        "dst_lang": LanguageSerializer(spanish).data,
+    }
+    
+    response = api_client.post(url, data, format="json")
+    assert response.status_code == 400
+    assert "src_text" in response.data # check that the error is in the src_text field

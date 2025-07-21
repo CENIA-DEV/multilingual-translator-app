@@ -23,6 +23,11 @@ on:
         required: true
         type: string
         default: 'nllb-200-3.3B'
+      max_words_translation:
+        description: 'Max words translation'
+        required: true
+        type: number
+        default: 150
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -44,6 +49,7 @@ jobs:
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         PORT: 8000
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        MAX_WORDS_TRANSLATION: ${{ github.event.inputs.max_words_translation }}
     steps:
       - name: Set variant from dispatch event or branch
         id: set-variant
@@ -76,7 +82,7 @@ jobs:
         run: |
           echo "${{ env.ENV_FILE_BACK }}" > .env
           echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
-
+          echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
@@ -153,4 +159,4 @@ jobs:
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '5m'
-          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }}'
+          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }} --max-instances=10 --concurrency=80'

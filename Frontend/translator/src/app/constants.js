@@ -29,7 +29,7 @@ export const API_ENDPOINTS = {
 export const NATIVE_ADMIN = 'NativeAdmin';
 export const ADMIN = 'Admin';
 export const USER = 'User';
-
+export const MAX_WORDS_TRANSLATION = Number(process.env.NEXT_PUBLIC_MAX_WORDS_TRANSLATION);
 export const BASE_LANG = "spa";
 export const VARIANT_LANG = process.env.NEXT_PUBLIC_VARIANT;
 export const LANG_TITLE = VARIANT_LANG === 'rap' ? 'Rapa Nui' : 'Mapuzungun';
