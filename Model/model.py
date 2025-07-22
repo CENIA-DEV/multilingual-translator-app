@@ -147,6 +147,23 @@ class ModelWrapper(ABC):
         self.logger.debug(f"Source lang original: {source_lang}")
         self.logger.debug(f"Target lang original: {target_lang}")
 
+        _sentences = []
+        merge_mask = []
+        for sentence in sentences:
+            if "\n" in sentence:
+                paragraphs = sentence.split("\n")
+                _sentences.extend(paragraphs)
+                merge_mask.extend([True] * len(paragraphs))
+            else:
+                _sentences.append(sentence)
+                merge_mask.append(False)
+
+        empty_sentences_mask = [sentence in {"", " "} for sentence in _sentences]
+        sentences = [
+            sentence for sentence, is_empty in zip(_sentences, empty_sentences_mask)
+            if not is_empty
+        ]
+
         inputs = self.tokenize(sentences, target_lang, source_lang)
 
         self.logger.debug(f"Inputs Shape: {inputs['input_ids'].shape}")
@@ -154,6 +171,36 @@ class ModelWrapper(ABC):
         self.logger.debug(f"Prediction Shape: {prediction.shape}")
         translation = self.tokenizer.batch_decode(prediction, skip_special_tokens=True)
         self.logger.debug(f"Translation: {translation}")
+
+        if any(empty_sentences_mask):
+            self.logger.debug(f"Found {len(empty_sentences_mask)} empty sentences")
+            # introduce empty translations for empty sentences
+            _translations = []
+            idx = 0
+            for is_empty in empty_sentences_mask:
+                if not is_empty:
+                    _translations.append(translation[idx])
+                    idx += 1
+                else:
+                    _translations.append("")
+
+            translation = _translations
+
+        # merge corresponding sentences if they were split by newlines
+        if any(merge_mask):
+            merged_translation = []
+            temp = []
+            for idx, is_split in enumerate(merge_mask):
+                if is_split:
+                    temp.append(translation[idx])
+                else:
+                    if len(temp) > 0:
+                        merged_translation.append("\n".join(temp))
+                        temp.clear()
+
+                    merged_translation.append(translation[idx])
+
+            translation = merged_translation
 
         return translation
 
