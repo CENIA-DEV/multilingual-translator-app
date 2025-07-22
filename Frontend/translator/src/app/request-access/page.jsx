@@ -19,13 +19,12 @@ import { useEffect, useState } from "react";
 import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react"
-import { API_ENDPOINTS, REQUEST_ACCESS_REASONS } from '../constants';
+import { API_ENDPOINTS, REQUEST_ACCESS_REASONS, LANG_TITLE, VARIANT_LANG } from '../constants';
 import { toast } from "sonner";
 
 export default function RequestAccess(){
 
   const router = useRouter();
-
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -114,7 +113,7 @@ export default function RequestAccess(){
       <div 
         className="
           animate-fade animate-once animate-duration-[1200ms] animate-delay-[700ms] animate-ease-in-out 
-          bg-[url('/images/rapanui-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain max-[850px]:scale-y-90 -scale-x-100
+          bg-[url('/images/${VARIANT_LANG}-2-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain max-[850px]:scale-y-90 -scale-x-100
           max-[850px]:bg-left-top
         "
       />
@@ -170,8 +169,8 @@ export default function RequestAccess(){
                 Solicitud enviada
               </h2>
               <span className="text-sm ">
-                Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la Academia de la Lengua Rapa Nui.
-                Una vez aceptada tu solicitud se te enviará un correo confirmando aquello junto a un enlace para que puedas registrar tu cuenta.
+              Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la <strong>Academia de la Lengua {LANG_TITLE}</strong>. 
+              Una vez aceptada tu solicitud se te enviará un <strong>correo electrónico</strong> confirmando aquello junto a un enlace para que puedas registrar tu cuenta.
               </span>
             </div>
           </>
