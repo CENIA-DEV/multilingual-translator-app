@@ -201,7 +201,8 @@ class ModelWrapper(ABC):
 
                     merged_translation.append(translation[idx])
 
-            if len(temp) > 0:  # only repeat if buffer was not cleared by the previous loop
+            # only repeat if buffer was not cleared by the previous loop
+            if len(temp) > 0:
                 merged_translation.append("\n".join(temp))
                 temp.clear()
 
