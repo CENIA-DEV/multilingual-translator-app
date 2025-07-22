@@ -96,7 +96,7 @@ export default function Card(props) {
         </>
         :
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] mt-[15px]">
+          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px]">
             <Textarea
               key={dstText}
               wrapper="span"
@@ -104,7 +104,7 @@ export default function Card(props) {
               speed={70}
               deletionSpeed={70}
             value={dstText}
-              className="w-[calc(100%-80px)] h-[calc(60%-80px)] border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
+              className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
             />
               {dstText && dstText.length > 0 && (
                 <Tooltip delayDuration={1000} >
