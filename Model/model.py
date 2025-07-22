@@ -160,7 +160,8 @@ class ModelWrapper(ABC):
 
         empty_sentences_mask = [sentence in {"", " "} for sentence in _sentences]
         sentences = [
-            sentence for sentence, is_empty in zip(_sentences, empty_sentences_mask)
+            sentence
+            for sentence, is_empty in zip(_sentences, empty_sentences_mask)
             if not is_empty
         ]
         self.logger.debug(f"Sentences after dividing by newlines: {sentences}")
