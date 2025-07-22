@@ -163,6 +163,7 @@ class ModelWrapper(ABC):
             sentence for sentence, is_empty in zip(_sentences, empty_sentences_mask)
             if not is_empty
         ]
+        self.logger.debug(f"Sentences after dividing by newlines: {sentences}")
 
         inputs = self.tokenize(sentences, target_lang, source_lang)
 
@@ -199,6 +200,10 @@ class ModelWrapper(ABC):
                         temp.clear()
 
                     merged_translation.append(translation[idx])
+
+            if len(temp) > 0:  # only repeat if buffer was not cleared by the previous loop
+                merged_translation.append("\n".join(temp))
+                temp.clear()
 
             translation = merged_translation
 
