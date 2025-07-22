@@ -46,7 +46,10 @@ class _InferFuncWrapper:
         self._logger.debug(f"source_lang: {source_lang}")
         self._logger.debug(f"target_lang: {target_lang}")
 
-        texts = [np.char.decode(t.astype("bytes"), "utf-8").item() for t in texts]
+        texts = [
+            np.char.decode(t.astype("bytes"), "utf-8").item().replace("\\n", "\n")
+            for t in texts
+        ]
         source_lang = bytes(source_lang).decode("utf-8")
         target_lang = bytes(target_lang).decode("utf-8")
 
