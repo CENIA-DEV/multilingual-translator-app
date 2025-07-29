@@ -25,7 +25,7 @@ import ActionButton from "../components/actionButton/actionButton"
 import DatePicker from "../components/datePicker/datePicker"
 import { toast } from "sonner";
 import Image from "next/image";
-import { VARIANT_LANG } from "../constants";
+import { VARIANT_LANG, LANG_TITLE } from "../constants";
 
 export default function Profile(){
 
@@ -305,7 +305,7 @@ export default function Profile(){
                   htmlFor="reason"
                   className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
                 >
-                  Nivel de Rapa Nui
+                  Nivel de {LANG_TITLE}
                 </label>
 
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />

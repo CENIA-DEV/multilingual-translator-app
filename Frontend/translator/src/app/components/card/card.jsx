@@ -86,7 +86,7 @@ export default function Card(props) {
             value={srcText}
             placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
             onChange={e => handleSrcText(e.target.value)}
-          className={`mt-[15px] w-[calc(100%-80px)] h-[calc(60%-80px)] ${showTextMessage ? 'border-red-500' : 'border-white-100'} resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
+          className={`mt-[15px] w-[calc(100%-80px)] h-[calc(60%-80px)] ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
         /> 
         {showTextMessage &&
           <p className="text-red-500 text-sm">
@@ -96,7 +96,7 @@ export default function Card(props) {
         </>
         :
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] mt-[15px]">
+          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px]">
             <Textarea
               key={dstText}
               wrapper="span"
@@ -104,7 +104,7 @@ export default function Card(props) {
               speed={70}
               deletionSpeed={70}
             value={dstText}
-              className="w-[calc(100%-80px)] h-[calc(60%-80px)] border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
+              className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
             />
               {dstText && dstText.length > 0 && (
                 <Tooltip delayDuration={1000} >

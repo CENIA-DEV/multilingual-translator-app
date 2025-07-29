@@ -168,7 +168,7 @@ export default function FeedbackModal(props){
             id="source"
             value={editingTranslation?.src_text || ''}
             onChange={(e) => setEditingTranslation({...editingTranslation, src_text: e.target.value})}
-            className="col-span-3 h-3/4"
+            className="col-span-3 h-3/4 border shadow-sm"
           />
         </div>
         <div className="flex flex-col items-center max-[850px]:w-full gap-4 w-1/2 h-full">
@@ -183,14 +183,14 @@ export default function FeedbackModal(props){
               id="translation"
               value={editingTranslation?.dst_text || ''}
               onChange={(e) => setEditingTranslation({...editingTranslation, dst_text: e.target.value})}
-              className="col-span-3 h-3/4"
+              className="col-span-3 h-3/4 border shadow-sm"
             />
             :
             <Textarea
               id="translation"
               value={editingTranslation?.suggestion || ''}
               onChange={(e) => setEditingTranslation({...editingTranslation, suggestion: e.target.value})}
-              className="col-span-3 h-3/4"
+              className="col-span-3 h-3/4 border shadow-sm"
             />
           }
         </div>
