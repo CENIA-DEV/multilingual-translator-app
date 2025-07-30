@@ -108,9 +108,9 @@ export default function Card(props) {
               {dstText && dstText.length > 0 && (
                 <Tooltip delayDuration={1000} >
                   <TooltipTrigger asChild>
-                    <Button variant="default" onClick={handleCopyText} className="transition-transform duration-200 transform hover:scale-105">
+                    <button onClick={handleCopyText} className="transition-transform duration-200 transform hover:scale-105">
 					  <FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
-                    </Button>
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-default border-white text-white rounded-full border-2">
                     <p>Copiar traducción</p>
