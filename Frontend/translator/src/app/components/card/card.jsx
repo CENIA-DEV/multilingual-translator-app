@@ -96,7 +96,7 @@ export default function Card(props) {
         :
         <>
           <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px]">
-            <Textarea
+            <Textarea readOnly 
               key={dstText}
               wrapper="span"
               cursor={false}
@@ -108,9 +108,9 @@ export default function Card(props) {
               {dstText && dstText.length > 0 && (
                 <Tooltip delayDuration={1000} >
                   <TooltipTrigger asChild>
-                  <Button variant="ghost" onClick={handleCopyText}>
-                  <FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
-                  </Button>
+                    <Button variant="default" onClick={handleCopyText} className="transition-transform duration-200 transform hover:scale-105">
+					  <FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-default border-white text-white rounded-full border-2">
                     <p>Copiar traducción</p>
