@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 'use client'
-
 import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
 import { TypeAnimation } from "react-type-animation";
@@ -40,9 +39,9 @@ export default function Card(props) {
   const showTextMessage = props.showTextMessage;
   return(
     <div 
-      className={`w-[50dvw] h-[100dvh] flex flex-col items-center relative ${
+      className={`card-container flex flex-col items-center relative ${
         side === 'left' 
-          ? 'bg-gradient-to-b from-white to-white/10 bg-bottom bg-no-repeat bg-contain bg-white rounded-r-[30px] shadow-[0px_0_70px_rgba(0,0,0,0.50)] z-[1] animate-[card-slide-in-left_1.5s_cubic-bezier(0.390,0.575,0.565,1.000)_0.1s_both]' 
+          ? 'card-container-left bg-gradient-to-b from-white to-white/10 bg-bottom bg-no-repeat bg-contain bg-white shadow-[0px_0_70px_rgba(0,0,0,0.50)] z-[1] animate-[card-slide-in-left_1.5s_cubic-bezier(0.390,0.575,0.565,1.000)_0.1s_both]' 
           : 'bg-gradient-to-b from-[rgb(10,141,222,1)] to-[rgba(10,141,222,0.1)] bg-bottom bg-no-repeat bg-contain z-0 animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]'
       }`}
       style={ side === 'left'? {backgroundImage: `url('/images/${VARIANT_LANG}-white.png')`} : {backgroundImage: `url('/images/${VARIANT_LANG}-2-blue.png')`}}
