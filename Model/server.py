@@ -72,6 +72,7 @@ def _infer_function_factory(
         logger.info(f"Loading model at {folder_path}")
         # TO DO: CHECK IF MODEL NAME IN FOLDER PATH
 
+        logger.info(f"Model type: {model_type}")
         model_cls = NLLBModelWrapper if model_type == "nllb" else MadLadWrapper
         model = model_cls(
             folder_path,

@@ -273,6 +273,13 @@ class NLLBModelWrapper(ModelWrapper):
         if target_lang is None:
             raise ValueError("`target_lang` is required in NLLB models.")
 
+        # map target safely to nllb token
+        target_lang = (
+            nllb_language_token_map[target_lang]
+            if target_lang in nllb_language_token_map
+            else target_lang
+        )
+
         forced_bos_token_id = self.tokenizer.convert_tokens_to_ids(target_lang)
         prediction = self.model.generate(
             **inputs,
