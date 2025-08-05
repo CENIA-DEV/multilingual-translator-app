@@ -48,7 +48,7 @@ export default function FeedbackModal(props){
         setEditingTranslation(null);
 
         toast("Retroalimentación enviada con éxito",{
-          description: `Gracias por su retroalimentación ${suggestion.dst_lang.code}`,
+          description: "Gracias por su retroalimentación",
         });
 
         trackEvent('negative_feedback_submit_success', {

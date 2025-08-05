@@ -40,7 +40,7 @@ export default function ListSuggestions({validated, ...props}) {
   const [suggestions, setSuggestions] = useState([]);
   const [isTableLoading, setIsTableLoading] = useState(true);
   const srcLang = `${BASE_LANG}_Latn`
-  const dstLang = `${VARIANT_LANG}_Latn`
+  const dstLang = VARIANT_LANG === 'arn' ? 'arn_a0_n,arn_r0_n,arn_u0_n' : `${VARIANT_LANG}_Latn`;
   
   const reorderSuggestions = useCallback((suggestions) => {
     return suggestions.map((suggestion) => {
@@ -79,7 +79,6 @@ export default function ListSuggestions({validated, ...props}) {
           params: queryParams
         }
       );
-      console.log(`dstLang = ${dstLang}`);
       const { next, previous, results, count, } = res.data;
       setTotalPages(results.length > 0 ? Math.ceil(count / results.length) : 1);
       setNextPage(next !== null ? extractPageNumber(next) : 1);
