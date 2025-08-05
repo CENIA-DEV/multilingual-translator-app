@@ -16,9 +16,9 @@ import logging
 
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from functools import reduce
 from operator import or_
-from django.shortcuts import get_object_or_404
 from rest_framework import mixins, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
