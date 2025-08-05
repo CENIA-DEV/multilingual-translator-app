@@ -391,13 +391,13 @@ class SuggestionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = TranslationPair.objects.all()
-        language_code = self.request.query_params.get("lang")
+        language_param = self.request.query_params.get("lang")
         validated = self.request.query_params.get("validated")
         correct = self.request.query_params.get("correct")
         if correct is not None:
             correct = correct.lower() == "true"
             queryset = queryset.filter(correct=correct)        
-        if language_code is not None:
+        if language_param is not None:
             language_codes = [code.strip() for code in language_param.split(",") if code.strip()]
             if language_codes:
                 lang_query = reduce(
