@@ -57,6 +57,7 @@ export default function ListSuggestions({validated, ...props}) {
   }, [srcLang]);
 
   const getSuggestions = useCallback(async (validated) => {
+	console.log(dstLang);
     setIsTableLoading(true);
     try {
       let queryParams;

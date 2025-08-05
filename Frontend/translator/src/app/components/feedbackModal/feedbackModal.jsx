@@ -44,6 +44,8 @@ export default function FeedbackModal(props){
             model_version: modelData.modelVersion,
           }
         );
+		
+		console.log(suggestion);
 
         setEditingTranslation(null);
 
