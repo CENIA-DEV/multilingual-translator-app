@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+from functools import reduce
+from operator import or_
 
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from functools import reduce
-from operator import or_
 from rest_framework import mixins, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -396,16 +396,18 @@ class SuggestionViewSet(viewsets.ModelViewSet):
         correct = self.request.query_params.get("correct")
         if correct is not None:
             correct = correct.lower() == "true"
-            queryset = queryset.filter(correct=correct)        
+            queryset = queryset.filter(correct=correct)
         if language_param is not None:
-            language_codes = [code.strip() for code in language_param.split(",") if code.strip()]
+            language_codes = [
+                code.strip() for code in language_param.split(",") if code.strip()
+            ]
             if language_codes:
                 lang_query = reduce(
                     or_,
                     [
                         Q(src_lang__code=code) | Q(dst_lang__code=code)
                         for code in language_codes
-                    ]
+                    ],
                 )
                 queryset = queryset.filter(lang_query)
         if validated is not None:
