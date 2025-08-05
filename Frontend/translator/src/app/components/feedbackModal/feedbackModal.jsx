@@ -44,13 +44,11 @@ export default function FeedbackModal(props){
             model_version: modelData.modelVersion,
           }
         );
-		
-		console.log(suggestion);
 
         setEditingTranslation(null);
 
         toast("Retroalimentación enviada con éxito",{
-          description: "Gracias por su retroalimentación",
+          description: `Gracias por su retroalimentación ${suggestion.dst_lang.code}`,
         });
 
         trackEvent('negative_feedback_submit_success', {
