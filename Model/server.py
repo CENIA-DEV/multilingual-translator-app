@@ -167,7 +167,7 @@ def main():
         exit_on_error=True,
         log_verbose=log_verbose,
         allow_http=True,
-        cache_config=[f"local,size={10 *1024 * 1024}"],
+        cache_config=[f"local,size={10 * 1024 * 1024}"],
     )
     policy = TritonLifecyclePolicy(launch_triton_on_startup=False)
     with Triton(config=config, triton_lifecycle_policy=policy) as triton:

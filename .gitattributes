@@ -1,0 +1,9 @@
+# Normalize Python files to LF
+*.py text eol=lf
+
+# Normalize other text files as needed
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
