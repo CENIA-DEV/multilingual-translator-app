@@ -30,7 +30,7 @@ If all goes well, model server should be listening to requests on port 8015. You
 
 First, create a Postgresql database and store the database name and host in case of using an external service.
 
-Then install the dependencies.  To do so, go to the `Backend/translatorapp_v2` folder and run `pip install -r requirements.txt`.
+Then install the dependencies.  To do so, go to the `Backend/translatorapp_v2` folder and run `pip install -r requirements.txt`
 
 Django needs a secret key for encription. To create one run: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"` and copy the output key.
 
