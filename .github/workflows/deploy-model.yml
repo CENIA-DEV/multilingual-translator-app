@@ -10,6 +10,7 @@ on:
           - rap
           - arn
           - raw
+          - tts
 
       model_path:
         description: 'Model path'
@@ -57,10 +58,21 @@ jobs:
           MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
           echo "Using model path: $MODEL_PATH"
           gcloud storage cp -r $MODEL_PATH .
+
+      - name: Set Dockerfile path
+        id: set-dockerfile
+        run: |
+          if [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "dockerfile=Dockerfile.audio" >> $GITHUB_OUTPUT
+          else
+            echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build Docker Image
         working-directory: Model/
         run: |
-          docker build -t model:${{ github.sha }} .
+          echo "Using dockerfile: ${{ steps.set-dockerfile.outputs.dockerfile }}"
+          docker build -t model:${{ github.sha }} -f ${{ steps.set-dockerfile.outputs.dockerfile }} .
 
       - name: Configure Docker Client # aunthenticate to rep
         run: |-
