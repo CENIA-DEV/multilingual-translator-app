@@ -15,6 +15,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf ~/.cache/pip
 
+# Copy downloaded models
+COPY tts-rap/ /app/tts-rap/
+
+#WORKDIR /app
+
 WORKDIR /home/app/src
 COPY . .
 

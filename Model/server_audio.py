@@ -54,11 +54,11 @@ class _TTSInferFuncWrapper:
         return {"waveform": waveform_np}
 
 
-def _tts_infer_function_factory(logger, gpu):
+def _tts_infer_function_factory(logger, gpu, model_base_path=None):
     """
     Factory for TTS inference function.
     """
-    tts_wrapper = MMSTTSWrapper(logger, gpu)
+    tts_wrapper = MMSTTSWrapper(logger, gpu, model_base_path)
     return _TTSInferFuncWrapper(tts_wrapper=tts_wrapper, logger=logger)
 
 
@@ -119,6 +119,11 @@ def _parse_args():
         help="Enable TTS model binding",
         default=False,
     )
+    parser.add_argument(
+        "--model-base-path",
+        default=None,
+        help="Base path to the model directory in GCP bucket",
+    )
     return parser.parse_args()
 
 
@@ -151,7 +156,9 @@ def main():
         tts_model_name = "tts-model"
         triton.bind(
             model_name=tts_model_name,
-            infer_func=_tts_infer_function_factory(logger, args.gpu),
+            infer_func=_tts_infer_function_factory(
+                logger, args.gpu, args.model_base_path
+            ),
             inputs=[
                 Tensor(name="text", dtype=np.bytes_, shape=(1,)),
                 Tensor(name="lang_code", dtype=np.bytes_, shape=(1,)),
