@@ -34,6 +34,7 @@ from .models import (
     Lang,
     PasswordResetToken,
     RequestAccess,
+    TextToSpeechAudio,
     TranslationPair,
 )
 from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
@@ -45,11 +46,13 @@ from .serializers import (
     PasswordResetSerializer,
     RequestSerializer,
     SuggestionSerializer,
+    TextToSpeechSerializer,
     TranslationPairSerializer,
     UserSerializer,
 )
 from .utils import (
     filter_cache,
+    generate_tts,
     send_invite_email,
     send_participate_email,
     send_recovery_email,
@@ -637,3 +640,86 @@ class ParticipateRequestEndpoint(APIView):
             send_participate_email(email, organization, reason, first_name, last_name)
             return Response(serializer.data)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """
+    ViewSet for text-to-speech functionality
+    """
+
+    permission_classes = [TranslationRequiresAuth]  # any user can translate
+    serializer_class = TextToSpeechSerializer
+
+    def get_queryset(self, text=None, lang=None):
+        results = (
+            TextToSpeechAudio.objects.filter(
+                language__code=(
+                    lang.code if lang else None
+                ),  # TODO: review language__code
+            )
+            # Filter by text if provided
+            .filter(text__iexact=text)
+            if text
+            else TextToSpeechAudio.objects.none().order_by("-created_at")
+        )
+        return [s for s in results]
+
+    def create(self, request):
+        logger.info(f"Received text request: {request.data}")
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            text = serializer.validated_data["text"]
+            language_code = serializer.validated_data["language"]
+            model_name = serializer.validated_data["model_name"]
+            model_version = serializer.validated_data["model_version"]
+
+            logger.debug(f"Validated translation request: {language_code}")
+
+            try:
+                # Get the Lang object from the language code
+                lang_obj = Lang.objects.get(code=language_code)
+
+                # Generate the audio using the language code
+                generated_audio = generate_tts(text, language_code)
+
+                # Extract data
+                waveform_data = generated_audio.pop("waveform")
+
+                audio_obj = TextToSpeechAudio.objects.create(
+                    text=text,
+                    language=lang_obj,
+                    model_name=model_name,
+                    model_version=model_version,
+                    user=request.user if request.user.is_authenticated else None,
+                )
+
+                # serializer.save(language=lang_obj, **generated_audio)
+
+                response_data = {
+                    "id": audio_obj.id,
+                    "text": audio_obj.text,
+                    "language": language_code,
+                    "model_name": audio_obj.model_name,
+                    "model_version": audio_obj.model_version,
+                    "waveform": waveform_data,
+                }
+
+                logger.info("TTS response generated!")
+                return Response(response_data)
+
+            except Lang.DoesNotExist:
+                logger.error(f"Language with code '{language_code}' not found")
+                return Response(
+                    f"Language code '{language_code}' not supported",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+            except Exception as e:
+                logger.error(f"Translation model error: {str(e)}")
+                return Response(
+                    "Error en la predicción del modelo",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+        else:
+            logger.warning(f"Invalid text request: {serializer.errors}")
+            return Response(serializer.errors, HTTP_400_BAD_REQUEST)
