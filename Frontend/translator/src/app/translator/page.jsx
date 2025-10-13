@@ -13,16 +13,26 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 'use client'
 
-import { useState , useEffect, useContext} from 'react'
+import { useState, useEffect, useContext, useRef } from 'react'
 import "./translator.css"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faThumbsDown , faThumbsUp , faArrowsRotate, faArrowRightArrowLeft, faArrowRight, faLock } from "@fortawesome/free-solid-svg-icons";
+import { 
+  faThumbsDown, 
+  faThumbsUp, 
+  faArrowsRotate, 
+  faArrowRightArrowLeft, 
+  faArrowRight, 
+  faLock, 
+  faVolumeHigh, 
+  faStop, 
+  faSpinner 
+} from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { API_ENDPOINTS, isTranslationRestricted, MAX_WORDS_TRANSLATION } from '../constants';
-import { VARIANT_LANG  } from "@/app/constants";
+import { API_ENDPOINTS, isTranslationRestricted, MAX_WORDS_TRANSLATION, TTS_ENABLED } from '../constants';
+import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,6 +40,8 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 import { AuthContext } from '../contexts';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
+import { generateSpeech } from '../services/ttsService';
+
 export default function Translator() {
 
   const [srcText, setSrcText] = useState('');
@@ -53,6 +65,17 @@ export default function Translator() {
     "dialect": null
   });
   
+  // TTS state variables
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [ttsError, setTtsError] = useState('');
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const audioRef = useRef(null);
+  const currentAudioUrlRef = useRef(null);
+  
+  // Add audio cache reference and cache size constant
+  const audioCache = useRef(new Map());
+  const MAX_AUDIO_CACHE_SIZE = 5; // Limit to 5 audio clips
+  
   const [langModalMode, setLangModalMode] = useState(false);
   const [modalBtnSide, setModalBtnSide] = useState('');
 
@@ -74,6 +97,27 @@ export default function Translator() {
   // Check if translation is restricted for current user
   const translationRestricted = isTranslationRestricted(currentUser);
   const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(translationRestricted);
+
+  // --- Language helpers for button visibility---
+  const codeOf = (l) => (l?.code || '').toLowerCase(); // 'spa_Latn','eng_Latn','rap_Latn',…
+  const isES  = (l) => codeOf(l).startsWith('spa');
+  const isEN  = (l) => codeOf(l).startsWith('eng');
+  const isRAP = (l) => codeOf(l).startsWith('rap');
+
+  // TTS (API-only): ES/EN/RAP
+  const isTTSSideAllowed = (l) => isES(l) || isEN(l) || isRAP(l);
+
+  // --- dinamics flags ---
+
+  // TODO: BLOCK FOR USERS NOT AUTHENTICATED
+
+  //const TTS_ENABLED_SRC_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(srcLang); // speaker izquierda
+  //const TTS_ENABLED_DST_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
+  
+  const TTS_ENABLED_SRC_D = TTS_ENABLED && isTTSSideAllowed(srcLang); // speaker izquierda
+  const TTS_ENABLED_DST_D = TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
+  
+  const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -119,9 +163,7 @@ export default function Translator() {
   };
 
   const handleCrossLang = async () => {
-
     if(loadingState === false){
-
       setLoadingState(true);
       setSrcText(dstText);
       setSrcLang(dstLang);
@@ -162,9 +204,7 @@ export default function Translator() {
 
   const handlePositiveFeedback = async () => {
     if (dstText.length != 0 && !loadingState){
-
       try {
-
         await api.post(
           API_ENDPOINTS.SUGGESTIONS+'accept_translation/',
           {
@@ -182,7 +222,7 @@ export default function Translator() {
           cancel: {
             label: 'Cerrar',
             onClick: () => console.log('Pop up cerrado'),
-    },
+          },
         });
         trackEvent('positive_feedback_submit_success', {
           model_name: modelData.modelName,
@@ -190,20 +230,20 @@ export default function Translator() {
           page: 'translator'
         });
       } catch(error) {
-          if (error.response.status === 401){
-            toast("Error",{
-              description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
-              cancel: {
-                label: 'Cerrar',
-                onClick: () => console.log('Pop up cerrado'),
-              },
-            })
-          }
-          console.log(error) 
-          trackEvent('positive_feedback_submit_error', {
-            page: 'translator',
-            error: error.response.status
-          });
+        if (error.response.status === 401){
+          toast("Error",{
+            description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
+            cancel: {
+              label: 'Cerrar',
+              onClick: () => console.log('Pop up cerrado'),
+            },
+          })
+        }
+        console.log(error) 
+        trackEvent('positive_feedback_submit_error', {
+          page: 'translator',
+          error: error.response.status
+        });
       }
     }
   };
@@ -259,7 +299,6 @@ export default function Translator() {
       setSrcText(text);
       console.log(text.split(/\n+/).length);
     }
-
   }
 
   const handleCopyText = async () => {
@@ -281,7 +320,115 @@ export default function Translator() {
         });
       }
     }
-  } 
+  }
+  
+  // TTS Functions
+  async function handleSpeak({ text, lang = 'es-ES' }) {
+    if (!TTS_ENABLED || !text?.trim()) return;
+
+    setTtsError('');
+    setIsSpeaking(true);
+    
+    // Create cache key based on text and language
+    const cacheKey = `${lang}_${text}`;
+    
+    // Clean up any previous playback
+    if (audioRef.current) {
+      try {
+        audioRef.current.stop();
+      } catch (err) {
+        console.log("Audio already stopped");
+      }
+      audioRef.current = null;
+    }
+    
+    if (currentAudioUrlRef.current) {
+      URL.revokeObjectURL(currentAudioUrlRef.current);
+      currentAudioUrlRef.current = null;
+    }
+
+    // Check if we have this audio in cache
+    if (audioCache.current.has(cacheKey)) {
+      console.log("Using cached audio");
+      const cachedData = audioCache.current.get(cacheKey);
+      playAudioFromBuffer(cachedData);
+      return;
+    }
+
+    // If not in cache, generate new audio
+    setIsLoadingAudio(true);
+    
+    try {
+      const response = await generateSpeech(text, lang);
+      setIsLoadingAudio(false);
+      
+      // Cache the waveform data
+      audioCache.current.set(cacheKey, response.waveform);
+      
+      // Limit cache size to prevent memory issues (keep last 5 items)
+      if (audioCache.current.size > MAX_AUDIO_CACHE_SIZE) {
+        const oldestKey = audioCache.current.keys().next().value;
+        audioCache.current.delete(oldestKey);
+      }
+      
+      // Play the audio
+      playAudioFromBuffer(response.waveform);
+    } catch (err) {
+      setIsLoadingAudio(false);
+      console.error('TTS error:', err);
+      setTtsError(err?.message || 'Error al sintetizar');
+      setIsSpeaking(false);
+    }
+  }
+  
+  // Helper function to play audio from buffer data
+  function playAudioFromBuffer(waveformData) {
+    try {
+      // Create audio context
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const sampleRate = 16000; // Hardcoded from backend knowledge
+      
+      // Create buffer from float data
+      const audioBuffer = audioContext.createBuffer(1, waveformData.length, sampleRate);
+      const channelData = audioBuffer.getChannelData(0);
+      
+      // Copy data to buffer
+      for (let i = 0; i < waveformData.length; i++) {
+        channelData[i] = waveformData[i];
+      }
+      
+      // Play the audio
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      
+      // Track state and handle cleanup
+      source.onended = () => setIsSpeaking(false);
+      audioRef.current = source;
+      source.start(0);
+    } catch (err) {
+      console.error('Error playing audio:', err);
+      setIsSpeaking(false);
+    }
+  }
+  
+  function stopSpeaking() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      try {
+        audioRef.current.stop();
+      } catch (err) {
+        // AudioBufferSourceNode may have already stopped/ended
+        console.log("Audio already stopped");
+      }
+      audioRef.current = null;
+    }
+    if (currentAudioUrlRef.current) {
+      URL.revokeObjectURL(currentAudioUrlRef.current);
+      currentAudioUrlRef.current = null;
+    }
+    setIsSpeaking(false);
+  }
 
   const translate = async () => {
     if(translationRestricted){
@@ -293,7 +440,6 @@ export default function Translator() {
         setDstText('');
       }
       else{
-
         setLoadingState(true);
         
         const startTime = performance.now();
@@ -360,16 +506,46 @@ export default function Translator() {
         } 
         finally {
           setLoadingState(false);
-
         }
-        
       }
     }
     else{
       setLoadingState(false);
     }
-
   }
+
+  // Enable audio context on first user interaction
+  useEffect(() => {
+    const enableAudio = () => {
+      // Create and close an audio context to enable future audio
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioContext.close();
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('touchstart', enableAudio);
+    };
+    
+    document.addEventListener('click', enableAudio);
+    document.addEventListener('touchstart', enableAudio);
+    
+    return () => {
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('touchstart', enableAudio);
+    };
+  }, []);
+
+  // Clean up audio resources on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        try {
+          audioRef.current.stop();
+        } catch (err) {
+          // AudioBufferSourceNode may have already stopped
+        }
+      }
+      if (currentAudioUrlRef.current) URL.revokeObjectURL(currentAudioUrlRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     // Don't auto-translate if translation is restricted and user is not authenticated
@@ -387,7 +563,6 @@ export default function Translator() {
 
   return (
     <div className="translator-container">
-
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-3/4'>
         <DialogHeader>
@@ -428,15 +603,33 @@ export default function Translator() {
       </Dialog>
       
       <TooltipProvider>
-        <Card
-          side={"left"}
-          srcText={srcText}
-          lang={srcLang}
-          handleSrcText={handleSrcText}
-          handleSrcLang={handleSrcLang}
-          showTextMessage={showSrcTextMessage}
-          handleLangModalBtn={handleLangModalBtnLeft}
-        />
+        <div className="relative">
+          <Card
+            side={"left"}
+            srcText={srcText}
+            lang={srcLang}
+            handleSrcText={handleSrcText}
+            handleSrcLang={handleSrcLang}
+            showTextMessage={showSrcTextMessage}
+            handleLangModalBtn={handleLangModalBtnLeft}
+          />
+          
+          {/* TTS Controls for Source Text */}
+          <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-3">
+            {TTS_ENABLED_SRC_D && (
+              <button
+                type="button"
+                onClick={() => (isSpeaking ? stopSpeaking() : handleSpeak({ text: srcText, lang: srcLang.code }))}
+                disabled={!srcText?.trim() || isLoadingAudio}
+                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition disabled:opacity-100"
+                aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+                title={isSpeaking ? "Detener" : "Escuchar"}
+              >
+                <FontAwesomeIcon icon={isSpeaking ? faStop : isLoadingAudio ? faSpinner : faVolumeHigh} className={isLoadingAudio ? "fa-spin" : ""} color="#0a8cde" />
+              </button>
+            )}
+          </div>
+        </div>
 
         <div
           className="delayed-fade-in w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white absolute max-[850px]:top-1/2 max-[850px]:left-[45px] left-1/2 top-[100px] z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]"
@@ -462,19 +655,49 @@ export default function Translator() {
           />
         </div>
 
-        <Card
-          side={"right"}
-          dstText={dstText}
-          lang={dstLang}
-          handleDstLang={handleDstLang}
-          handleLangModalBtn={handleLangModalBtnRight}
-          handleCopyText={handleCopyText}
-          copyReady={copyReady}
-        />
+        <div className="relative">
+          <Card
+            side={"right"}
+            dstText={dstText}
+            lang={dstLang}
+            handleDstLang={handleDstLang}
+            handleLangModalBtn={handleLangModalBtnRight}
+            handleCopyText={handleCopyText}
+            copyReady={copyReady}
+          />
+          
+          {/* TTS Controls for Destination Text */}
+          <div className="absolute left-4 bottom-4 z-[3]">
+            {TTS_ENABLED_DST_D && (
+              <button
+                type="button"
+                onClick={() => (isSpeaking ? stopSpeaking() : handleSpeak({ text: dstText, lang: dstLang.code }))}
+                disabled={!dstText?.trim()}
+                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition disabled:opacity-100"
+                aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+                title={isSpeaking ? "Detener" : "Escuchar"}
+              >
+                <FontAwesomeIcon icon={isSpeaking ? faStop : faVolumeHigh} className="fa-lg" color="#0a8cde" />
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {/* TTS Status Indicators */}
+        {ANY_TTS_VISIBLE && isSpeaking && (
+          <div className="fixed right-4 bottom-16 z-[3] text-sm text-gray-500 flex items-center gap-2">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            <span>Reproduciendo…</span>
+          </div>
+        )}
+        {ANY_TTS_VISIBLE && ttsError && (
+          <div className="fixed right-4 bottom-28 z-[3] text-sm text-red-600">
+            {ttsError}
+          </div>
+        )}
       </TooltipProvider>
 
       <div className="translator-footer">
-
         {translationRestricted ? (<></>) : (
           <>
             <strong>¿Qué te ha parecido esta traducción?</strong>
@@ -492,7 +715,6 @@ export default function Translator() {
             />
           </>
         )}
-
       </div>
 
       <LangsModal
@@ -508,7 +730,6 @@ export default function Translator() {
         modelData={modelData}
         suggestionId={null}
       />
-      
     </div>
   );
 }
