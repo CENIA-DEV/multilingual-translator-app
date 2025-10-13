@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, VitsModel
 load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-nllb_language_token_map = {"mri_Latn": "rap", "spa_Latn": "spa", "eng_Latn": "eng"}
+nllb_language_token_map = {"rap_Latn": "rap", "spa_Latn": "spa", "eng_Latn": "eng"}
 
 
 class SpeechModelWrapper(ABC):
