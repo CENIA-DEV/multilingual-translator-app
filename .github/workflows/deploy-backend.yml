@@ -127,7 +127,7 @@ jobs:
           RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
 
           # Add TTS URL fetching
-          SERVICE_NAME_TTS_INFERENCE=${{ env.SERVICE_NAME_TTS_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
+          SERVICE_NAME_TTS_INFERENCE=${{ env.SERVICE_NAME_TTS_INFERENCE }}
           SERVICE_NAME_RAW_TTS_INFERENCE=${{ env.SERVICE_NAME_RAW_TTS_INFERENCE }}
           echo "Service Name TTS Inference: $SERVICE_NAME_TTS_INFERENCE"
           echo "Service Name Raw TTS Inference: $SERVICE_NAME_RAW_TTS_INFERENCE"
