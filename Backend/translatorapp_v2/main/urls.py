@@ -14,6 +14,7 @@
 # limitations under the License.
 from rest_framework.routers import DefaultRouter
 
+from .views import TextToSpeechViewSet  # Add this import
 from .views import (
     InvitationViewSet,
     LanguageViewSet,
@@ -32,4 +33,7 @@ router.register(r"requests", RequestViewSet, basename="request")
 router.register(r"password_reset", PasswordResetViewSet, basename="password_reset")
 router.register(r"translate", TranslateViewSet, basename="translate")
 router.register(r"languages", LanguageViewSet, basename="language")
+router.register(
+    r"text-to-speech", TextToSpeechViewSet, basename="text-to-speech"
+)  # TODO: Investigate what basename is about
 urlpatterns = router.urls

@@ -29,6 +29,7 @@ from .models import (
     Profile,
     RequestAccess,
     Script,
+    TextToSpeechAudio,
     TranslationPair,
 )
 
@@ -507,3 +508,20 @@ class ParticipateSerializer(serializers.Serializer):
     organization = serializers.CharField(
         allow_null=True, allow_blank=True, default=None
     )
+
+
+class TextToSpeechSerializer(serializers.ModelSerializer):
+    text = serializers.CharField(required=True)
+    language = serializers.CharField(required=True)
+    model_name = serializers.CharField(required=True)
+    model_version = serializers.CharField(required=True)
+
+    class Meta:
+        model = TextToSpeechAudio
+        fields = ["text", "language", "model_name", "model_version"]
+        extra_kwargs = {
+            "created_at": {"read_only": True},
+        }
+
+
+# TODO: Implement logic to filter out text long text

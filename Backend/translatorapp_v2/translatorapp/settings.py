@@ -49,13 +49,18 @@ class AppSettings(BaseSettings):
     """Settings for App."""
 
     model_config = SettingsConfigDict(env_prefix="app_")
-
     frontend_url: str
     backend_url: str
     inference_model_name: str
     raw_inference_model_name: str
     inference_model_url: str
     raw_inference_model_url: str
+
+    inference_tts_model_url: str
+    inference_tts_model_name: str
+
+    raw_inference_tts_model_url: str
+    raw_inference_tts_model_name: str
 
 
 # We need to create an instance of the Pydantic model to access the

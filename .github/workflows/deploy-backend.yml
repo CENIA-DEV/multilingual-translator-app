@@ -28,6 +28,16 @@ on:
         required: true
         type: number
         default: 150
+      tts_model_name:
+        description: 'TTS model name'
+        required: true
+        type: string
+        default: 'tts-models'
+      raw_tts_model_name:
+        description: 'Raw TTS model name'
+        required: true
+        type: string
+        default: 'tts-models'
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -50,6 +60,9 @@ jobs:
         PORT: 8000
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         MAX_WORDS_TRANSLATION: ${{ github.event.inputs.max_words_translation }}
+        # TTS Services
+        SERVICE_NAME_TTS_INFERENCE: ${{ vars.SERVICE_NAME_TTS_INFERENCE }}
+        SERVICE_NAME_RAW_TTS_INFERENCE: ${{ vars.SERVICE_NAME_RAW_TTS_INFERENCE }}
     steps:
       - name: Set variant from dispatch event or branch
         id: set-variant
@@ -103,6 +116,7 @@ jobs:
       - name: Get Cloud Run Service URLs
         id: get-urls
         run: |
+          # Existing URL fetching code
           echo "Service Region: ${{ env.SERVICE_REGION }}"
           echo "Region: ${{ env.ARTIFACT_REGION }}"
           SERVICE_NAME_INFERENCE=${{ vars.SERVICE_NAME_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
@@ -111,6 +125,16 @@ jobs:
           echo "Service Name Raw Inference: $SERVICE_NAME_RAW_INFERENCE"
           INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
           RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+
+          # Add TTS URL fetching
+          SERVICE_NAME_TTS_INFERENCE=${{ env.SERVICE_NAME_TTS_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
+          SERVICE_NAME_RAW_TTS_INFERENCE=${{ env.SERVICE_NAME_RAW_TTS_INFERENCE }}
+          echo "Service Name TTS Inference: $SERVICE_NAME_TTS_INFERENCE"
+          echo "Service Name Raw TTS Inference: $SERVICE_NAME_RAW_TTS_INFERENCE"
+          TTS_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_TTS_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+          RAW_TTS_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_TTS_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+
+          # Rest of existing code
           if [[ "${{ github.event.inputs.environment }}" == "PRODUCTION" ]]; then
             if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
               # in production, both urls are the same
@@ -136,12 +160,19 @@ jobs:
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
           echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
 
+          # Add TTS URLs to environment
+          echo "TTS Inference URL: $TTS_INFERENCE_URL"
+          echo "Raw TTS Inference URL: $RAW_TTS_INFERENCE_URL"
+          echo "TTS_INFERENCE_URL=$TTS_INFERENCE_URL" >> $GITHUB_ENV
+          echo "RAW_TTS_INFERENCE_URL=$RAW_TTS_INFERENCE_URL" >> $GITHUB_ENV
+
       - name: Deploy to cloud run
         uses: 'google-github-actions/deploy-cloudrun@v2'
         with:
           service: '${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}'
           image: ${{ env.ARTIFACT_REGISTRY_URL }}
           env_vars: |-
+            # Existing variables
             SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}
             PRODUCTION=True
             TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
@@ -156,6 +187,11 @@ jobs:
             APP_RAW_INFERENCE_MODEL_NAME=${{ github.event.inputs.raw_model_name }}
             APP_INFERENCE_MODEL_URL=${{ env.INFERENCE_URL }}
             APP_RAW_INFERENCE_MODEL_URL=${{ env.RAW_INFERENCE_URL }}
+            # Add TTS variables
+            APP_INFERENCE_TTS_MODEL_NAME=${{ github.event.inputs.tts_model_name }}
+            APP_RAW_INFERENCE_TTS_MODEL_NAME=${{ github.event.inputs.raw_tts_model_name }}
+            APP_INFERENCE_TTS_MODEL_URL=${{ env.TTS_INFERENCE_URL }}
+            APP_RAW_INFERENCE_TTS_MODEL_URL=${{ env.RAW_TTS_INFERENCE_URL }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '5m'

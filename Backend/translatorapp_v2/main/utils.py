@@ -219,6 +219,92 @@ def translate(src_text, src_lang, dst_lang):
         }
 
 
+def get_tts_prediction(text, lang_code, deployment):
+    """
+    Send request to TTS model server and get audio waveform.
+    """
+    payload = {
+        "id": "0",
+        "inputs": [
+            {
+                "name": "text",
+                "shape": [1, 1],
+                "datatype": "BYTES",
+                "data": [[text]],
+            },
+            {
+                "name": "lang_code",
+                "shape": [1, 1],
+                "datatype": "BYTES",
+                "data": [[lang_code]],
+            },
+        ],
+    }
+
+    response = requests.post(url=deployment, data=json.dumps(payload))
+    response = response.json()
+
+    # Process the response
+    if "outputs" in response:
+        logger.debug("TTS generation successful")
+        return (
+            response["outputs"][0]["data"],  # waveform data
+            response["model_name"],
+            response["model_version"],
+        )
+    elif "error" in response:
+        logger.error(f"Error in TTS generation: {response['error']}")
+        raise Exception("Error in TTS generation")
+    else:
+        logger.error("TTS API responded with unexpected format")
+        raise Exception("Error in TTS generation")
+
+
+def generate_tts(src_text, src_lang):
+    """
+    Generate text-to-speech audio.
+    """
+    # Handle both Lang objects and string language codes
+    lang_code = src_lang
+    if hasattr(src_lang, "code"):
+        lang_code = src_lang.code
+
+    native_deployment = (
+        f"{settings.APP_SETTINGS.inference_tts_model_url}/v2/models/"
+        f"{settings.APP_SETTINGS.inference_tts_model_name}/infer"
+    )
+
+    raw_deployment = (
+        f"{settings.APP_SETTINGS.raw_inference_tts_model_url}/v2/models/"
+        f"{settings.APP_SETTINGS.raw_inference_tts_model_name}/infer"
+    )
+
+    logger.debug(f"Generating audio from {src_text}")
+    src_text_paragraphs = src_text.split("\n")
+    logger.debug(f"Src text paragraphs: {src_text_paragraphs}")
+    logger.debug(f"Native deployment: {native_deployment}")
+    logger.debug(f"Raw deployment: {raw_deployment}")
+
+    deployment = raw_deployment
+
+    try:
+        # Pass the lang_code directly instead of trying to access .code
+        waveform_data, model_name, model_version = get_tts_prediction(
+            src_text, lang_code, deployment=deployment  # Pass the code string directly
+        )
+        logger.debug(f"Successfully generated audio for text in {lang_code}")
+
+        return {
+            "waveform": waveform_data,
+            "model_name": model_name,
+            "model_version": model_version,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to generate speech: {str(e)}")
+        raise e
+
+
 def convert_timestamp(timestamp_str):
     if timestamp_str is None:
         return None

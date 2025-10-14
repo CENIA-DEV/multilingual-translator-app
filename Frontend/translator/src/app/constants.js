@@ -16,6 +16,7 @@ export const ACCESS_TOKEN = 'token'
 
 export const API_ENDPOINTS = {
     TRANSLATION: 'api/translate/',
+    TEXT_TO_SPEECH: 'api/text-to-speech/',
     INVITATIONS: 'api/invitations/',
     USERS: 'api/users/',
     REQUESTS: 'api/requests/',
@@ -38,9 +39,12 @@ export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-reque
 // Translation restriction configuration
 export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
 
+export const TTS_ENABLED = process.env.NEXT_PUBLIC_TTS_ENABLED === 'true';
+
 // Helper function to check if translation is restricted for current user
 export const isTranslationRestricted = (currentUser) => {
-  return TRANSLATION_REQUIRES_AUTH && !currentUser;
+    return false;
+
 };
 
 export const ROLES = [
