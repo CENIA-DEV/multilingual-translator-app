@@ -615,7 +615,7 @@ export default function Translator() {
           />
           
           {/* TTS Controls for Source Text */}
-          <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-3">
+          <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14">
             {TTS_ENABLED_SRC_D && (
               <button
                 type="button"
@@ -667,7 +667,7 @@ export default function Translator() {
           />
           
           {/* TTS Controls for Destination Text */}
-          <div className="absolute left-4 bottom-4 z-[3]">
+          <div className="absolute left-4 bottom-4 z-[3] max-[850px]:left-3 max-[850px]:bottom-14">
             {TTS_ENABLED_DST_D && (
               <button
                 type="button"
@@ -683,13 +683,6 @@ export default function Translator() {
           </div>
         </div>
         
-        {/* TTS Status Indicators */}
-        {ANY_TTS_VISIBLE && isSpeaking && (
-          <div className="fixed right-4 bottom-16 z-[3] text-sm text-gray-500 flex items-center gap-2">
-            <FontAwesomeIcon icon={faSpinner} spin />
-            <span>Reproduciendo…</span>
-          </div>
-        )}
         {ANY_TTS_VISIBLE && ttsError && (
           <div className="fixed right-4 bottom-28 z-[3] text-sm text-red-600">
             {ttsError}
