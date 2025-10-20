@@ -69,7 +69,11 @@ def send_audio_to_server(client, audio, sample_rate, lang_code, model_name):
 def main():
     parser = argparse.ArgumentParser(description="ASR Client for Testing")
     parser.add_argument("--audio", required=True, help="Path to audio file")
-    parser.add_argument("--url", default="localhost:8016", help="Inference server URL")
+    parser.add_argument(
+        "--url",
+        default="asr-rap-staging-418141416904.us-central1.run.app",
+        help="Inference server URL",
+    )
     parser.add_argument(
         "--lang",
         default="rap_Latn",
@@ -107,7 +111,11 @@ def main():
 
         # Create client
         logging.info(f"Connecting to Triton server at {args.url}")
-        client = InferenceServerClient(args.url)
+        # Enable SSL for HTTPS URLs
+        use_ssl = args.url.endswith("run.app") or args.url.startswith("https")
+        if use_ssl:
+            logging.info("Using SSL for connection.")
+        client = InferenceServerClient(args.url, ssl=use_ssl)
 
         # Check server readiness
         if not client.is_server_ready():
