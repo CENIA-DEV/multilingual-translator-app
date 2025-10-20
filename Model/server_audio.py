@@ -169,7 +169,7 @@ def main():
                 ),  # Variable length
             ],
             config=ModelConfig(
-                max_batch_size=1,  # TTS may not support batching easily
+                max_batch_size=1,
                 batcher=DynamicBatcher(
                     max_queue_delay_microseconds=100,
                 ),
