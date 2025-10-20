@@ -12,3 +12,4 @@ package-lock.json
 *.DS_Store
 *.log
 Model/key.json
+Model/_tmp_tokenizer
