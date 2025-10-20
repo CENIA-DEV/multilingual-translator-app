@@ -120,8 +120,6 @@ class MMSASRWrapper(ASRModelWrapper):
         ).to(self._device)
 
     def transcribe(self, inputs, lang: str):
-
-        breakpoint()
         """Transcribe processed audio to text using the selected language."""
         # Set the target language
         self.processor.tokenizer.set_target_lang(lang)
