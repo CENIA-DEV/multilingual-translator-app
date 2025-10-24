@@ -235,3 +235,30 @@ class TextToSpeechAudio(models.Model):
             models.Index(fields=["created_at"]),
             models.Index(fields=["model_name", "model_version"]),
         ]
+
+
+class SpeechToTextAudio(models.Model):
+
+    text = models.TextField(max_length=5000)
+    language = models.ForeignKey("Lang", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # TODO: Include audio
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="asr_audios",
+    )
+
+    model_name = models.CharField(max_length=100, null=True)
+    model_version = models.CharField(max_length=100, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["language"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["model_name", "model_version"]),
+        ]

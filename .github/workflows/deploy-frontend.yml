@@ -24,6 +24,11 @@ on:
         required: true
         type: boolean
         default: false
+      asr_enabled:
+        description: 'Speech-to-text functionality enabled'
+        required: true
+        type: boolean
+        default: false
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -79,6 +84,8 @@ jobs:
           echo "NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.requires_auth }}" >> .env.production
           # Set text-to-speech enablement
           echo "NEXT_PUBLIC_TTS_ENABLED=${{ github.event.inputs.tts_enabled }}" >> .env.production
+          # Set speech-to-text enablement
+          echo "NEXT_PUBLIC_ASR_ENABLED=${{ github.event.inputs.asr_enabled }}" >> .env.production
 
           # if not production, set the api url to the backend url so we dont use relative path
           if [ "${{ github.event.inputs.environment }}" != "PRODUCTION" ]; then

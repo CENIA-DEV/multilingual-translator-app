@@ -523,5 +523,20 @@ class TextToSpeechSerializer(serializers.ModelSerializer):
             "created_at": {"read_only": True},
         }
 
+    # TODO: Implement logic to filter out text long text
 
-# TODO: Implement logic to filter out text long text
+
+class SpeechToTextSerializer(serializers.ModelSerializer):
+
+    audio = serializers.FileField(required=True)
+    text = serializers.CharField(read_only=True)
+    language = serializers.CharField(required=True)
+    model_name = serializers.CharField(required=True)
+    model_version = serializers.CharField(required=True)
+
+    class Meta:
+        model = TextToSpeechAudio
+        fields = ["audio", "text", "language", "model_name", "model_version"]
+        extra_kwargs = {
+            "created_at": {"read_only": True},
+        }

@@ -26,7 +26,12 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Token ${token}`;
       }
-      config.headers['Content-Type'] = 'application/json';
+      
+      // Only set Content-Type if not FormData
+      if (!(config.data instanceof FormData)) {
+        config.headers['Content-Type'] = 'application/json';
+      }
+      
       config.headers['Accept'] = 'application/json';
       return config;
     },
