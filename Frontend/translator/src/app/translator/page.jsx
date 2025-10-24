@@ -25,13 +25,15 @@ import {
   faLock, 
   faVolumeHigh, 
   faStop, 
-  faSpinner 
+  faSpinner,
+  faMicrophone,
+  faPlus
 } from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { API_ENDPOINTS, isTranslationRestricted, MAX_WORDS_TRANSLATION, TTS_ENABLED } from '../constants';
+import { API_ENDPOINTS, isTranslationRestricted, MAX_WORDS_TRANSLATION, TTS_ENABLED, ASR_ENABLED, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,6 +43,7 @@ import { AuthContext } from '../contexts';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { generateSpeech } from '../services/ttsService';
+import { generateText } from '../services/asrService';
 
 export default function Translator() {
 
@@ -71,10 +74,18 @@ export default function Translator() {
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const audioRef = useRef(null);
   const currentAudioUrlRef = useRef(null);
+  const audioContextRef = useRef(null); // Add this line
   
   // Add audio cache reference and cache size constant
   const audioCache = useRef(new Map());
   const MAX_AUDIO_CACHE_SIZE = 5; // Limit to 5 audio clips
+
+  // ASR state & refs (must be declared before useEffect that uses them)
+  const [isRecording, setIsRecording] = useState(false);
+  const [asrStatus, setAsrStatus] = useState('idle');
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
   
   const [langModalMode, setLangModalMode] = useState(false);
   const [modalBtnSide, setModalBtnSide] = useState('');
@@ -118,6 +129,10 @@ export default function Translator() {
   const TTS_ENABLED_DST_D = TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
+
+  // Add ASR dynamic flag
+  const isASRSourceAllowed = (l) => isES(l) || isEN(l) || isRAP(l);
+  const ASR_ENABLED_D = !translationRestricted && ASR_ENABLED && isASRSourceAllowed(srcLang);
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -518,8 +533,9 @@ export default function Translator() {
   useEffect(() => {
     const enableAudio = () => {
       // Create and close an audio context to enable future audio
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioContext.close();
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
       document.removeEventListener('click', enableAudio);
       document.removeEventListener('touchstart', enableAudio);
     };
@@ -554,12 +570,204 @@ export default function Translator() {
       return;
     }
 
+    // Don't auto-translate if explicitly suppressed (after ASR)
+    if (suppressNextAutoTranslate) {
+      setSuppressNextAutoTranslate(false);
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
       translate();
     }, 1500);
 
     return () => clearTimeout(timeoutId);
-  }, [srcText, srcLang, dstLang, translationRestricted]);
+  }, [srcText, srcLang, dstLang, translationRestricted, suppressNextAutoTranslate]);
+
+  // ASR helper functions (single copy inside component)
+  function getPreferredMime() {
+    if (typeof window !== 'undefined' && window.MediaRecorder && MediaRecorder.isTypeSupported) {
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+      if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) return 'audio/ogg;codecs=opus';
+    }
+    return 'audio/webm';
+  }
+
+  function inferHintFromSrcLang() {
+    const code = (srcLang?.code || '').toLowerCase();
+    if (code.includes('spa')) return 'spa_Latn';
+    if (code.includes('rap')) return 'rap_Latn';
+    if (code.includes('arn')) return 'arn_Latn';
+    if (VARIANT_LANG === 'rap') return 'rap_Latn';
+    if (VARIANT_LANG === 'arn') return 'arn_Latn';
+    return 'spa_Latn';
+  }
+
+  async function handleTranscribeBlob(blob, filename = 'audio.webm') {
+    const maxBytes = (Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB ?? 25)) * 1024 * 1024;
+    if (blob.size > maxBytes) {
+      setAsrStatus('error');
+      toast(`El archivo supera ${process.env.NEXT_PUBLIC_MAX_AUDIO_MB || 25} MB.`);
+      return;
+    }
+
+    const hint = inferHintFromSrcLang();
+    setAsrStatus('transcribing');
+
+    try {
+      // Use our asrService instead of direct API call
+      //const data = await generateText(blob, hint, "mms_meta_asr", "v1");
+      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+
+      const transcript = data?.text || '';
+
+      if (AUTOFILL_TRANSCRIPT !== false) {
+        // Avoid the auto-translate from the useEffect
+        setSuppressNextAutoTranslate(true);
+        setSrcText(transcript);
+      }
+      setAsrStatus('done');
+      toast('Transcripción lista.');
+    } catch (err) {
+      console.error(err);
+      setAsrStatus('error');
+      toast('Error al transcribir.', {
+        description: err?.response?.data?.error || 'Reintenta con otro archivo.',
+      });
+    }
+  }
+
+  async function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast('Tu navegador no soporta grabación de audio.');
+      return;
+    }
+    
+    const mime = getPreferredMime();
+    
+    try {
+      // Request audio with more explicit constraints
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000,
+          channelCount: 1
+        }
+      });
+      
+      // First few packets can be problematic - "warm up" the microphone
+      // by starting and stopping a quick recording that we discard
+      try {
+        const warmupRecorder = new MediaRecorder(stream, {mimeType: mime});
+        warmupRecorder.start();
+        await new Promise(r => setTimeout(r, 100));
+        warmupRecorder.stop();
+        // We don't need to do anything with this data
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        // Ignore errors in warm-up
+        console.log("Microphone warm-up failed, continuing anyway");
+      }
+      
+      // Configure MediaRecorder with more explicit options
+      const recorder = new MediaRecorder(stream, { 
+        mimeType: mime,
+        audioBitsPerSecond: 128000 
+      });
+      
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      
+      recorder.onstop = async () => {
+        // Add small delay before processing to ensure all internal buffers are flushed
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Make sure we have chunks with content
+        if (chunksRef.current.length === 0 || chunksRef.current.every(chunk => chunk.size === 0)) {
+          toast('No se grabó audio. Intente nuevamente.');
+          setIsRecording(false);
+          setAsrStatus('idle');
+          return;
+        }
+        
+        const ext = mime.includes('ogg') ? 'ogg' : 'webm';
+        const blob = new Blob(chunksRef.current, { type: mime.includes('ogg') ? 'audio/ogg' : 'audio/webm' });
+        
+        if (blob.size < 1000) { // Less than 1KB is suspiciously small
+          toast('Grabación muy corta. Intente hablar más tiempo.');
+          setIsRecording(false);
+          setAsrStatus('idle');
+          return;
+        }
+
+        recorder.stream.getTracks().forEach(t => t.stop());
+        setIsRecording(false);
+        await handleTranscribeBlob(blob, `grabacion.${ext}`);
+      };
+
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setAsrStatus('recording');
+      
+      // Start with timeslice to get data periodically (every 1000ms)
+      // This helps ensure we get valid chunks even with short recordings
+      recorder.start(500); // 500ms chunks instead of 1000ms
+      
+      // Add a visual/audio indicator that recording has started
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const audioContext = audioContextRef.current;
+
+      // Resume context if it's suspended
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.frequency.value = 440;
+      gain.gain.value = 0.1;
+      oscillator.start();
+      setTimeout(() => oscillator.stop(), 200);
+      
+      toast('Grabación iniciada.');
+    } catch (err) {
+      console.error('Error starting recording:', err);
+      toast('Error al iniciar grabación: ' + (err.message || err.name));
+    }
+  }
+
+  function stopRecording() {
+    const r = mediaRecorderRef.current;
+    if (r && r.state !== 'inactive') {
+      r.stop();
+      toast('Grabación detenida.');
+    }
+  }
+
+  // Add this function to request user permission before recording
+  function preloadMicrophone() {
+    if (navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          // Just stop tracks immediately - this is just to trigger permission dialog
+          stream.getTracks().forEach(track => track.stop());
+          console.log('Microphone access granted');
+        })
+        .catch(err => console.log('Microphone permission not granted:', err));
+    }
+  }
+
+  // Call this in a useEffect that runs once
+  useEffect(() => {
+    preloadMicrophone();
+  }, []);
 
   return (
     <div className="translator-container">
@@ -614,8 +822,86 @@ export default function Translator() {
             handleLangModalBtn={handleLangModalBtnLeft}
           />
           
-          {/* TTS Controls for Source Text */}
-          <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14">
+          {/* ASR + TTS Controls for Source Text */}
+          <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
+            {/* Record button */}
+            {ASR_ENABLED_D && (
+              <button
+                type="button"
+                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition"
+                onClick={async () => {
+                  if (translationRestricted) {
+                    setTranslationRestrictedDialogOpen(true);
+                    return;
+                  }
+                  if (!isRecording) {
+                    try {
+                      await startRecording();
+                    } catch (e) {
+                      setAsrStatus('error');
+                      toast('No se pudo iniciar la grabación.');
+                    }
+                  } else {
+                    stopRecording();
+                  }
+                }}
+                aria-label="Grabar audio"
+                title="Grabar audio"
+                disabled={loadingState}
+                style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
+              >
+                <FontAwesomeIcon
+                  icon={faMicrophone}
+                  className="fa-lg"
+                  color={isRecording ? "#d40000" : "#0a8cde"}
+                />
+              </button>
+            )}
+
+            {/* Upload button */}
+            {ASR_ENABLED_D && (
+              <label
+                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition cursor-pointer"
+                title="Subir audio"
+                aria-label="Subir audio"
+              >
+                <input
+                  type="file"
+                  accept="audio/*"
+                  hidden
+                  onChange={async (e) => {
+                    if (translationRestricted) {
+                      setTranslationRestrictedDialogOpen(true);
+                      e.currentTarget.value = "";
+                      return;
+                    }
+                    const files = e.currentTarget.files;
+                    if (!files || files.length === 0) return;
+                    const file = files[0];
+                    e.currentTarget.value = "";
+
+                    setAsrStatus('uploading');
+
+                    try {
+                      const okTypes = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4'];
+                      if (file.type && !okTypes.includes(file.type)) {
+                        toast('Formato no soportado. Sube webm/ogg/mp3/wav.');
+                        setAsrStatus('error');
+                        return;
+                      }
+                      await handleTranscribeBlob(file, file.name || 'audio.subido');
+                    } catch (err) {
+                      console.error(err);
+                      setAsrStatus('error');
+                      toast('No se pudo procesar el archivo.');
+                    }
+                  }}
+                />
+                <FontAwesomeIcon icon={faPlus} className="fa-lg" color="#0a8cde" />
+              </label>
+            )}
+
+            {/* TTS button */}
             {TTS_ENABLED_SRC_D && (
               <button
                 type="button"

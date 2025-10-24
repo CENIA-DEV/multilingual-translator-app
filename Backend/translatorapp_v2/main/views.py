@@ -24,6 +24,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
@@ -34,6 +35,7 @@ from .models import (
     Lang,
     PasswordResetToken,
     RequestAccess,
+    SpeechToTextAudio,
     TextToSpeechAudio,
     TranslationPair,
 )
@@ -45,6 +47,7 @@ from .serializers import (
     ParticipateSerializer,
     PasswordResetSerializer,
     RequestSerializer,
+    SpeechToTextSerializer,
     SuggestionSerializer,
     TextToSpeechSerializer,
     TranslationPairSerializer,
@@ -52,6 +55,7 @@ from .serializers import (
 )
 from .utils import (
     filter_cache,
+    generate_asr,
     generate_tts,
     send_invite_email,
     send_participate_email,
@@ -722,4 +726,89 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 )
         else:
             logger.warning(f"Invalid text request: {serializer.errors}")
+            return Response(serializer.errors, HTTP_400_BAD_REQUEST)
+
+
+class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """
+    ViewSet for speech-to-text functionality
+    """
+
+    permission_classes = [TranslationRequiresAuth]
+    serializer_class = SpeechToTextSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Add this line
+
+    def get_queryset(self, text=None, lang=None):
+        results = (
+            SpeechToTextAudio.objects.filter(
+                language__code=(
+                    lang.code if lang else None
+                ),  # TODO: review language__code
+            )
+            # Filter by text if provided
+            .filter(text__iexact=text)
+            if text
+            else SpeechToTextAudio.objects.none().order_by("-created_at")
+        )
+        return [s for s in results]
+
+    def create(self, request):
+        logger.info("Received speech-to-text request")
+
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            audio_file = serializer.validated_data["audio"]
+            language_code = serializer.validated_data["language"]
+            # model_name = serializer.validated_data["model_name"]
+            # model_version = serializer.validated_data["model_version"]
+
+            logger.debug(f"Processing ASR request for language: {language_code}")
+
+            try:
+                # Get the Lang object from the language code
+                lang_obj = Lang.objects.get(code=language_code)
+
+                # generate_asr returns a dict with 'text', 'model_name', 'model_version'
+                asr_result = generate_asr(audio_file, lang_obj)
+
+                # Extract the transcribed text
+                transcribed_text = asr_result["text"]
+
+                logger.info("ASR transcription complete", asr_result)
+
+                # Create the database record
+                SpeechToTextAudio.objects.create(
+                    text=transcribed_text,
+                    language=lang_obj,
+                    model_name=asr_result["model_name"],
+                    model_version=asr_result["model_version"],
+                    user=request.user if request.user.is_authenticated else None,
+                )
+
+                # Create response data
+                response_data = {
+                    "text": transcribed_text,
+                    "language": language_code,
+                    "model_name": asr_result["model_name"],
+                    "model_version": asr_result["model_version"],
+                }
+
+                logger.info("ASR transcription complete")
+                return Response(response_data)
+
+            except Lang.DoesNotExist:
+                logger.error(f"Language with code '{language_code}' not found")
+                return Response(
+                    f"Language code '{language_code}' not supported",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+            except Exception as e:
+                logger.error(f"ASR processing error: {str(e)}")
+                return Response(
+                    "Error in speech recognition",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+        else:
+            logger.warning(f"Invalid ASR request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)

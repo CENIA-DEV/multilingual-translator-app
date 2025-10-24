@@ -62,6 +62,12 @@ class AppSettings(BaseSettings):
     raw_inference_tts_model_url: str
     raw_inference_tts_model_name: str
 
+    inference_asr_model_url: str
+    inference_asr_model_name: str
+
+    raw_inference_asr_model_url: str
+    raw_inference_asr_model_name: str
+
 
 # We need to create an instance of the Pydantic model to access the
 # environment variables.
@@ -165,6 +171,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
+    # "storages"
 ]
 
 REST_FRAMEWORK = {
@@ -284,3 +291,9 @@ MAX_WORDS_TRANSLATION = int(os.environ.get("MAX_WORDS_TRANSLATION", 150))
 TRANSLATION_REQUIRES_AUTH = (
     os.environ.get("TRANSLATION_REQUIRES_AUTH", "false").lower() == "true"
 )
+
+# TODO: Configure to store audios in GCP
+
+# DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+# GS_BUCKET_NAME = ''
+# STATICFILES_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
