@@ -134,6 +134,41 @@ limitations under the License. */
   border-bottom-right-radius: 30px;
 }
 
+.review-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 4px 6px;
+  border-radius: 9999px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.audio-compact {
+  width: 140px;
+  height: 28px;
+  transform: scale(0.90);
+  transform-origin: left center;
+}
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #0a8cde;
+  color: #fff;
+  line-height: 1;
+}
+
+.btn-icon.muted {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 @media screen and (max-width: 850px) {
   .translator-container {
     flex-direction: column;
@@ -174,6 +209,17 @@ limitations under the License. */
 	border-top-right-radius: 0;
     border-bottom-left-radius: 30px;
     border-bottom-right-radius: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .audio-compact {
+    width: 120px;
+    transform: scale(0.88);
+  }
+  .review-inline {
+    gap: 4px;
+    padding: 4px;
   }
 }
 

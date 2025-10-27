@@ -16,18 +16,20 @@ limitations under the License. */
 import { useState, useEffect, useContext, useRef } from 'react'
 import "./translator.css"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { 
-  faThumbsDown, 
-  faThumbsUp, 
-  faArrowsRotate, 
-  faArrowRightArrowLeft, 
-  faArrowRight, 
-  faLock, 
-  faVolumeHigh, 
-  faStop, 
+import {
+  faThumbsDown,
+  faThumbsUp,
+  faArrowsRotate,
+  faArrowRightArrowLeft,
+  faArrowRight,
+  faLock,
+  faVolumeHigh,
+  faStop,
   faSpinner,
   faMicrophone,
-  faPlus
+  faPlus,
+  faPaperPlane,   // <<< add
+  faXmark         // <<< add
 } from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
@@ -74,8 +76,8 @@ export default function Translator() {
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const audioRef = useRef(null);
   const currentAudioUrlRef = useRef(null);
-  const audioContextRef = useRef(null); // Add this line
-  
+  const audioContextRef = useRef(null); // This ref will be our single source of truth
+
   // Add audio cache reference and cache size constant
   const audioCache = useRef(new Map());
   const MAX_AUDIO_CACHE_SIZE = 5; // Limit to 5 audio clips
@@ -84,9 +86,23 @@ export default function Translator() {
   const [isRecording, setIsRecording] = useState(false);
   const [asrStatus, setAsrStatus] = useState('idle');
   const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const prevStopAtRef = useRef(0);          // cooldown between sessions
+  const recorderBusyRef = useRef(false);    // prevent double starts
+  const COOLDOWN_MS = 700;                  // NEW: conservative cooldown after stop/transcribe
   const chunksRef = useRef([]);
   const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
-  
+  const lastRecordingUrl = useRef(null);
+  const lastRecordingBlobRef = useRef(null);
+  const reviewAudioRef = useRef(null); // NEW: control the <audio> element
+  const [_, forceUpdate] = useState(0); // Helper to force re-render for URL changes
+  const dropFirstChunkRef = useRef(false);  // <<< ADD THIS LINE
+  const recordingTimeoutRef = useRef(null); // Add near other refs
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingStartedAtRef = useRef(0); // NEW: Track start time
+  const recordingIntervalRef = useRef(null);
+  const stopSafeguardRef = useRef(null);    // NEW: force-reset if onstop never fires
+
   const [langModalMode, setLangModalMode] = useState(false);
   const [modalBtnSide, setModalBtnSide] = useState('');
 
@@ -396,11 +412,30 @@ export default function Translator() {
     }
   }
   
+  // This function ensures we have a single, running AudioContext.
+  const getAudioContext = async () => {
+    if (!audioContextRef.current) {
+      // Create it if it doesn't exist
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Always try to resume it, as it can be suspended by the browser.
+    // This is safe to call even if it's already running.
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
+    }
+    return audioContextRef.current;
+  };
+
   // Helper function to play audio from buffer data
-  function playAudioFromBuffer(waveformData) {
+  async function playAudioFromBuffer(waveformData) {
     try {
-      // Create audio context
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const audioContext = await getAudioContext();
+      if (!audioContext) {
+        console.error("Could not get a running AudioContext.");
+        setIsSpeaking(false);
+        return;
+      }
+
       const sampleRate = 16000; // Hardcoded from backend knowledge
       
       // Create buffer from float data
@@ -443,6 +478,11 @@ export default function Translator() {
       currentAudioUrlRef.current = null;
     }
     setIsSpeaking(false);
+    // Ensure any lingering media streams are stopped
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
   }
 
   const translate = async () => {
@@ -529,25 +569,86 @@ export default function Translator() {
     }
   }
 
-  // Enable audio context on first user interaction
-  useEffect(() => {
-    const enableAudio = () => {
-      // Create and close an audio context to enable future audio
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      document.removeEventListener('click', enableAudio);
-      document.removeEventListener('touchstart', enableAudio);
-    };
-    
-    document.addEventListener('click', enableAudio);
-    document.addEventListener('touchstart', enableAudio);
-    
-    return () => {
-      document.removeEventListener('click', enableAudio);
-      document.removeEventListener('touchstart', enableAudio);
-    };
-  }, []);
+  // Robust duration getter with timeout + fallback to WebAudio decode
+  async function getBlobDuration(blob, timeoutMs = 2000) {
+    // 1) Try HTMLAudio metadata quickly
+    const durationFromTag = () =>
+      new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const audio = document.createElement('audio');
+        let done = false;
+
+        const cleanup = () => {
+          if (!done) {
+            done = true;
+            audio.removeEventListener('loadedmetadata', onLoaded);
+            audio.removeEventListener('error', onError);
+            URL.revokeObjectURL(url);
+          }
+        };
+        const onLoaded = () => { const d = audio.duration; cleanup(); resolve(Number.isFinite(d) ? d : null); };
+        const onError = () => { cleanup(); reject(new Error('metadata error')); };
+
+        const t = setTimeout(() => { cleanup(); reject(new Error('metadata timeout')); }, timeoutMs);
+        audio.addEventListener('loadedmetadata', () => { clearTimeout(t); onLoaded(); });
+        audio.addEventListener('error', () => { clearTimeout(t); onError(); });
+        audio.preload = 'metadata';
+        audio.src = url;
+      });
+
+    try {
+      const d = await durationFromTag();
+      if (d != null) return d;
+    } catch (_) {
+      // fallthrough
+    }
+
+    // 2) Fallback: decode with WebAudio (more reliable, heavier)
+    try {
+      const ctx = await getAudioContext();
+      const buf = await blob.arrayBuffer();
+      const decoded = await ctx.decodeAudioData(buf.slice(0)); // slice avoids Safari reuse issues
+      return decoded.duration ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  const resetAudioState = () => {
+    console.log("Resetting all audio states.");
+
+    if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
+
+    // timers
+    if (recordingTimeoutRef.current) { clearTimeout(recordingTimeoutRef.current); recordingTimeoutRef.current = null; }
+    if (recordingIntervalRef.current) { clearInterval(recordingIntervalRef.current); recordingIntervalRef.current = null; }
+    setRecordingSeconds(0);
+
+    // recorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      try { mediaRecorderRef.current.stop(); } catch {}
+    }
+    mediaRecorderRef.current = null;
+
+    // stream
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+
+    // audio element
+    safeUnloadReviewAudio();
+    lastRecordingBlobRef.current = null;
+
+    setIsRecording(false);
+    setAsrStatus('idle');
+    dropFirstChunkRef.current = true;
+    prevStopAtRef.current = performance.now();
+    recorderBusyRef.current = false;
+    forceUpdate(x => x + 1);
+  };
 
   // Clean up audio resources on unmount
   useEffect(() => {
@@ -560,6 +661,13 @@ export default function Translator() {
         }
       }
       if (currentAudioUrlRef.current) URL.revokeObjectURL(currentAudioUrlRef.current);
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+      // Also clean up any active media stream on unmount
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
 
@@ -613,10 +721,26 @@ export default function Translator() {
     const hint = inferHintFromSrcLang();
     setAsrStatus('transcribing');
 
+    let timeoutId = null; // To hold the timer
+
     try {
+      // Set a timer to show a message if transcription takes too long
+      timeoutId = setTimeout(() => {
+        toast("La transcripción está tardando más tiempo de lo esperado...", {
+          description: "Por favor, espere un momento mientras el modelo se carga",
+          duration: 20000,
+          cancel: {
+            label: 'Cerrar',
+            onClick: () => console.log('Pop up cerrado'),
+          },
+        });
+      }, 5000);
+
       // Use our asrService instead of direct API call
-      //const data = await generateText(blob, hint, "mms_meta_asr", "v1");
       const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+
+      // If we get here, transcription was fast enough, so clear the timer
+      clearTimeout(timeoutId);
 
       const transcript = data?.text || '';
 
@@ -625,129 +749,218 @@ export default function Translator() {
         setSuppressNextAutoTranslate(true);
         setSrcText(transcript);
       }
-      setAsrStatus('done');
       toast('Transcripción lista.');
     } catch (err) {
+      // If an error occurs, also clear the timer
+      clearTimeout(timeoutId);
       console.error(err);
-      setAsrStatus('error');
       toast('Error al transcribir.', {
         description: err?.response?.data?.error || 'Reintenta con otro archivo.',
       });
+    } finally {
+      // NEW: add a small post-transcribe cooldown, then reset
+      await new Promise(r => setTimeout(r, COOLDOWN_MS));
+      resetAudioState(); // this sets prevStopAt & clears busy
     }
   }
 
   async function startRecording() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      toast('Tu navegador no soporta grabación de audio.');
-      return;
-    }
-    
-    const mime = getPreferredMime();
-    
+    if (recorderBusyRef.current) return;
+    recorderBusyRef.current = true;
+
     try {
-      // Request audio with more explicit constraints
-      const stream = await navigator.mediaDevices.getUserMedia({
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast('Tu navegador no soporta grabación de audio.');
+        recorderBusyRef.current = false;
+        return;
+      }
+
+      const elapsed = performance.now() - (prevStopAtRef.current || 0);
+      if (elapsed < COOLDOWN_MS) {
+        await new Promise(r => setTimeout(r, COOLDOWN_MS - elapsed));
+      }
+
+      // IMPORTANT: re-enable suppression/AGC to reduce “static/hiss”
+      const constraints = {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 48000,
-          channelCount: 1
+          channelCount: 1,
+          // Safari-only enhancement (ignored elsewhere)
+          // @ts-ignore
+          voiceIsolation: true,
+          // Chrome legacy flags (ignored if not supported)
+          // @ts-ignore
+          googEchoCancellation: true,
+          // @ts-ignore
+          googNoiseSuppression: true,
+          // @ts-ignore
+          googAutoGainControl: true,
         }
-      });
-      
-      // First few packets can be problematic - "warm up" the microphone
-      // by starting and stopping a quick recording that we discard
-      try {
-        const warmupRecorder = new MediaRecorder(stream, {mimeType: mime});
-        warmupRecorder.start();
-        await new Promise(r => setTimeout(r, 100));
-        warmupRecorder.stop();
-        // We don't need to do anything with this data
-        await new Promise(r => setTimeout(r, 200));
-      } catch (e) {
-        // Ignore errors in warm-up
-        console.log("Microphone warm-up failed, continuing anyway");
-      }
-      
-      // Configure MediaRecorder with more explicit options
-      const recorder = new MediaRecorder(stream, { 
-        mimeType: mime,
-        audioBitsPerSecond: 128000 
-      });
-      
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
       };
-      
+
+      const mime = getPreferredMime();
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      mediaStreamRef.current = stream;
+
+      const track = stream.getAudioTracks()[0];
+      await waitForTrackUnmute(track, 1500);
+      await waitForInputEnergy(stream, 0.008, 800, 80);
+      await new Promise(r => setTimeout(r, 150)); // small pre-roll
+
+      const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 160000 });
+      chunksRef.current = [];
+      dropFirstChunkRef.current = false; // keep first chunk (header)
+
+      recorder.ondataavailable = (e) => {
+        if (!e.data || e.data.size === 0) return;
+        // IMPORTANT: keep the first chunk (container header); do not drop it
+        chunksRef.current.push(e.data);
+      };
+
       recorder.onstop = async () => {
-        // Add small delay before processing to ensure all internal buffers are flushed
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Make sure we have chunks with content
-        if (chunksRef.current.length === 0 || chunksRef.current.every(chunk => chunk.size === 0)) {
+        // Clear safeguard if set
+        if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
+
+        await new Promise(resolve => setTimeout(resolve, 120)); // flush
+
+        if (!chunksRef.current.length || chunksRef.current.every(c => c.size === 0)) {
           toast('No se grabó audio. Intente nuevamente.');
-          setIsRecording(false);
-          setAsrStatus('idle');
-          return;
-        }
-        
-        const ext = mime.includes('ogg') ? 'ogg' : 'webm';
-        const blob = new Blob(chunksRef.current, { type: mime.includes('ogg') ? 'audio/ogg' : 'audio/webm' });
-        
-        if (blob.size < 1000) { // Less than 1KB is suspiciously small
-          toast('Grabación muy corta. Intente hablar más tiempo.');
-          setIsRecording(false);
-          setAsrStatus('idle');
+          resetAudioState();
           return;
         }
 
-        recorder.stream.getTracks().forEach(t => t.stop());
-        setIsRecording(false);
-        await handleTranscribeBlob(blob, `grabacion.${ext}`);
+        try {
+          const blob = new Blob(chunksRef.current, { type: mime.includes('ogg') ? 'audio/ogg' : 'audio/webm' });
+
+          // Robust duration
+          const duration = await getBlobDuration(blob);
+
+          let finalBlob = blob;
+          let finalAudioURL = URL.createObjectURL(finalBlob);
+          let wasTruncated = false;
+
+          if (duration != null && duration > 30) {
+            // Decode to trim exactly 30s
+            const ctx = await getAudioContext();
+            const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+            const sampleRate = decoded.sampleRate;
+            const frames = Math.min(decoded.length, Math.floor(sampleRate * 30));
+            const trimmed = ctx.createBuffer(decoded.numberOfChannels, frames, sampleRate);
+            for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+              trimmed.copyToChannel(decoded.getChannelData(ch).slice(0, frames), ch);
+            }
+
+            // WAV encoder (pcm16)
+            function encodeWAV(buffer) {
+              const numCh = buffer.numberOfChannels;
+              const sr = buffer.sampleRate;
+              const len = buffer.length * numCh * 2 + 44;
+              const ab = new ArrayBuffer(len);
+              const view = new DataView(ab);
+              const w = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+
+              w(0, 'RIFF'); view.setUint32(4, 36 + buffer.length * numCh * 2, true);
+              w(8, 'WAVE'); w(12, 'fmt '); view.setUint32(16, 16, true);
+              view.setUint16(20, 1, true); view.setUint16(22, numCh, true);
+              view.setUint32(24, sr, true); view.setUint32(28, sr * numCh * 2, true);
+              view.setUint16(32, numCh * 2, true); view.setUint16(34, 16, true);
+              w(36, 'data'); view.setUint32(40, buffer.length * numCh * 2, true);
+
+              let off = 44;
+              for (let i = 0; i < buffer.length; i++) {
+                for (let ch = 0; ch < numCh; ch++) {
+                  let s = buffer.getChannelData(ch)[i];
+                  s = Math.max(-1, Math.min(1, s));
+                  view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                  off += 2;
+                }
+              }
+              return new Blob([ab], { type: 'audio/wav' });
+            }
+
+            if (finalAudioURL) URL.revokeObjectURL(finalAudioURL);
+            finalBlob = encodeWAV(trimmed);
+            finalAudioURL = URL.createObjectURL(finalBlob);
+            wasTruncated = true;
+          }
+
+          setAsrStatus('reviewing');
+          lastRecordingBlobRef.current = finalBlob;
+          if (lastRecordingUrl.current) URL.revokeObjectURL(lastRecordingUrl.current);
+          lastRecordingUrl.current = finalAudioURL;
+          forceUpdate(x => x + 1);
+          recorderBusyRef.current = false;
+
+          if (wasTruncated) toast('El audio fue truncado a 30 segundos.');
+        } catch (err) {
+          console.error('Finalizing recording failed:', err);
+          toast('No se pudo procesar la grabación.');
+          resetAudioState();
+        }
       };
 
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       setAsrStatus('recording');
-      
-      // Start with timeslice to get data periodically (every 1000ms)
-      // This helps ensure we get valid chunks even with short recordings
-      recorder.start(500); // 500ms chunks instead of 1000ms
-      
-      // Add a visual/audio indicator that recording has started
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      const audioContext = audioContextRef.current;
+      recordingStartedAtRef.current = performance.now(); // NEW: Log start time
 
-      // Resume context if it's suspended
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-      }
+      // --- NEW: Start timer ---
+      setRecordingSeconds(0);
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingSeconds(sec => sec + 1);
+      }, 1000);
 
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      oscillator.connect(gain);
-      gain.connect(audioContext.destination);
-      oscillator.frequency.value = 440;
-      gain.gain.value = 0.1;
-      oscillator.start();
-      setTimeout(() => oscillator.stop(), 200);
-      
-      toast('Grabación iniciada.');
+      // Start with small timeslice so first usable audio arrives quickly
+      recorder.start(200);
+      toast('Grabación iniciada');
+
+      // Auto-stop after 30s
+      if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = setTimeout(() => {
+        stopRecording();
+        toast('El audio no debe superar los 30 segundos.');
+      }, 30000);
     } catch (err) {
       console.error('Error starting recording:', err);
       toast('Error al iniciar grabación: ' + (err.message || err.name));
+      recorderBusyRef.current = false;
     }
   }
 
   function stopRecording() {
     const r = mediaRecorderRef.current;
-    if (r && r.state !== 'inactive') {
+
+    // Clear timers
+    if (recordingTimeoutRef.current) { clearTimeout(recordingTimeoutRef.current); recordingTimeoutRef.current = null; }
+    if (recordingIntervalRef.current) { clearInterval(recordingIntervalRef.current); recordingIntervalRef.current = null; }
+    setRecordingSeconds(0);
+
+    // Quick-cancel
+    const duration = performance.now() - recordingStartedAtRef.current;
+    if (r && r.state === 'recording' && duration < 500) {
+      resetAudioState();
+      toast('Grabación cancelada.');
+      return;
+    }
+
+    // Normal stop + safeguard if onstop never fires
+    if (r && r.state === 'recording') {
+      setIsRecording(false);
+      setAsrStatus('processing');
       r.stop();
-      toast('Grabación detenida.');
+
+      if (stopSafeguardRef.current) clearTimeout(stopSafeguardRef.current);
+      stopSafeguardRef.current = setTimeout(() => {
+        if (asrStatus === 'processing') {
+          console.warn('MediaRecorder onstop did not fire, forcing reset.');
+          resetAudioState();
+        }
+      }, 4000);
+    } else {
+      resetAudioState();
     }
   }
 
@@ -767,7 +980,103 @@ export default function Translator() {
   // Call this in a useEffect that runs once
   useEffect(() => {
     preloadMicrophone();
+
+    // Cleanup object URL on component unmount
+    return () => {
+      if (lastRecordingUrl.current) {
+        URL.revokeObjectURL(lastRecordingUrl.current);
+      }
+    };
   }, []);
+
+  // Wait until the mic track is actually unmuted (Chrome can start muted briefly)
+  function waitForTrackUnmute(track, timeoutMs = 1500) {
+    return new Promise((resolve) => {
+      if (!track.muted) return resolve();
+      let done = false;
+      const onUnmute = () => {
+        if (done) return;
+        done = true;
+        track.removeEventListener('unmute', onUnmute);
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        track.removeEventListener('unmute', onUnmute);
+        resolve(); // continue even if still muted after timeout
+      }, timeoutMs);
+      track.addEventListener('unmute', onUnmute, { once: true });
+    });
+  }
+
+  // Wait until there is detectable input energy to avoid silent first seconds
+  async function waitForInputEnergy(stream, threshold = 0.008, windowMs = 800, stepMs = 80) {
+    try {
+      const ctx = await getAudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+
+      const data = new Uint8Array(analyser.fftSize);
+      const steps = Math.max(1, Math.floor(windowMs / stepMs));
+      for (let i = 0; i < steps; i++) {
+        analyser.getByteTimeDomainData(data);
+        // simple RMS
+        let sum = 0;
+        for (let j = 0; j < data.length; j++) {
+          const v = (data[j] - 128) / 128; // [-1,1]
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        if (rms >= threshold) {
+          try { source.disconnect(); } catch {}
+          try { analyser.disconnect && analyser.disconnect(); } catch {}
+          return;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, stepMs));
+      }
+      try { source.disconnect(); } catch {}
+      try { analyser.disconnect && analyser.disconnect(); } catch {}
+    } catch (_) {
+      // ignore analyser errors (fallback to no wait)
+    }
+  }
+
+  // Add this helper once (used by resetAudioState)
+  function safeUnloadReviewAudio() {
+    const el = reviewAudioRef.current;
+    const url = lastRecordingUrl.current;
+    if (!el) {
+      if (url) { try { URL.revokeObjectURL(url); } catch {} lastRecordingUrl.current = null; }
+      return;
+    }
+    try {
+      const p = el.pause?.();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch {}
+    const clearNow = () => {
+      try { el.removeAttribute('src'); el.srcObject = null; el.load(); } catch {}
+      if (url) {
+        try { URL.revokeObjectURL(url); } catch {}
+        if (lastRecordingUrl.current === url) lastRecordingUrl.current = null;
+      }
+      el.removeEventListener('pause', clearNow);
+      el.removeEventListener('ended', clearNow);
+      el.removeEventListener('emptied', clearNow);
+    };
+    if (el.paused || el.ended) {
+      setTimeout(clearNow, 0);
+    } else {
+      el.addEventListener('pause', clearNow, { once: true });
+      el.addEventListener('ended', clearNow, { once: true });
+      el.addEventListener('emptied', clearNow, { once: true });
+      try { el.pause(); } catch {}
+    }
+  }
 
   return (
     <div className="translator-container">
@@ -821,43 +1130,9 @@ export default function Translator() {
             showTextMessage={showSrcTextMessage}
             handleLangModalBtn={handleLangModalBtnLeft}
           />
-          
-          {/* ASR + TTS Controls for Source Text */}
-          <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
-            {/* Record button */}
-            {ASR_ENABLED_D && (
-              <button
-                type="button"
-                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition"
-                onClick={async () => {
-                  if (translationRestricted) {
-                    setTranslationRestrictedDialogOpen(true);
-                    return;
-                  }
-                  if (!isRecording) {
-                    try {
-                      await startRecording();
-                    } catch (e) {
-                      setAsrStatus('error');
-                      toast('No se pudo iniciar la grabación.');
-                    }
-                  } else {
-                    stopRecording();
-                  }
-                }}
-                aria-label="Grabar audio"
-                title="Grabar audio"
-                disabled={loadingState}
-                style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
-              >
-                <FontAwesomeIcon
-                  icon={faMicrophone}
-                  className="fa-lg"
-                  color={isRecording ? "#d40000" : "#0a8cde"}
-                />
-              </button>
-            )}
 
+          {/* LEFT: keep Upload + TTS only */}
+          <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
             {/* Upload button */}
             {ASR_ENABLED_D && (
               <label
@@ -878,23 +1153,62 @@ export default function Translator() {
                     const files = e.currentTarget.files;
                     if (!files || files.length === 0) return;
                     const file = files[0];
-                    e.currentTarget.value = "";
+                    e.currentTarget.value = ""; // Reset file input
 
-                    setAsrStatus('uploading');
+                    // --- RE-ADD MIME TYPE VALIDATION ---
+                    const okTypes = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a'];
+                    if (file.type && !okTypes.includes(file.type)) {
+                      toast('Formato no soportado.', {
+                        description: `El formato '${file.type}' no es compatible. Intente con webm, ogg, mp3, o wav.`,
+                      });
+                      return;
+                    }
+                    // --- END RE-ADD ---
 
-                    try {
-                      const okTypes = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4'];
-                      if (file.type && !okTypes.includes(file.type)) {
-                        toast('Formato no soportado. Sube webm/ogg/mp3/wav.');
-                        setAsrStatus('error');
+                    // --- DURATION VALIDATION START ---
+                    const audioURL = URL.createObjectURL(file);
+                    const tempAudio = document.createElement('audio');
+                    tempAudio.preload = 'metadata';
+
+                    const cleanup = () => {
+                      URL.revokeObjectURL(audioURL);
+                      tempAudio.removeEventListener('loadedmetadata', onMetadataLoaded);
+                      tempAudio.removeEventListener('error', onError);
+                    };
+
+                    const onMetadataLoaded = () => {
+                      const duration = tempAudio.duration;
+                      cleanup();
+                      
+                      if (duration > 30) {
+                        toast('El audio no debe superar los 30 segundos.', {
+                          description: `Duración detectada: ${Math.round(duration)}s`,
+                        });
+                        setAsrStatus('idle'); // Reset status
                         return;
                       }
-                      await handleTranscribeBlob(file, file.name || 'audio.subido');
-                    } catch (err) {
-                      console.error(err);
-                      setAsrStatus('error');
-                      toast('No se pudo procesar el archivo.');
-                    }
+                      
+                      // If duration is valid, proceed to transcribe
+                      setAsrStatus('uploading');
+                      handleTranscribeBlob(file, file.name || 'audio.subido').catch(err => {
+                        console.error(err);
+                        setAsrStatus('error');
+                        toast('No se pudo procesar el archivo.');
+                      });
+                    };
+
+                    const onError = () => {
+                      cleanup();
+                      toast('Error al leer el archivo de audio.', {
+                        description: 'El archivo podría estar dañado o en un formato no soportado.',
+                      });
+                      setAsrStatus('idle');
+                    };
+
+                    tempAudio.addEventListener('loadedmetadata', onMetadataLoaded);
+                    tempAudio.addEventListener('error', onError);
+                    tempAudio.src = audioURL;
+                    // --- DURATION VALIDATION END ---
                   }}
                 />
                 <FontAwesomeIcon icon={faPlus} className="fa-lg" color="#0a8cde" />
@@ -913,6 +1227,88 @@ export default function Translator() {
               >
                 <FontAwesomeIcon icon={isSpeaking ? faStop : isLoadingAudio ? faSpinner : faVolumeHigh} className={isLoadingAudio ? "fa-spin" : ""} color="#0a8cde" />
               </button>
+            )}
+          </div>
+
+          {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
+          <div className="absolute right-4 bottom-4 z-[4] flex items-center gap-2 max-[850px]:right-3 max-[850px]:bottom-14">
+            {/* Compact review (to the left of the mic) */}
+            {asrStatus === 'reviewing' && lastRecordingUrl.current && (
+              <div className="review-inline">
+                <audio
+                  ref={reviewAudioRef}
+                  src={lastRecordingUrl.current}
+                  controls
+                  preload="metadata"
+                  className="audio-compact"
+                  onError={(e) => {
+                    const err = e.currentTarget.error;
+                    console.debug('Audio element error:', err?.message || err);
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (lastRecordingBlobRef.current) {
+                      setAsrStatus('transcribing');
+                      handleTranscribeBlob(lastRecordingBlobRef.current, `grabacion.webm`);
+                    }
+                  }}
+                  className="btn-icon"
+                  title="Enviar"
+                  aria-label="Enviar"
+                >
+                  <FontAwesomeIcon icon={faPaperPlane} />
+                </button>
+                <button
+                  onClick={() => { resetAudioState(); }}
+                  className="btn-icon muted"
+                  title="Descartar"
+                  aria-label="Descartar"
+                >
+                  <FontAwesomeIcon icon={faXmark} />
+                </button>
+              </div>
+            )}
+
+            {/* Mic button (moved to bottom-right) */}
+            {ASR_ENABLED_D && (
+              <button
+                type="button"
+                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition"
+                onClick={async () => {
+                  if (translationRestricted) {
+                    setTranslationRestrictedDialogOpen(true);
+                    return;
+                  }
+                  if (!isRecording) {
+                    try {
+                      await startRecording();
+                    } catch {
+                      setAsrStatus('error');
+                      toast('No se pudo iniciar la grabación.');
+                    }
+                  } else {
+                    stopRecording();
+                  }
+                }}
+                aria-label="Grabar audio"
+                title="Grabar audio"
+                disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
+                style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
+              >
+                <FontAwesomeIcon
+                  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
+                  className={`fa-lg ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
+                  color={isRecording ? "#d40000" : "#0a8cde"}
+                />
+              </button>
+            )}
+
+            {/* --- NEW: Timer --- */}
+            {isRecording && (
+              <span className="text-xs font-mono px-2 py-1 rounded bg-white/80 border border-slate-200">
+                {String(recordingSeconds).padStart(2, '0')}s
+              </span>
             )}
           </div>
         </div>
