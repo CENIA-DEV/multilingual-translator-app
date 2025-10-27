@@ -466,18 +466,6 @@ def generate_asr(audio_file, lang):
             logger.error(f"FFmpeg conversion failed: {str(e)}")
             raise
 
-        """
-        # Save converted wav for inspection
-        try:
-            wav_path = dbg_dir / f"{ts}_{lang_slug}_16k_mono.wav"
-            with open(wav_path, "wb") as f:
-                f.write(wav_bytes)
-            logger.debug(f"Saved converted WAV to {wav_path}")
-        except Exception as e:
-            logger.warning(f"Failed saving converted WAV for debug: {e}")
-
-        """
-
         # Load PCM samples
         samples, sample_rate = sf.read(io.BytesIO(wav_bytes), dtype="float32")
         if samples is None or (hasattr(samples, "size") and samples.size == 0):
@@ -488,7 +476,8 @@ def generate_asr(audio_file, lang):
             logger.debug(f"Downmixing from shape {samples.shape} to mono")
             samples = samples.mean(axis=1)
 
-        # Save quick metadata
+        """
+         # Save quick metadata
         try:
             stats = {
                 "num_bytes_in": len(audio_bytes),
@@ -515,6 +504,7 @@ def generate_asr(audio_file, lang):
         logger.debug(
             f"Prepared sampl: shape={getattr(samples, 'shape', None)}, sr={sample_rate}"
         )
+        """
 
         # Predict ASR
         transcribed_text, model_name, model_version = get_asr_prediction(
