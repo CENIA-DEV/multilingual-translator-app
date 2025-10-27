@@ -38,6 +38,16 @@ on:
         required: true
         type: string
         default: 'tts-models'
+      asr_model_name:
+        description: 'ASR model name'
+        required: true
+        type: string
+        default: 'asr-model'
+      raw_asr_model_name:
+        description: 'Raw ASR model name'
+        required: true
+        type: string
+        default: 'asr-model'
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -63,6 +73,9 @@ jobs:
         # TTS Services
         SERVICE_NAME_TTS_INFERENCE: ${{ vars.SERVICE_NAME_TTS_INFERENCE }}
         SERVICE_NAME_RAW_TTS_INFERENCE: ${{ vars.SERVICE_NAME_RAW_TTS_INFERENCE }}
+        # ASR Services
+        SERVICE_NAME_ASR_INFERENCE: ${{ vars.SERVICE_NAME_ASR_INFERENCE }}
+        SERVICE_NAME_RAW_ASR_INFERENCE: ${{ vars.SERVICE_NAME_RAW_ASR_INFERENCE }}
     steps:
       - name: Set variant from dispatch event or branch
         id: set-variant
@@ -134,6 +147,14 @@ jobs:
           TTS_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_TTS_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
           RAW_TTS_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_TTS_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
 
+          # Add ASR URL fetching
+          SERVICE_NAME_ASR_INFERENCE=${{ env.SERVICE_NAME_ASR_INFERENCE }}
+          SERVICE_NAME_RAW_ASR_INFERENCE=${{ env.SERVICE_NAME_RAW_ASR_INFERENCE }}
+          echo "Service Name ASR Inference: $SERVICE_NAME_ASR_INFERENCE"
+          echo "Service Name Raw ASR Inference: $SERVICE_NAME_RAW_ASR_INFERENCE"
+          ASR_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_ASR_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+          RAW_ASR_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_ASR_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+
           # Rest of existing code
           if [[ "${{ github.event.inputs.environment }}" == "PRODUCTION" ]]; then
             if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
@@ -166,6 +187,12 @@ jobs:
           echo "TTS_INFERENCE_URL=$TTS_INFERENCE_URL" >> $GITHUB_ENV
           echo "RAW_TTS_INFERENCE_URL=$RAW_TTS_INFERENCE_URL" >> $GITHUB_ENV
 
+          # Add ASR URLs to environment
+          echo "ASR Inference URL: $ASR_INFERENCE_URL"
+          echo "Raw ASR Inference URL: $RAW_ASR_INFERENCE_URL"
+          echo "ASR_INFERENCE_URL=$ASR_INFERENCE_URL" >> $GITHUB_ENV
+          echo "RAW_ASR_INFERENCE_URL=$RAW_ASR_INFERENCE_URL" >> $GITHUB_ENV
+
       - name: Deploy to cloud run
         uses: 'google-github-actions/deploy-cloudrun@v2'
         with:
@@ -192,6 +219,11 @@ jobs:
             APP_RAW_INFERENCE_TTS_MODEL_NAME=${{ github.event.inputs.raw_tts_model_name }}
             APP_INFERENCE_TTS_MODEL_URL=${{ env.TTS_INFERENCE_URL }}
             APP_RAW_INFERENCE_TTS_MODEL_URL=${{ env.RAW_TTS_INFERENCE_URL }}
+            # Add ASR variables
+            APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}
+            APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}
+            APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}
+            APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '5m'
