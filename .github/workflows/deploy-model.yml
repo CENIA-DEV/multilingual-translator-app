@@ -61,7 +61,7 @@ jobs:
           # Create the target directory
           mkdir -p ${{ github.event.inputs.model_path }}
           # Download recursively the model from GCS
-          gcloud storage cp -r $MODEL_PATH ${{ github.event.inputs.model_path }}
+          gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
           # List files to verify download
           find ${{ github.event.inputs.model_path }} -type f | sort
 
