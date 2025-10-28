@@ -32,12 +32,12 @@ on:
         description: 'TTS model name'
         required: true
         type: string
-        default: 'tts-models'
+        default: 'tts-model'
       raw_tts_model_name:
         description: 'Raw TTS model name'
         required: true
         type: string
-        default: 'tts-models'
+        default: 'tts-model'
       asr_model_name:
         description: 'ASR model name'
         required: true
