@@ -96,9 +96,10 @@ jobs:
         uses: actions/checkout@v3
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v0.4.0'
+        uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+          export_environment_variables: true
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
@@ -209,7 +210,6 @@ jobs:
           service: '${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}'
           image: ${{ env.ARTIFACT_REGISTRY_URL }}
           env_vars: |-
-            # Existing variables
             SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}
             PRODUCTION=True
             TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
@@ -224,17 +224,15 @@ jobs:
             APP_RAW_INFERENCE_MODEL_NAME=${{ github.event.inputs.raw_model_name }}
             APP_INFERENCE_MODEL_URL=${{ env.INFERENCE_URL }}
             APP_RAW_INFERENCE_MODEL_URL=${{ env.RAW_INFERENCE_URL }}
-            # Add TTS variables
             APP_INFERENCE_TTS_MODEL_NAME=${{ github.event.inputs.tts_model_name }}
             APP_RAW_INFERENCE_TTS_MODEL_NAME=${{ github.event.inputs.raw_tts_model_name }}
             APP_INFERENCE_TTS_MODEL_URL=${{ env.TTS_INFERENCE_URL }}
             APP_RAW_INFERENCE_TTS_MODEL_URL=${{ env.RAW_TTS_INFERENCE_URL }}
-            # Add ASR variables
             APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}
             APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}
             APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}
             APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
-          timeout: '5m'
+          timeout: '10m'
           flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }} --max-instances=10 --concurrency=80'
