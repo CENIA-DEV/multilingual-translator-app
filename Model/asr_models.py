@@ -112,6 +112,7 @@ class MMSASRWrapper(ASRModelWrapper):
             self.logger.info(f"Default MMS ASR Model loaded: {model_id}")
         except Exception as e:
             self.logger.error(f"Failed to load default MMS ASR Model: {str(e)}")
+            raise
 
     def process_audio(self, audio, sampling_rate: int):
         """Process audio for the ASR model."""
