@@ -300,12 +300,14 @@ class HybridASRWrapper(ASRModelWrapper):
         use_fp16: bool = True,
         whisper_model_id: str = "openai/whisper-base",
         hf_token: str = None,
+        whisper_model_path: str = None,
+        base_checkpoint: str = "facebook/mms-1b-all",
     ):
         self.rap_model_path = rap_model_path
         self.rap_vocab_path = rap_vocab_path
         self.use_fp16 = use_fp16 and gpu and torch.cuda.is_available()
-        self.base_checkpoint = "facebook/mms-1b-all"  # Keep for feature extractor
-        self.whisper_model_id = whisper_model_id
+        self.base_checkpoint = base_checkpoint
+        self.whisper_model_id = whisper_model_path or "openai/whisper-base"
         self.hf_token = hf_token
         super().__init__(logger, gpu, model_base_path)
 
@@ -376,6 +378,7 @@ class HybridASRWrapper(ASRModelWrapper):
             padding_value=0.0,
             do_normalize=True,
             return_attention_mask=True,
+            local_files_only=True,
         )
         processor = Wav2Vec2Processor(
             feature_extractor=feature_extractor, tokenizer=tokenizer
@@ -391,10 +394,10 @@ class HybridASRWrapper(ASRModelWrapper):
         try:
             self.logger.info(f"Loading Whisper model: {self.whisper_model_id}")
             self.whisper_processor = WhisperProcessor.from_pretrained(
-                self.whisper_model_id, token=self.hf_token
+                self.whisper_model_id, token=self.hf_token, local_files_only=True
             )
             self.whisper_model = WhisperForConditionalGeneration.from_pretrained(
-                self.whisper_model_id, token=self.hf_token
+                self.whisper_model_id, token=self.hf_token, local_files_only=True
             ).to(self._device)
             self.whisper_model.eval()
             if self.use_fp16:
@@ -432,6 +435,7 @@ class HybridASRWrapper(ASRModelWrapper):
                     pad_token_id=self.rap_processor.tokenizer.pad_token_id,
                     vocab_size=len(self.rap_processor.tokenizer),
                     ignore_mismatched_sizes=True,
+                    local_files_only=True,
                 ).to(self._device)
 
                 # Set model to evaluation mode

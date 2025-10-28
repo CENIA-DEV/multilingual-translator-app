@@ -131,6 +131,18 @@ def _parse_args():
         help="Number of copies of the model to load",
     )
 
+    parser.add_argument(
+        "--whisper-model-path",
+        default=None,
+        help="Path to specialized Whisper model (for hybrid model type)",
+    )
+
+    parser.add_argument(
+        "--base-feature-extractor-path",
+        default="facebook/mms-1b-all",  # Default to old behavior if not provided
+        help="Path to the base feature extractor (e.g., mms-1b-all)",
+    )
+
     return parser.parse_args()
 
 
@@ -158,16 +170,14 @@ def main():
             model_base_path=args.model_base_path,
         )
     elif args.model_type == "hybrid":
-        if not args.rap_model_path or not args.rap_vocab_path:
-            raise ValueError(
-                "For hybrid model, --rap-model-path and --rap-vocab-path are required."
-            )
         asr_wrapper = HybridASRWrapper(
             logger=logger,
             gpu=args.gpu,
             rap_model_path=args.rap_model_path,
             rap_vocab_path=args.rap_vocab_path,
-            hf_token=hf_token,  # Pass the token here
+            hf_token=hf_token,
+            whisper_model_path=args.whisper_model_path,
+            base_checkpoint=args.base_feature_extractor_path,
         )
     else:
         raise ValueError(f"Invalid model type: {args.model_type}")
