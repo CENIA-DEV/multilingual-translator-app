@@ -15,6 +15,13 @@ FROM python:3.11.7-slim
 
 # Establish the working directory to /app
 WORKDIR /app
+
+# Install ffmpeg
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+
 # Copy the requirements.txt file
 COPY requirements.txt .
 
