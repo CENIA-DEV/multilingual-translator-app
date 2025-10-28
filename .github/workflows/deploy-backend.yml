@@ -214,7 +214,8 @@ jobs:
             PRODUCTION=True
             TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
             VARIANT=${{ steps.set-variant.outputs.variant }}
-            DB_HOST=${{ env.DB_HOST }}
+            # This is the critical change for the database connection
+            DB_HOST=/cloudsql/${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }}
             APP_FRONTEND_URL=${{ env.FRONTEND_URL }}
             APP_BACKEND_URL=${{ env.BACKEND_URL }}
             DB_NAME=${{ steps.set-variant.outputs.variant }}
