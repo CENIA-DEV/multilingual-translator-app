@@ -1,21 +1,17 @@
-FROM google/cloud-sdk:latest as downloader
-
-# Set working directory
-WORKDIR /models
-
-RUN gsutil -m cp -r gs://models-traductor/asr-rap /models/asr-rap
-
+# Use a Triton-ready base image
 FROM nvcr.io/nvidia/tritonserver:24.10-py3-min
 
-# Accept HF token as build argument
+# Accept HF token as build argument (passed from your .yml)
 ARG HF_TOKEN
 ENV HUGGING_FACE_HUB_TOKEN=$HF_TOKEN
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Set the working directory
 WORKDIR /app
 
 # Copy only the requirements file first
@@ -25,10 +21,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf ~/.cache/pip
 
-# Copy the downloaded models from the 'downloader' stage
-COPY --from=downloader /models/asr-rap /app/asr-rap
+# --- THIS IS THE CRITICAL PART ---
+# Copy the models from the local ./asr-rap directory
+# (which your .yml downloaded to the build context)
+COPY asr-rap /app/asr-rap
 
-# Copy all application files
+# Copy all application files (server_asr.py, asr_models.py, etc.)
 COPY . .
 
 # Configure Hugging Face cache location
@@ -36,7 +34,7 @@ ENV HF_HOME=/app/.cache/huggingface
 
 EXPOSE 8017
 
-# Update paths to match the directory structure in the downloaded models
+# Entrypoint and CMD remain the same
 ENTRYPOINT ["python3", "server_asr.py"]
 CMD [ \
     "--gpu", \
