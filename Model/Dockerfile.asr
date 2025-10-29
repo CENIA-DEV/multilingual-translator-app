@@ -1,32 +1,32 @@
-# Use a Triton-ready base image
+# Use a Triton-ready base image with Python and CUDA support
 FROM nvcr.io/nvidia/tritonserver:24.10-py3-min
 
-# Accept HF token as build argument (passed from your .yml)
+# Accept HF token as build argument
 ARG HF_TOKEN
 ENV HUGGING_FACE_HUB_TOKEN=$HF_TOKEN
 
-# Install system dependencies
+# Install system dependencies required for audio processing libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
-WORKDIR /app
+# Set environment variables first
+ENV PYTHONUNBUFFERED=0
 
-# Copy only the requirements file first
+# Copy only the requirements file first to leverage Docker layer caching
 COPY requirements.txt .
 
 # Install Python dependencies
+# Use no cache for smaller image size
 RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf ~/.cache/pip
 
-# --- THIS IS THE CRITICAL PART ---
-# Copy the models from the local ./asr-rap directory
-# (which your .yml downloaded to the build context)
-COPY asr-rap /app/asr-rap
+# Copy downloaded models to /app (following the same pattern as audio)
+COPY asr-rap/ /app/asr-rap/
 
-# Copy all application files (server_asr.py, asr_models.py, etc.)
+# Set working directory for the application code
+WORKDIR /home/app/src
 COPY . .
 
 # Configure Hugging Face cache location
@@ -34,13 +34,13 @@ ENV HF_HOME=/app/.cache/huggingface
 
 EXPOSE 8017
 
-# Entrypoint and CMD remain the same
+# Update paths to match the directory structure in the downloaded models
 ENTRYPOINT ["python3", "server_asr.py"]
 CMD [ \
     "--gpu", \
     "--model-type=hybrid", \
-    "--whisper-model-path=/app/asr-rap/whisper", \
+    "--model-base-path=/app/asr-rap/whisper", \
     "--rap-model-path=/app/asr-rap/rap/model", \
     "--rap-vocab-path=/app/asr-rap/rap/vocab.json", \
-    "--base-feature-extractor-path=/app/asr-rap/mms-base" \
+    "--mms-base-path=/app/asr-rap/mms-1b-all" \
 ]

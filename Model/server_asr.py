@@ -101,7 +101,7 @@ def _parse_args():
     parser.add_argument(
         "--model-base-path",
         default=None,
-        help="Base path to the model directory",
+        help="Base path to the Whisper model directory",
     )
 
     parser.add_argument(
@@ -124,23 +124,17 @@ def _parse_args():
     )
 
     parser.add_argument(
+        "--mms-base-path",  # ✅ New argument
+        default=None,
+        help="Path to MMS-1b-all base checkpoint (for hybrid model type)",
+    )
+
+    parser.add_argument(
         "--copies",
         type=int,
         default=1,
         required=False,
         help="Number of copies of the model to load",
-    )
-
-    parser.add_argument(
-        "--whisper-model-path",
-        default=None,
-        help="Path to specialized Whisper model (for hybrid model type)",
-    )
-
-    parser.add_argument(
-        "--base-feature-extractor-path",
-        default="facebook/mms-1b-all",  # Default to old behavior if not provided
-        help="Path to the base feature extractor (e.g., mms-1b-all)",
     )
 
     return parser.parse_args()
@@ -170,14 +164,18 @@ def main():
             model_base_path=args.model_base_path,
         )
     elif args.model_type == "hybrid":
+        if not args.rap_model_path or not args.rap_vocab_path:
+            raise ValueError(
+                "For hybrid model, --rap-model-path and --rap-vocab-path are required."
+            )
         asr_wrapper = HybridASRWrapper(
             logger=logger,
             gpu=args.gpu,
+            model_base_path=args.model_base_path,
             rap_model_path=args.rap_model_path,
             rap_vocab_path=args.rap_vocab_path,
+            mms_base_path=args.mms_base_path,  # ✅ Pass MMS base path
             hf_token=hf_token,
-            whisper_model_path=args.whisper_model_path,
-            base_checkpoint=args.base_feature_extractor_path,
         )
     else:
         raise ValueError(f"Invalid model type: {args.model_type}")
