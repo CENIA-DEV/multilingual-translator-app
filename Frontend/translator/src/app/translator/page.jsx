@@ -35,7 +35,7 @@ import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { API_ENDPOINTS, isTranslationRestricted, MAX_WORDS_TRANSLATION, TTS_ENABLED, ASR_ENABLED, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB } from '../constants';
+import { API_ENDPOINTS, isTranslationRestricted,isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -125,6 +125,11 @@ export default function Translator() {
   const translationRestricted = isTranslationRestricted(currentUser);
   const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(translationRestricted);
 
+
+  // Check if ASR and TTS are restricted for current user
+  const ASRRestricted = isASRRestricted(currentUser);
+  const TTSRestricted = isTTSRestricted(currentUser);
+
   // --- Language helpers for button visibility---
   const codeOf = (l) => (l?.code || '').toLowerCase(); // 'spa_Latn','eng_Latn','rap_Latn',…
   const isES  = (l) => codeOf(l).startsWith('spa');
@@ -141,14 +146,14 @@ export default function Translator() {
   //const TTS_ENABLED_SRC_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(srcLang); // speaker izquierda
   //const TTS_ENABLED_DST_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
   
-  const TTS_ENABLED_SRC_D = TTS_ENABLED && isTTSSideAllowed(srcLang); // speaker izquierda
-  const TTS_ENABLED_DST_D = TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
+  const TTS_ENABLED_SRC_D = !TTSRestricted && isTTSSideAllowed(srcLang); // speaker izquierda
+  const TTS_ENABLED_DST_D = !TTSRestricted && isTTSSideAllowed(dstLang); // speaker derecha
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
   // Add ASR dynamic flag
   const isASRSourceAllowed = (l) => isES(l) || isEN(l) || isRAP(l);
-  const ASR_ENABLED_D = !translationRestricted && ASR_ENABLED && isASRSourceAllowed(srcLang);
+  const ASR_ENABLED_D = !ASRRestricted && isASRSourceAllowed(srcLang); 
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -355,7 +360,7 @@ export default function Translator() {
   
   // TTS Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
-    if (!TTS_ENABLED || !text?.trim()) return;
+    if (TTSRestricted || !text?.trim()) return;
 
     setTtsError('');
     setIsSpeaking(true);
