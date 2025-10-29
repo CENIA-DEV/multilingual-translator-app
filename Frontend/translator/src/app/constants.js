@@ -39,17 +39,27 @@ export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-reque
 
 // Translation restriction configuration
 export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
+export const TTS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TTS_REQUIRES_AUTH === 'true';
+export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === 'true';
 
-export const TTS_ENABLED = process.env.NEXT_PUBLIC_TTS_ENABLED === 'true';
-export const ASR_ENABLED = process.env.NEXT_PUBLIC_ASR_ENABLED === 'true';
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;
 
-// Helper function to check if translation is restricted for current user
-export const isTranslationRestricted = (currentUser) => {
-    return false;
 
+export const isTranslationRestricted = (currentUser) => {
+  return TRANSLATION_REQUIRES_AUTH && !currentUser;
 };
+
+export const isTTSRestricted = (currentUser) => {
+    return TTS_REQUIRES_AUTH && !currentUser;
+
+}
+
+export const isASRRestricted = (currentUser) => {
+    return ASR_REQUIRES_AUTH  && !currentUser;
+  
+}
+
 
 export const ROLES = [
   {name: "Administrador", value: "NativeAdmin"},
