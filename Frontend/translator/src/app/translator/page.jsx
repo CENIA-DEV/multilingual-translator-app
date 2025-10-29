@@ -969,30 +969,15 @@ export default function Translator() {
     }
   }
 
-  // Add this function to request user permission before recording
-  function preloadMicrophone() {
-    if (navigator.mediaDevices?.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          // Just stop tracks immediately - this is just to trigger permission dialog
-          stream.getTracks().forEach(track => track.stop());
-          console.log('Microphone access granted');
-        })
-        .catch(err => console.log('Microphone permission not granted:', err));
-    }
-  }
-
-  // Call this in a useEffect that runs once
   useEffect(() => {
-    preloadMicrophone();
 
-    // Cleanup object URL on component unmount
     return () => {
       if (lastRecordingUrl.current) {
         URL.revokeObjectURL(lastRecordingUrl.current);
       }
     };
   }, []);
+
 
   // Wait until the mic track is actually unmuted (Chrome can start muted briefly)
   function waitForTrackUnmute(track, timeoutMs = 1500) {
