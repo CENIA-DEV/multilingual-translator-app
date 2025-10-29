@@ -112,7 +112,6 @@ class MMSASRWrapper(ASRModelWrapper):
             self.logger.info(f"Default MMS ASR Model loaded: {model_id}")
         except Exception as e:
             self.logger.error(f"Failed to load default MMS ASR Model: {str(e)}")
-            raise
 
     def process_audio(self, audio, sampling_rate: int):
         """Process audio for the ASR model."""
@@ -298,17 +297,17 @@ class HybridASRWrapper(ASRModelWrapper):
         model_base_path: str = None,
         rap_model_path: str = None,
         rap_vocab_path: str = None,
+        mms_base_path: str = None,  # ✅ New parameter for MMS base checkpoint
         use_fp16: bool = True,
         whisper_model_id: str = "openai/whisper-base",
         hf_token: str = None,
-        whisper_model_path: str = None,
-        base_checkpoint: str = "facebook/mms-1b-all",
     ):
         self.rap_model_path = rap_model_path
         self.rap_vocab_path = rap_vocab_path
+        self.mms_base_path = mms_base_path  # ✅ Store MMS base path
         self.use_fp16 = use_fp16 and gpu and torch.cuda.is_available()
-        self.base_checkpoint = base_checkpoint
-        self.whisper_model_id = whisper_model_path or "openai/whisper-base"
+        self.base_checkpoint = mms_base_path  # ✅ Use local path if provided
+        self.whisper_model_id = whisper_model_id
         self.hf_token = hf_token
         super().__init__(logger, gpu, model_base_path)
 
@@ -366,12 +365,17 @@ class HybridASRWrapper(ASRModelWrapper):
         return tokenizer
 
     def _create_processor(self, tokenizer):
-        """
-        Creates a processor using base checkpoint's feature extractor and custom tokeni
-        """
         self.logger.info(
             f"Creating processor from base checkpoint: {self.base_checkpoint}"
         )
+
+        # ✅ Check if using local path
+        local_files_only = (
+            os.path.exists(self.base_checkpoint)
+            if isinstance(self.base_checkpoint, str)
+            else False
+        )
+
         feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
             self.base_checkpoint,
             feature_size=1,
@@ -379,7 +383,7 @@ class HybridASRWrapper(ASRModelWrapper):
             padding_value=0.0,
             do_normalize=True,
             return_attention_mask=True,
-            local_files_only=True,
+            local_files_only=local_files_only,  # ✅ Use local files if available
         )
         processor = Wav2Vec2Processor(
             feature_extractor=feature_extractor, tokenizer=tokenizer
@@ -390,21 +394,29 @@ class HybridASRWrapper(ASRModelWrapper):
         """Preload both the Whisper model and the specialized Rapa Nui model."""
         self.logger.info("=== STARTING HYBRID ASR MODEL LOADING ===")
         self.logger.info(f"Device: {self._device}")
+        self.logger.info(f"MMS Base Checkpoint: {self.base_checkpoint}")
 
         # 1. Load Whisper model for Spanish and English
         try:
-            self.logger.info(f"Loading Whisper model: {self.whisper_model_id}")
+            whisper_path = self.model_base_path or self.whisper_model_id
+            self.logger.info(f"Loading Whisper model from: {whisper_path}")
+
+            local_files_only = (
+                os.path.exists(whisper_path) if isinstance(whisper_path, str) else False
+            )
+
             self.whisper_processor = WhisperProcessor.from_pretrained(
-                self.whisper_model_id, token=self.hf_token, local_files_only=True
+                whisper_path, token=self.hf_token, local_files_only=local_files_only
             )
             self.whisper_model = WhisperForConditionalGeneration.from_pretrained(
-                self.whisper_model_id, token=self.hf_token, local_files_only=True
+                whisper_path, token=self.hf_token, local_files_only=local_files_only
             ).to(self._device)
+
             self.whisper_model.eval()
             if self.use_fp16:
                 self.logger.info("Using FP16 precision for Whisper model")
                 self.whisper_model.half()
-            self.logger.info("Whisper model loaded successfully")
+            self.logger.info(f"Whisper model loaded successfully from {whisper_path}")
         except Exception as e:
             self.logger.error(f"Failed to load Whisper model: {str(e)}")
             raise
@@ -426,7 +438,7 @@ class HybridASRWrapper(ASRModelWrapper):
                 nested_vocab = self._load_vocab_file(self.rap_vocab_path, "rap")
                 tokenizer = self._build_tokenizer_from_vocab(nested_vocab)
 
-                # Create processor
+                # Create processor (will use local MMS base checkpoint)
                 self.rap_processor = self._create_processor(tokenizer)
 
                 # Load model from checkpoint
@@ -436,13 +448,11 @@ class HybridASRWrapper(ASRModelWrapper):
                     pad_token_id=self.rap_processor.tokenizer.pad_token_id,
                     vocab_size=len(self.rap_processor.tokenizer),
                     ignore_mismatched_sizes=True,
-                    local_files_only=True,
+                    local_files_only=True,  # ✅ Force local loading
                 ).to(self._device)
 
-                # Set model to evaluation mode
                 self.rap_model.eval()
 
-                # Apply FP16 precision if requested
                 if self.use_fp16:
                     self.logger.info("Using FP16 precision for Rapa Nui model")
                     self.rap_model = self.rap_model.half()
