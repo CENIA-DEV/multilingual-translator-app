@@ -289,15 +289,10 @@ export default function Translator() {
   };
 
   const handleSuggestionFeedback = () => {
-    // Remove the dstText check - always allow feedback
     if (!loadingState){
       setIsSuggestionOnlyMode(true);
       setFeedbackData({
-        'src_text': srcText || '', // Can be empty
-        'dst_text': dstText || '', // Can be empty
-        'src_lang': srcLang,
-        'dst_lang': dstLang,
-        'suggestion': '' // Empty suggestion for user to fill
+        'comment': '', 
       });
       trackEvent('suggestion_feedback_click', {
         page: 'translator'

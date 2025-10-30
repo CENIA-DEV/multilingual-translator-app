@@ -91,6 +91,8 @@ class TranslationPair(models.Model):
     validated = models.BooleanField(default=False)
     model_name = models.CharField(max_length=100, null=True)
     model_version = models.CharField(max_length=100, null=True)
+    is_uncertain = models.BooleanField(default=False, null=True)  # TODO: ask about this
+
     user = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="user"
     )
@@ -262,3 +264,59 @@ class SpeechToTextAudio(models.Model):
             models.Index(fields=["created_at"]),
             models.Index(fields=["model_name", "model_version"]),
         ]
+
+
+class GeneralSuggestion(models.Model):
+    """
+    Model for general user suggestions/comments
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="general_suggestions",
+    )
+    comment = models.TextField(max_length=5000)
+
+    # Optional: Keep language context if user was translating
+    # src_lang = models.ForeignKey(
+    #    Lang,
+    #    related_name="suggestion_src_lang",
+    #    on_delete=models.SET_NULL,
+    #    null=True,
+    #    blank=True
+    # )
+    # dst_lang = models.ForeignKey(
+    #    Lang,
+    #    related_name="suggestion_dst_lang",
+    #    on_delete=models.SET_NULL,
+    #    null=True,
+    #    blank=True
+    # )
+
+    # Admin review fields
+    reviewed = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_suggestions",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["reviewed"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        user_email = self.user.email if self.user else "Anonymous"
+        return f"{user_email} - {self.created_at}"

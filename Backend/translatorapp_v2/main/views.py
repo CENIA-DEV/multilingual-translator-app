@@ -31,6 +31,7 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 
 from .models import (
+    GeneralSuggestion,
     InvitationToken,
     Lang,
     PasswordResetToken,
@@ -42,6 +43,7 @@ from .models import (
 from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
 from .serializers import (
     FullUserSerializer,
+    GeneralSuggestionSerializer,
     InvitationSerializer,
     LanguageSerializer,
     ParticipateSerializer,
@@ -390,7 +392,11 @@ class SuggestionViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
 
     def get_permissions(self):
-        if self.action in ["accept_translation", "reject_translation"]:
+        if self.action in [
+            "accept_translation",
+            "reject_translation",
+            "add_suggestion",
+        ]:  # TODO: Review
             permission_classes = [AllowAny]
         else:
             permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
@@ -533,6 +539,49 @@ class SuggestionViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         else:
             return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["post"])
+    def add_suggestion(self, request):
+        """
+        Handle general suggestions/comments from users (lightbulb button).
+        Stores user feedback in separate GeneralSuggestion table.
+        """
+        serializer = GeneralSuggestionSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = (
+                request.user
+                if hasattr(request, "user") and request.user.is_authenticated
+                else None
+            )
+
+            serializer.save(user=user)
+
+            return Response(
+                serializer.data,
+                status=HTTP_201_CREATED,
+            )
+        else:
+            return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+    # Optional: Action to get all general suggestions for admins
+    @action(detail=False, methods=["get"])
+    def get_general_suggestions(self, request):
+        """Get all general suggestions for admin review"""
+        reviewed = request.query_params.get("reviewed")
+        queryset = GeneralSuggestion.objects.all()
+
+        if reviewed is not None:
+            reviewed = reviewed.lower() == "true"
+            queryset = queryset.filter(reviewed=reviewed)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = GeneralSuggestionSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = GeneralSuggestionSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class RequestViewSet(viewsets.ModelViewSet):
