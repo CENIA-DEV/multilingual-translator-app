@@ -28,8 +28,9 @@ import {
   faSpinner,
   faMicrophone,
   faPlus,
-  faPaperPlane,   // <<< add
-  faXmark         // <<< add
+  faPaperPlane, 
+  faXmark,
+  faLightbulb
 } from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
@@ -96,7 +97,7 @@ export default function Translator() {
   const lastRecordingBlobRef = useRef(null);
   const reviewAudioRef = useRef(null); // NEW: control the <audio> element
   const [_, forceUpdate] = useState(0); // Helper to force re-render for URL changes
-  const dropFirstChunkRef = useRef(false);  // <<< ADD THIS LINE
+  const dropFirstChunkRef = useRef(false);  
   const recordingTimeoutRef = useRef(null); // Add near other refs
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingStartedAtRef = useRef(0); // NEW: Track start time
@@ -108,6 +109,7 @@ export default function Translator() {
 
   const [feedbackData, setFeedbackData] = useState(null);
   const [modelData, setModelData] = useState(null);
+  const [isSuggestionOnlyMode, setIsSuggestionOnlyMode] = useState(false);
 
   const [loadingState, setLoadingState] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
@@ -228,12 +230,14 @@ export default function Translator() {
 
   const handleNegativeFeedback = () => {
     if (dstText.length != 0 && !loadingState){
+      setIsSuggestionOnlyMode(false);
       setFeedbackData({
         'src_text': srcText,
         'dst_text': dstText,
         'src_lang': srcLang,
         'dst_lang': dstLang,
-        'suggestion': dstText
+        'suggestion': dstText,
+        'is_uncertain': false
       });
     }
   };
@@ -281,6 +285,18 @@ export default function Translator() {
           error: error.response.status
         });
       }
+    }
+  };
+
+  const handleSuggestionFeedback = () => {
+    if (!loadingState){
+      setIsSuggestionOnlyMode(true);
+      setFeedbackData({
+        'comment': '', 
+      });
+      trackEvent('suggestion_feedback_click', {
+        page: 'translator'
+      });
     }
   };
 
@@ -1378,7 +1394,16 @@ export default function Translator() {
               size="lg"
               onClick={() => handleNegativeFeedback()}
             />
+
+            <FontAwesomeIcon
+              icon={faLightbulb}
+              size="lg"
+              onClick={() => handleSuggestionFeedback()}
+            />
+
           </>
+
+
         )}
       </div>
 
@@ -1394,6 +1419,7 @@ export default function Translator() {
         setEditingTranslation={setFeedbackData}
         modelData={modelData}
         suggestionId={null}
+        isSuggestionOnly={isSuggestionOnlyMode}
       />
     </div>
   );

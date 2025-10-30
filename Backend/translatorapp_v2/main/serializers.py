@@ -23,6 +23,7 @@ from rest_framework.validators import UniqueValidator
 
 from .models import (
     Dialect,
+    GeneralSuggestion,
     InvitationToken,
     Lang,
     PasswordResetToken,
@@ -397,7 +398,6 @@ class SuggestionSerializer(serializers.ModelSerializer):
     user = UserEmailSerializer(read_only=True)
     updated_suggestion = serializers.CharField(required=False)
 
-    # dst_text = serializers.SerializerMethodField()
     class Meta:
         model = TranslationPair
         fields = [
@@ -414,6 +414,7 @@ class SuggestionSerializer(serializers.ModelSerializer):
             "validated",
             "user",
             "updated_suggestion",
+            "is_uncertain",
         ]
 
     def validate_src_lang(self, src_lang):
@@ -540,3 +541,24 @@ class SpeechToTextSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "created_at": {"read_only": True},
         }
+
+
+class GeneralSuggestionSerializer(serializers.ModelSerializer):
+    user = UserEmailSerializer(read_only=True)
+
+    class Meta:
+        model = GeneralSuggestion
+        fields = [
+            "id",
+            "comment",
+            "user",
+            "reviewed",
+            "reviewed_by",
+            "created_at",
+        ]
+        read_only_fields = ["reviewed", "reviewed_by", "created_at"]
+
+    def create(self, validated_data):
+        user = validated_data.pop("user", None)
+
+        return GeneralSuggestion.objects.create(user=user, **validated_data)

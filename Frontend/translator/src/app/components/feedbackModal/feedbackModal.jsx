@@ -21,6 +21,7 @@ import ActionButton from '../actionButton/actionButton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { Checkbox } from '@/components/ui/checkbox'; // Add this import
 
 export default function FeedbackModal(props){
 
@@ -29,21 +30,31 @@ export default function FeedbackModal(props){
   const validatedSuggestion = props.validatedSuggestion
   const suggestionId = props.suggestionId
   const setEditingTranslation = props.setEditingTranslation
+  const isSuggestionOnly = props.isSuggestionOnly;
   const { trackEvent } = useAnalytics();
-  // const { toast } = useToast()
 
   const uploadSuggestion = async (suggestion) => {
     try {
       if (suggestionId === null){
+        const url = isSuggestionOnly
+          ? API_ENDPOINTS.SUGGESTIONS + 'add_suggestion/'
+          : API_ENDPOINTS.SUGGESTIONS + 'reject_translation/';
+        
+        // Build payload based on mode
+        const payload = isSuggestionOnly
+          ? {
+              comment: suggestion.comment,
+              src_lang: suggestion.src_lang,
+              dst_lang: suggestion.dst_lang,
+            }
+          : {
+              ...suggestion,
+              model_name: modelData?.modelName,
+              model_version: modelData?.modelVersion,
+              is_uncertain: suggestion.is_uncertain || false,
+            };
 
-        await api.post(
-          API_ENDPOINTS.SUGGESTIONS+'reject_translation/',
-          {
-            ...suggestion,
-            model_name: modelData.modelName,
-            model_version: modelData.modelVersion,
-          }
-        );
+        await api.post(url, payload);
 
         setEditingTranslation(null);
 
@@ -51,22 +62,22 @@ export default function FeedbackModal(props){
           description: "Gracias por su retroalimentación",
         });
 
-        trackEvent('negative_feedback_submit_success', {
-          page: 'translator'
+        trackEvent(isSuggestionOnly ? 'suggestion_only_submit_success' : 'negative_feedback_submit_success', {
+          page: 'translator',
+          is_uncertain: suggestion.is_uncertain || false
         });
-
       }
     } 
     catch (error) {
-      if (error.response.status === 401){
+      if (error?.response?.status === 401){
         toast("Error",{
           description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
         })
       }
-      console.log(error.response.data)
-      trackEvent('negative_feedback_submit_error', {
+      console.log(error?.response?.data || error)
+      trackEvent(isSuggestionOnly ? 'suggestion_only_submit_error' : 'negative_feedback_submit_error', {
         page: 'translator',
-        error: error.response.status
+        error: error?.response?.status || 'unknown'
       });
     }
   } 
@@ -129,25 +140,44 @@ export default function FeedbackModal(props){
 
   const handleSaveEdit = async () => {
     try {
+      // Validation: Check if user entered text
+      if (isSuggestionOnly) {
+        // For general suggestions, check if comment is not empty
+        if (!editingTranslation?.comment || editingTranslation.comment.trim() === '') {
+          toast("Campo vacío", {
+            description: "Deberías incluir una sugerencia antes de enviar.",
+          });
+          return;
+        }
+      } else {
+        // For negative feedback, check if suggestion is not empty
+        if (!editingTranslation?.suggestion || editingTranslation.suggestion.trim() === '') {
+          toast("Campo vacío", {
+            description: "Deberías incluir una sugerencia antes de enviar.",
+          });
+          return;
+        }
+      }
+
       if(suggestionId === null){
         await uploadSuggestion(editingTranslation);
       }
       else{
         await editSuggestion(editingTranslation);
-    }
+      }
     } 
     catch (error) {
-      console.log(error.response.data)
+      console.log(error?.response?.data || error)
     }
   }
 
   return (
     <Dialog open={!!editingTranslation} onOpenChange={() => setEditingTranslation(null)}>
-    <DialogContent className='h-3/4 w-3/4 gap-y-4'>
+    <DialogContent className={isSuggestionOnly ? 'h-fit w-3/4 gap-y-4 max-w-2xl' : 'h-3/4 w-3/4 gap-y-4'}>
       <DialogHeader>
-        <DialogTitle>Enviar retroalimentación</DialogTitle>
+        <DialogTitle>{isSuggestionOnly ? 'Sugerencias o comentarios' : 'Enviar retroalimentación'}</DialogTitle>
         <DialogDescription>
-          <span>¿Quieres sugerir una traducción alternativa?</span>
+          <span>{isSuggestionOnly ? 'Comparte tus comentarios o sugerencias sobre la plataforma' : '¿Quieres sugerir una traducción alternativa?'}</span>
           <br />
           {editingTranslation && suggestionId && (
             <span>
@@ -156,52 +186,99 @@ export default function FeedbackModal(props){
           )}
         </DialogDescription>
       </DialogHeader>
-      <div className="flex flex-row max-[850px]:flex-col items-start gap-4 h-3/4 pt-5">
-        <div className="flex flex-col items-center max-[850px]:w-full gap-4 w-1/2 h-full">
-          <label htmlFor="source" className="text-right font-semibold">Fuente {editingTranslation?.src_lang.code !== 'spa_Latn' ? (
-            <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{editingTranslation?.src_lang.name}</Badge>
-          ) : (
-            <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{editingTranslation?.src_lang.name}</Badge>
-          )}
-          </label>
-          <Textarea
-            id="source"
-            value={editingTranslation?.src_text || ''}
-            onChange={(e) => setEditingTranslation({...editingTranslation, src_text: e.target.value})}
-            className="col-span-3 h-3/4 border shadow-sm"
-          />
-        </div>
-        <div className="flex flex-col items-center max-[850px]:w-full gap-4 w-1/2 h-full">
-          <label htmlFor="translation" className="text-right font-semibold">Traducción {editingTranslation?.dst_lang.code !== 'spa_Latn' ? (
-            <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{editingTranslation?.dst_lang.name}</Badge>
-          ) : (
-            <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{editingTranslation?.dst_lang.name}</Badge>
-          )}
-          </label>
-          {validatedSuggestion?
-            <Textarea
-              id="translation"
-              value={editingTranslation?.dst_text || ''}
-              onChange={(e) => setEditingTranslation({...editingTranslation, dst_text: e.target.value})}
-              className="col-span-3 h-3/4 border shadow-sm"
-            />
-            :
-            <Textarea
-              id="translation"
-              value={editingTranslation?.suggestion || ''}
-              onChange={(e) => setEditingTranslation({...editingTranslation, suggestion: e.target.value})}
-              className="col-span-3 h-3/4 border shadow-sm"
-            />
-          }
-        </div>
-      </div>
-      <DialogFooter className='pt-5'>
-        <ActionButton
-          clickCallback={() => handleSaveEdit()} 
-        >
-          Enviar
-        </ActionButton>
-      </DialogFooter>
+      
+      {isSuggestionOnly ? (
+        // SIMPLE LAYOUT: Just one comment box
+        <>
+          <div className="flex flex-col gap-4 py-5">
+            <div className="flex flex-col gap-2">
+              <Textarea
+                id="suggestion"
+                value={editingTranslation?.comment || ''}
+                onChange={(e) => setEditingTranslation({...editingTranslation, comment: e.target.value})}
+                className="min-h-[200px] border shadow-sm resize-none"
+                placeholder="Escribe aquí..."
+              />
+            </div>
+          </div>
+
+          {/* ADD DialogFooter for suggestion-only mode */}
+          <DialogFooter className="pt-5">
+            <ActionButton
+              clickCallback={() => handleSaveEdit()} 
+            >
+              Enviar
+            </ActionButton>
+          </DialogFooter>
+        </>
+      ) : (
+        // ORIGINAL LAYOUT: 2 boxes side by side (for negative feedback)
+        <>
+          <div className="flex flex-row max-[850px]:flex-col items-start gap-4 h-3/4 pt-5">
+            <div className="flex flex-col items-center max-[850px]:w-full gap-4 w-1/2 h-full">
+              <label htmlFor="source" className="text-right font-semibold">Fuente {editingTranslation?.src_lang.code !== 'spa_Latn' ? (
+                <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{editingTranslation?.src_lang.name}</Badge>
+              ) : (
+                <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{editingTranslation?.src_lang.name}</Badge>
+              )}
+              </label>
+              <Textarea
+                id="source"
+                value={editingTranslation?.src_text || ''}
+                onChange={(e) => setEditingTranslation({...editingTranslation, src_text: e.target.value})}
+                className="col-span-3 h-3/4 border shadow-sm"
+              />
+            </div>
+            <div className="flex flex-col items-center max-[850px]:w-full gap-4 w-1/2 h-full">
+              <label htmlFor="translation" className="text-right font-semibold">Traducción {editingTranslation?.dst_lang.code !== 'spa_Latn' ? (
+                <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{editingTranslation?.dst_lang.name}</Badge>
+              ) : (
+                <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{editingTranslation?.dst_lang.name}</Badge>
+              )}
+              </label>
+              {validatedSuggestion?
+                <Textarea
+                  id="translation"
+                  value={editingTranslation?.dst_text || ''}
+                  onChange={(e) => setEditingTranslation({...editingTranslation, dst_text: e.target.value})}
+                  className="col-span-3 h-3/4 border shadow-sm"
+                />
+                :
+                <Textarea
+                  id="translation"
+                  value={editingTranslation?.suggestion || ''}
+                  onChange={(e) => setEditingTranslation({...editingTranslation, suggestion: e.target.value})}
+                  className="col-span-3 h-3/4 border shadow-sm"
+                />
+              }
+            </div>
+          </div>
+          
+          <DialogFooter className="pt-5 flex flex-row items-center">
+            <div className="flex items-center gap-2 mr-auto">
+              <Checkbox
+                id="uncertain"
+                checked={editingTranslation?.is_uncertain || false}
+                onCheckedChange={(checked) => 
+                  setEditingTranslation({...editingTranslation, is_uncertain: checked})
+                }
+              />
+              <label 
+                htmlFor="uncertain" 
+                className="text-sm font-medium leading-none cursor-pointer"
+              >
+                Sé que está mal pero no sé cómo corregirlo
+              </label>
+            </div>
+            <ActionButton
+              clickCallback={() => handleSaveEdit()} 
+            >
+              Enviar
+            </ActionButton>
+          </DialogFooter>
+        </>
+      )}
+
       </DialogContent>
     </Dialog>
   )
