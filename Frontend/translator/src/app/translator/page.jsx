@@ -1348,7 +1348,7 @@ export default function Translator() {
             {/* Upload button */}
             {ASR_UPLOAD_VISIBLE_D && (
               <label
-                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition cursor-pointer"
+                className="max-[850px]:hidden w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition cursor-pointer"
                 title="Subir audio"
                 aria-label="Subir audio"
               >
@@ -1526,7 +1526,7 @@ export default function Translator() {
       <div className="translator-footer">
         {translationRestricted ? (<></>) : (
           <>
-            <strong>Déjanos tu opinión</strong>
+            <strong className="max-[850px]:hidden">Déjanos tu opinión</strong>
 
             <FontAwesomeIcon
               icon={faThumbsUp}

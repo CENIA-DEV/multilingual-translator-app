@@ -71,13 +71,12 @@ export default function LangSelector({lang, ...props}) {
   },[lang, getLangByCode])
 
   return(
-
-	<div
-	  className="lang-container"
+	
+	<div 
+	  className={`lang-container ${side === 'right' ? 'is-right' : 'is-left'}`} 
 	  style={{
-		justifyContent: side === 'right' ? 'flex-end' : 'flex-start',
-		borderColor: `${side === 'left' ? '#c8d1e1' : '#ffffff'}`
-	  }}
+         borderColor: side === 'left' ? '#c8d1e1' : '#ffffff',
+      }} 
 	  key={lang.code}
 	>
 	

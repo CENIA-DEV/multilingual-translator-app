@@ -57,7 +57,7 @@ export default function Card(props) {
     >
 
       <div className={`flex h-[70px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
-        side === 'left' ? '' : 'w-full'
+        side === 'left' ? 'max-[850px]:h-[25px]' : 'w-full max-[850px]:h-[12px]'
       }`}>
 
         {side === 'left'?
