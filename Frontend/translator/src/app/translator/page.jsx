@@ -131,6 +131,7 @@ export default function Translator() {
 
   const { trackEvent } = useAnalytics();
   const currentUser = useContext(AuthContext);
+  const isLoggedIn = !!currentUser;
 
   // Check if translation is restricted for current user
   const translationRestricted = isTranslationRestricted(currentUser);
@@ -157,16 +158,16 @@ export default function Translator() {
   //const TTS_ENABLED_SRC_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(srcLang); // speaker izquierda
   //const TTS_ENABLED_DST_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
   
-  const TTS_ENABLED_SRC_D = !TTSRestricted && isTTSSideAllowed(srcLang); // speaker izquierda
-  const TTS_ENABLED_DST_D = !TTSRestricted && isTTSSideAllowed(dstLang); // speaker derecha
+  const TTS_ENABLED_SRC_D = isLoggedIn && !TTSRestricted && isTTSSideAllowed(srcLang); // speaker izquierda
+  const TTS_ENABLED_DST_D = isLoggedIn && !TTSRestricted && isTTSSideAllowed(dstLang); // speaker derecha
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
   // Add ASR dynamic flags
   const isASRSourceAllowed = (l) => isES(l) || isEN(l) || isRAP(l);   // ES/EN/RAP accepted by ASR
   const isASRLang          = (l) => isES(l) || isRAP(l);              // ES/RAP only (your rule)
-  const ASR_MIC_VISIBLE_D  = !ASRRestricted && (isASRLang(srcLang) || isASRLang(dstLang));
-  const ASR_UPLOAD_VISIBLE_D = !ASRRestricted && isASRSourceAllowed(srcLang);
+  const ASR_MIC_VISIBLE_D    = isLoggedIn && !ASRRestricted && (isASRLang(srcLang) || isASRLang(dstLang));
+  const ASR_UPLOAD_VISIBLE_D = isLoggedIn && !ASRRestricted && isASRSourceAllowed(srcLang);
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -387,7 +388,7 @@ export default function Translator() {
   
   // TTS Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
-    if (TTSRestricted || !text?.trim()) return;
+    if (!isLoggedIn || TTSRestricted || !text?.trim()) return;
 
     setTtsError('');
     setIsSpeaking(true);
@@ -1181,6 +1182,12 @@ export default function Translator() {
         mediaStreamRef.current = null;
       }
   }
+  
+  const handleClearTexts = () => {
+    setSrcText('');
+    setDstText('');
+    setShowSrcTextMessage(false);
+  };
 
   async function startWaveformVisualization(stream) {
     try {
@@ -1286,15 +1293,15 @@ export default function Translator() {
   return (
     <div className="translator-container">
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
-      <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-3/4'>
+      <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
-          <DialogTitle>Modelo en fase de desarrollo</DialogTitle>
+          <DialogTitle>Modelo en desarrollo</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <p>
-          El traductor se encuentra en desarrollo y esta es su <strong>primera versión operativa</strong>.
+          El traductor se encuentra en desarrollo y esta es una <strong>versión operativa de prueba</strong>.
             Se encuentra en un proceso de <strong>mejora continua</strong>, por lo que puede cometer errores o
-            producir resultados inesperados. Agradecemos su comprensión y su retroalimentación,
+            producir resultados inesperados. Los <strong>resultados siempre deben ser verificados por hablantes</strong>. Agradecemos su comprensión y su retroalimentación,
             que nos ayuda a mejorar su precisión y utilidad.
           </p>
         </div>
@@ -1341,6 +1348,7 @@ export default function Translator() {
             isLoadingAudio={isLoadingAudio}
             onSpeak={() => handleSpeak({ text: srcText, lang: srcLang?.code })}
             onStop={stopSpeaking}
+			onClearTexts={handleClearTexts}
           />
 
           {/* LEFT: keep Upload*/}

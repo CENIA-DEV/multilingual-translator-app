@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { faCopy, faCheck, faVolumeHigh, faSpinner, faStop } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
@@ -118,6 +118,23 @@ export default function Card(props) {
                   </TooltipTrigger>
                   <TooltipContent className="rounded-full">
                     <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* clear (trash) button */}
+                <Tooltip delayDuration={1000}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { if (isSpeaking) onStop?.(); props.onClearTexts?.(); }}
+                      aria-label="Borrar texto"
+                      title="Borrar texto"
+                      className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
+                    >
+                      <FontAwesomeIcon icon={faTrash} color={speakerColor} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="rounded-full">
+                    <p>Limpiar</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
