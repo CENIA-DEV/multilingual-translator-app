@@ -115,6 +115,14 @@ export default function Translator() {
   const [copyReady, setCopyReady] = useState(false);
 
   const [showDevModal, setShowDevModal] = useState(true);
+  
+  // Record modal
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const waveCanvasRef = useRef(null);
+  const waveRAFRef = useRef(null);
+  const waveAnalyserRef = useRef(null);
+  const waveSourceRef = useRef(null);
+  const pulseRef = useRef(null);
 
   const router = useRouter()
 
@@ -636,6 +644,10 @@ export default function Translator() {
   }
 
   const resetAudioState = () => {
+	  
+    stopWaveformVisualization();
+    setShowRecordModal(false);
+
     console.log("Resetting all audio states.");
 
     if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
@@ -731,7 +743,7 @@ export default function Translator() {
     return 'spa_Latn';
   }
 
-  async function handleTranscribeBlob(blob, filename = 'audio.webm') {
+  async function handleTranscribeBlob(blob, filename = 'audio.webm', overrideHint) {
     const maxBytes = (Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB ?? 25)) * 1024 * 1024;
     if (blob.size > maxBytes) {
       setAsrStatus('error');
@@ -739,7 +751,7 @@ export default function Translator() {
       return;
     }
 
-    const hint = inferHintFromSrcLang();
+	const hint = overrideHint || inferHintFromSrcLang();
     setAsrStatus('transcribing');
 
     let timeoutId = null; // To hold the timer
@@ -790,6 +802,9 @@ export default function Translator() {
     recorderBusyRef.current = true;
 
     try {
+	  
+	  setShowRecordModal(true);
+	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         toast('Tu navegador no soporta grabación de audio.');
         recorderBusyRef.current = false;
@@ -824,6 +839,9 @@ export default function Translator() {
       const mime = getPreferredMime();
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       mediaStreamRef.current = stream;
+	  
+	  // start live waveform in the modal
+      startWaveformVisualization(stream);
 
       const track = stream.getAudioTracks()[0];
       await waitForTrackUnmute(track, 1500);
@@ -841,6 +859,9 @@ export default function Translator() {
       };
 
       recorder.onstop = async () => {
+		setShowRecordModal(true);
+		stopWaveformVisualization();
+		
         // Clear safeguard if set
         if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
 
@@ -972,6 +993,9 @@ export default function Translator() {
       setIsRecording(false);
       setAsrStatus('processing');
       r.stop();
+	  
+	  // visualizer will be stopped in onstop, but ensure no double RAF
+      // stopWaveformVisualization(); <-- uncomment if we want to stop immediately
 
       if (stopSafeguardRef.current) clearTimeout(stopSafeguardRef.current);
       stopSafeguardRef.current = setTimeout(() => {
@@ -1081,6 +1105,114 @@ export default function Translator() {
       el.addEventListener('ended', clearNow, { once: true });
       el.addEventListener('emptied', clearNow, { once: true });
       try { el.pause(); } catch {}
+    }
+  }
+  
+  function stopWaveformVisualization() {
+	  try { if (waveRAFRef.current) cancelAnimationFrame(waveRAFRef.current); } catch {}
+	  waveRAFRef.current = null;
+	  try { waveSourceRef.current && waveSourceRef.current.disconnect(); } catch {}
+	  try { waveAnalyserRef.current && waveAnalyserRef.current.disconnect && waveAnalyserRef.current.disconnect(); } catch {}
+	  waveSourceRef.current = null;
+	  waveAnalyserRef.current = null;
+  }
+
+  async function startWaveformVisualization(stream) {
+    try {
+      const ctx = await getAudioContext();
+      if (ctx.state === 'suspended') await ctx.resume();
+  
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.85;
+  
+      const timeData = new Uint8Array(analyser.fftSize);
+      const freqData = new Uint8Array(analyser.frequencyBinCount);
+  
+      waveSourceRef.current = source;
+      waveAnalyserRef.current = analyser;
+      source.connect(analyser);
+  
+      const canvas = waveCanvasRef.current;
+      if (!canvas) return;
+      const g = canvas.getContext('2d');
+  
+      function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width  = Math.max(1, Math.floor(rect.width * dpr));
+        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.scale(dpr, dpr);
+      }
+      resize();
+      const ro = new ResizeObserver(resize);
+      ro.observe(canvas);
+  
+      const draw = () => {
+        waveRAFRef.current = requestAnimationFrame(draw);
+        analyser.getByteTimeDomainData(timeData);
+        analyser.getByteFrequencyData(freqData);
+  
+        const { width, height } = canvas.getBoundingClientRect();
+        g.clearRect(0, 0, width, height);
+        g.fillStyle = '#fff';
+        g.fillRect(0, 0, width, height);
+  
+        // midline
+        g.strokeStyle = '#e5e7eb';
+        g.lineWidth = 1;
+        const mid = height / 2;
+        g.beginPath();
+        g.moveTo(0, mid);
+        g.lineTo(width, mid);
+        g.stroke();
+  
+        // waveform
+        g.strokeStyle = '#0a8cde';
+        g.lineWidth = 2;
+        g.beginPath();
+        for (let i = 0; i < timeData.length; i++) {
+          const x = (i / (timeData.length - 1)) * width;
+          const y = mid + ((timeData[i] - 128) / 128) * (height * 0.42);
+          if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        }
+        g.stroke();
+  
+        // VU bars (bottom)
+        const bars = 16;
+        const step = Math.floor(freqData.length / bars);
+        const barW = Math.max(6, width / (bars * 1.5));
+        for (let b = 0; b < bars; b++) {
+          const slice = freqData.subarray(b * step, (b + 1) * step);
+          let avg = 0;
+          for (let j = 0; j < slice.length; j++) avg += slice[j];
+          avg /= slice.length || 1;
+          const barH = (avg / 255) * (height * 0.35);
+          const x = 10 + b * (barW + 6);
+          const y = height - 10 - barH;
+          g.fillStyle = '#0a8cde';
+          g.fillRect(x, y, barW, barH);
+        }
+  
+        // RMS pulse
+        let sum = 0;
+        for (let i = 0; i < timeData.length; i++) {
+          const v = (timeData[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / timeData.length);
+        if (pulseRef.current) {
+          const s = 1 + Math.min(1.4, rms * 2.2);
+          pulseRef.current.style.transform = `scale(${s})`;
+          pulseRef.current.style.boxShadow = `0 0 ${8 + rms * 36}px rgba(10,140,222,0.65)`;
+          pulseRef.current.style.opacity = `${0.6 + Math.min(0.4, rms * 0.8)}`;
+        }
+      };
+      draw();
+    } catch (e) {
+      console.debug('Visualizer error', e);
     }
   }
 
@@ -1231,44 +1363,7 @@ export default function Translator() {
 
           {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
           <div className="absolute right-4 bottom-4 z-[4] flex items-center gap-2 max-[850px]:right-3 max-[850px]:bottom-14">
-            {/* Compact review (to the left of the mic) */}
-            {asrStatus === 'reviewing' && lastRecordingUrl.current && (
-              <div className="review-inline">
-                <audio
-                  ref={reviewAudioRef}
-                  src={lastRecordingUrl.current}
-                  controls
-                  preload="metadata"
-                  className="audio-compact"
-                  onError={(e) => {
-                    const err = e.currentTarget.error;
-                    console.debug('Audio element error:', err?.message || err);
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    if (lastRecordingBlobRef.current) {
-                      setAsrStatus('transcribing');
-                      handleTranscribeBlob(lastRecordingBlobRef.current, `grabacion.webm`);
-                    }
-                  }}
-                  className="btn-icon"
-                  title="Enviar"
-                  aria-label="Enviar"
-                >
-                  <FontAwesomeIcon icon={faPaperPlane} />
-                </button>
-                <button
-                  onClick={() => { resetAudioState(); }}
-                  className="btn-icon muted"
-                  title="Descartar"
-                  aria-label="Descartar"
-                >
-                  <FontAwesomeIcon icon={faXmark} />
-                </button>
-              </div>
-            )}
-
+            
             {/* --- NEW: Timer --- */}
             {isRecording && (
               <span className="text-xs font-mono px-2 py-1 rounded bg-white/80 border border-slate-200">
@@ -1305,7 +1400,7 @@ export default function Translator() {
 		{/* Mic button (moved to bottom-right) */}
 		{ASR_ENABLED_D && (
 		  <div
-		    className="box-content fixed left-1/2 bottom-4 -translate-x-1/2 w-[60px] h-[60px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[10px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]"
+		    className={`box-content fixed left-1/2 bottom-4 -translate-x-1/2 w-[60px] h-[60px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[10px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${showRecordModal ? 'hidden' : ''}`}
 			onClick={async () => {
 			  if (translationRestricted) {
 				setTranslationRestrictedDialogOpen(true);
@@ -1404,6 +1499,118 @@ export default function Translator() {
         suggestionId={null}
         isSuggestionOnly={isSuggestionOnlyMode}
       />
+	  
+	  <Dialog
+		  open={showRecordModal}
+		  onOpenChange={(open) => {
+			// closing the modal while recording will stop safely
+			if (!open) {
+			  setShowRecordModal(false);
+			  if (isRecording) stopRecording();
+			  else resetAudioState();
+			} else {
+			  setShowRecordModal(true);
+			}
+		  }}
+		>
+		  <DialogContent className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5">
+            <DialogHeader className="flex items-center justify-between">
+              <DialogTitle className="text-base">
+                {isRecording ? 'Grabando…' : (asrStatus === 'transcribing' || asrStatus === 'processing') ? 'Transcribiendo…' : 'Revisión de grabación'}
+              </DialogTitle>
+              <button
+                onClick={() => isRecording ? stopRecording() : startRecording()}
+                className={`w-12 h-12 rounded-full flex items-center justify-center border-4 ${isRecording ? 'border-red-500' : 'border-[#0a8cde]'} bg-white shadow hover:scale-105 transition`}
+                title={isRecording ? 'Detener' : 'Grabar'}
+                aria-label={isRecording ? 'Detener' : 'Grabar'}
+              >
+                <FontAwesomeIcon
+                  icon={isRecording ? faStop : faMicrophone}
+                  className={`${(asrStatus === 'transcribing' || asrStatus === 'processing') ? 'fa-spin' : ''}`}
+                  color={isRecording ? '#d40000' : '#0a8cde'}
+                />
+              </button>
+            </DialogHeader>
+
+			{/* RECORDING VIEW: live waveform */}
+            {isRecording && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div ref={pulseRef} className="w-6 h-6 rounded-full bg-[#0a8cde] opacity-60 transition-transform" />
+                  <p className="text-sm text-slate-600">Habla al micrófono. Presiona el botón para detener.</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-2">
+                  <canvas ref={waveCanvasRef} className="w-full h-44 rounded" />
+                </div>
+                <span className="text-xs font-mono px-2 py-1 rounded bg-white/80 border border-slate-200">
+                  {String(recordingSeconds).padStart(2, '0')}s
+                </span>
+              </div>
+            )}
+			
+			{!isRecording && (asrStatus === 'transcribing' || asrStatus === 'processing') && (
+              <div className="flex items-center gap-3 text-sm text-slate-600">
+                <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
+                <span>Transcribiendo…</span>
+              </div>
+            )}
+
+			{/* REVIEW VIEW: playback + actions */}
+			{!isRecording && asrStatus === 'reviewing' && lastRecordingUrl.current && (
+			  <div className="space-y-4">
+				<audio
+				  ref={reviewAudioRef}
+				  src={lastRecordingUrl.current}
+				  controls
+				  preload="metadata"
+				  className="w-full"
+				  onError={(e) => {
+					const err = e.currentTarget.error;
+					console.debug('Audio element error:', err?.message || err);
+				  }}
+				/>
+				<div className="flex flex-wrap gap-2 justify-end">
+				  <Button
+					variant="outline"
+					onClick={() => { resetAudioState(); setShowRecordModal(false); }}
+				  >
+					Cancelar
+				  </Button>
+				  <Button
+					className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
+					onClick={() => {
+					  if (!lastRecordingBlobRef.current) return;
+					  setAsrStatus('transcribing');
+					  handleTranscribeBlob(lastRecordingBlobRef.current, 'grabacion.webm', 'rap_Latn')
+						.catch(() => setAsrStatus('error'));
+					}}
+				  >
+					Transcribir rapa nui
+				  </Button>
+				  <Button
+					className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
+					onClick={() => {
+					  if (!lastRecordingBlobRef.current) return;
+					  setAsrStatus('transcribing');
+					  handleTranscribeBlob(lastRecordingBlobRef.current, 'grabacion.webm', 'spa_Latn')
+						.catch(() => setAsrStatus('error'));
+					}}
+				  >
+					Transcribir español
+				  </Button>
+				</div>
+			  </div>
+			)}
+
+			{/* Idle fallback (unlikely) */}
+			{!isRecording && asrStatus !== 'reviewing' && (
+			  <p className="text-sm text-slate-600">
+				Presiona el micrófono para comenzar a grabar.
+			  </p>
+			)}
+		  </DialogContent>
+	   </Dialog>
+
     </div>
   );
 }
