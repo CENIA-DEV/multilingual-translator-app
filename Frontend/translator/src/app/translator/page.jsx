@@ -723,6 +723,13 @@ export default function Translator() {
 
     return () => clearTimeout(timeoutId);
   }, [srcText, srcLang, dstLang, translationRestricted, suppressNextAutoTranslate]);
+  
+  // Start/attach the waveform once the modal is open, recording is true, and the canvas is mounted
+  useEffect(() => {
+    if (showRecordModal && isRecording && mediaStreamRef.current && waveCanvasRef.current && !waveAnalyserRef.current) {
+      startWaveformVisualization(mediaStreamRef.current);
+    }
+  }, [showRecordModal, isRecording]);
 
   // ASR helper functions (single copy inside component)
   function getPreferredMime() {
@@ -803,7 +810,9 @@ export default function Translator() {
 
     try {
 	  
-	  setShowRecordModal(true);
+      // Avoid title flicker: mark as preparing before opening the modal
+      setAsrStatus('preparing');
+      setShowRecordModal(true);
 	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         toast('Tu navegador no soporta grabación de audio.');
@@ -839,9 +848,6 @@ export default function Translator() {
       const mime = getPreferredMime();
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       mediaStreamRef.current = stream;
-	  
-	  // start live waveform in the modal
-      startWaveformVisualization(stream);
 
       const track = stream.getAudioTracks()[0];
       await waitForTrackUnmute(track, 1500);
@@ -861,6 +867,7 @@ export default function Translator() {
       recorder.onstop = async () => {
 		setShowRecordModal(true);
 		stopWaveformVisualization();
+		stopMicTracksNow();
 		
         // Clear safeguard if set
         if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
@@ -947,7 +954,7 @@ export default function Translator() {
       setIsRecording(true);
       setAsrStatus('recording');
       recordingStartedAtRef.current = performance.now(); // NEW: Log start time
-
+	  
       // --- NEW: Start timer ---
       setRecordingSeconds(0);
       if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
@@ -968,7 +975,8 @@ export default function Translator() {
     } catch (err) {
       console.error('Error starting recording:', err);
       toast('Error al iniciar grabación: ' + (err.message || err.name));
-      recorderBusyRef.current = false;
+      stopMicTracksNow();
+	  recorderBusyRef.current = false;
     }
   }
 
@@ -993,6 +1001,7 @@ export default function Translator() {
       setIsRecording(false);
       setAsrStatus('processing');
       r.stop();
+	  stopMicTracksNow();
 	  
 	  // visualizer will be stopped in onstop, but ensure no double RAF
       // stopWaveformVisualization(); <-- uncomment if we want to stop immediately
@@ -1115,6 +1124,14 @@ export default function Translator() {
 	  try { waveAnalyserRef.current && waveAnalyserRef.current.disconnect && waveAnalyserRef.current.disconnect(); } catch {}
 	  waveSourceRef.current = null;
 	  waveAnalyserRef.current = null;
+  }
+  
+  function stopMicTracksNow() {
+      const s = mediaStreamRef.current;
+      if (s) {
+        try { s.getTracks().forEach(t => t.stop()); } catch {}
+        mediaStreamRef.current = null;
+      }
   }
 
   async function startWaveformVisualization(stream) {
@@ -1516,20 +1533,49 @@ export default function Translator() {
 		  <DialogContent className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5">
             <DialogHeader className="flex items-center justify-between">
               <DialogTitle className="text-base">
-                {isRecording ? 'Grabando…' : (asrStatus === 'transcribing' || asrStatus === 'processing') ? 'Transcribiendo…' : 'Revisión de grabación'}
+                {(isRecording || asrStatus === 'preparing')
+                  ? 'Grabando…'
+                  : (asrStatus === 'transcribing' || asrStatus === 'processing')
+                    ? 'Transcribiendo…'
+                    : 'Revisión de grabación'}
               </DialogTitle>
-              <button
-                onClick={() => isRecording ? stopRecording() : startRecording()}
-                className={`w-12 h-12 rounded-full flex items-center justify-center border-4 ${isRecording ? 'border-red-500' : 'border-[#0a8cde]'} bg-white shadow hover:scale-105 transition`}
-                title={isRecording ? 'Detener' : 'Grabar'}
-                aria-label={isRecording ? 'Detener' : 'Grabar'}
-              >
-                <FontAwesomeIcon
-                  icon={isRecording ? faStop : faMicrophone}
-                  className={`${(asrStatus === 'transcribing' || asrStatus === 'processing') ? 'fa-spin' : ''}`}
-                  color={isRecording ? '#d40000' : '#0a8cde'}
-                />
-              </button>
+              {isRecording ? (
+                <button
+                  onClick={stopRecording}
+                  className="px-4 h-11 rounded-full flex items-center gap-2 border-4 border-red-500 bg-white shadow hover:shadow-md transition text-red-600 font-medium"
+                  title="Detener"
+                  aria-label="Detener"
+                >
+                  <FontAwesomeIcon icon={faStop} />
+                  <span className="hidden sm:inline">Detener</span>
+                </button>
+                ) : asrStatus === 'preparing' ? (
+                  <button
+                    disabled
+                    className="px-4 h-11 rounded-full flex items-center gap-2 bg-slate-100 text-slate-500 border border-slate-200"
+                    title="Preparando micrófono…"
+                    aria-label="Preparando micrófono…"
+                  >
+                    <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
+                    <span className="hidden sm:inline">Preparando…</span>
+                  </button>
+                ) : asrStatus === 'reviewing' ? (
+                <button
+                  onClick={async () => {
+                    // clear previous preview and start a fresh recording
+                    safeUnloadReviewAudio();
+                    lastRecordingBlobRef.current = null;
+                    setAsrStatus('idle');
+                    await startRecording();
+                  }}
+                  className="px-4 h-11 rounded-full flex items-center gap-2 bg-[#0a8cde] text-white shadow hover:shadow-md transition font-medium"
+                  title="Grabar de nuevo"
+                  aria-label="Grabar de nuevo"
+                >
+                  <FontAwesomeIcon icon={faMicrophone} />
+                  <span className="hidden sm:inline">Grabar de nuevo</span>
+                </button>
+              ) : null}
             </DialogHeader>
 
 			{/* RECORDING VIEW: live waveform */}
@@ -1602,12 +1648,6 @@ export default function Translator() {
 			  </div>
 			)}
 
-			{/* Idle fallback (unlikely) */}
-			{!isRecording && asrStatus !== 'reviewing' && (
-			  <p className="text-sm text-slate-600">
-				Presiona el micrófono para comenzar a grabar.
-			  </p>
-			)}
 		  </DialogContent>
 	   </Dialog>
 
