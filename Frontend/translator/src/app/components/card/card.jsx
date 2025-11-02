@@ -46,6 +46,7 @@ export default function Card(props) {
   const onStop = props.onStop;
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
+  const showClearLeft = side === 'left' && !!srcText?.trim();
   return(
     <div 
       className={`card-container flex flex-col items-center relative ${
@@ -98,45 +99,48 @@ export default function Card(props) {
               className={`w-full h-full ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
             />
 		    {/* speaker (only if text exists) */}
-            {showSpeaker && (
+            {(showSpeaker || showClearLeft) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">
-                <Tooltip delayDuration={1000}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => (isSpeaking ? onStop() : onSpeak())}
-                      aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
-                      title={isSpeaking ? "Detener" : "Escuchar"}
-                      className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
-                      disabled={isLoadingAudio}
-                    >
-                      <FontAwesomeIcon
-                        icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
-                        className={isLoadingAudio ? "fa-spin" : ""}
-                        color={speakerColor}
-                      />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="rounded-full">
-                    <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* clear (trash) button */}
-                <Tooltip delayDuration={1000}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => { if (isSpeaking) onStop?.(); props.onClearTexts?.(); }}
-                      aria-label="Borrar texto"
-                      title="Borrar texto"
-                      className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
-                    >
-                      <FontAwesomeIcon icon={faTrash} color={speakerColor} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="rounded-full">
-                    <p>Limpiar</p>
-                  </TooltipContent>
-                </Tooltip>
+                {showSpeaker && (
+                  <Tooltip delayDuration={1000}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => (isSpeaking ? onStop() : onSpeak())}
+                        aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+                        title={isSpeaking ? "Detener" : "Escuchar"}
+                        className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
+                        disabled={isLoadingAudio}
+                      >
+                        <FontAwesomeIcon
+                          icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
+                          className={isLoadingAudio ? "fa-spin" : ""}
+                          color={speakerColor}
+                        />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="rounded-full">
+                      <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+           
+                {showClearLeft && (
+                  <Tooltip delayDuration={1000}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => { if (isSpeaking) onStop?.(); props.onClearTexts?.(); }}
+                        aria-label="Borrar texto"
+                        title="Borrar texto"
+                        className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
+                      >
+                        <FontAwesomeIcon icon={faTrash} color={speakerColor} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="rounded-full">
+                      <p>Limpiar</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             )}
           </div>
