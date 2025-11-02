@@ -30,7 +30,7 @@ import {
   faPlus,
   faPaperPlane, 
   faXmark,
-  faLightbulb
+  faComment
 } from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
@@ -1135,9 +1135,16 @@ export default function Translator() {
             handleSrcLang={handleSrcLang}
             showTextMessage={showSrcTextMessage}
             handleLangModalBtn={handleLangModalBtnLeft}
+            ttsEnabled={TTS_ENABLED_SRC_D}
+            ttsText={srcText}
+            ttsLangCode={srcLang?.code}
+            isSpeaking={isSpeaking}
+            isLoadingAudio={isLoadingAudio}
+            onSpeak={() => handleSpeak({ text: srcText, lang: srcLang?.code })}
+            onStop={stopSpeaking}
           />
 
-          {/* LEFT: keep Upload + TTS only */}
+          {/* LEFT: keep Upload*/}
           <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
             {/* Upload button */}
             {ASR_ENABLED_D && (
@@ -1220,20 +1227,6 @@ export default function Translator() {
                 <FontAwesomeIcon icon={faPlus} className="fa-lg" color="#0a8cde" />
               </label>
             )}
-
-            {/* TTS button */}
-            {TTS_ENABLED_SRC_D && (
-              <button
-                type="button"
-                onClick={() => (isSpeaking ? stopSpeaking() : handleSpeak({ text: srcText, lang: srcLang.code }))}
-                disabled={!srcText?.trim() || isLoadingAudio}
-                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition disabled:opacity-100"
-                aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
-                title={isSpeaking ? "Detener" : "Escuchar"}
-              >
-                <FontAwesomeIcon icon={isSpeaking ? faStop : isLoadingAudio ? faSpinner : faVolumeHigh} className={isLoadingAudio ? "fa-spin" : ""} color="#0a8cde" />
-              </button>
-            )}
           </div>
 
           {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
@@ -1276,40 +1269,6 @@ export default function Translator() {
               </div>
             )}
 
-            {/* Mic button (moved to bottom-right) */}
-            {ASR_ENABLED_D && (
-              <button
-                type="button"
-                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition"
-                onClick={async () => {
-                  if (translationRestricted) {
-                    setTranslationRestrictedDialogOpen(true);
-                    return;
-                  }
-                  if (!isRecording) {
-                    try {
-                      await startRecording();
-                    } catch {
-                      setAsrStatus('error');
-                      toast('No se pudo iniciar la grabación.');
-                    }
-                  } else {
-                    stopRecording();
-                  }
-                }}
-                aria-label="Grabar audio"
-                title="Grabar audio"
-                disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
-                style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
-              >
-                <FontAwesomeIcon
-                  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
-                  className={`fa-lg ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
-                  color={isRecording ? "#d40000" : "#0a8cde"}
-                />
-              </button>
-            )}
-
             {/* --- NEW: Timer --- */}
             {isRecording && (
               <span className="text-xs font-mono px-2 py-1 rounded bg-white/80 border border-slate-200">
@@ -1342,6 +1301,39 @@ export default function Translator() {
             style={loadingState ? { animation: 'spin 1s linear infinite' } : {}}
           />
         </div>
+		
+		{/* Mic button (moved to bottom-right) */}
+		{ASR_ENABLED_D && (
+		  <div
+		    className="box-content fixed left-1/2 bottom-4 -translate-x-1/2 w-[60px] h-[60px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[10px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]"
+			onClick={async () => {
+			  if (translationRestricted) {
+				setTranslationRestrictedDialogOpen(true);
+				return;
+			  }
+			  if (!isRecording) {
+				try {
+				  await startRecording();
+				} catch {
+				  setAsrStatus('error');
+				  toast('No se pudo iniciar la grabación.');
+				}
+			  } else {
+				stopRecording();
+			  }
+			}}
+			aria-label="Grabar audio"
+			title="Grabar audio"
+			disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
+			style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
+		  >
+			<FontAwesomeIcon
+			  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
+			  className={`text-[1.75em] ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
+			  color={isRecording ? "#d40000" : "#0a8cde"}
+			/>
+		  </div>
+		)}
 
         <div className="relative">
           <Card
@@ -1352,23 +1344,14 @@ export default function Translator() {
             handleLangModalBtn={handleLangModalBtnRight}
             handleCopyText={handleCopyText}
             copyReady={copyReady}
+            ttsEnabled={TTS_ENABLED_DST_D}
+            ttsText={dstText}
+            ttsLangCode={dstLang?.code}
+            isSpeaking={isSpeaking}
+            isLoadingAudio={isLoadingAudio}
+            onSpeak={() => handleSpeak({ text: dstText, lang: dstLang?.code })}
+            onStop={stopSpeaking}
           />
-          
-          {/* TTS Controls for Destination Text */}
-          <div className="absolute left-4 bottom-4 z-[3] max-[850px]:left-3 max-[850px]:bottom-14">
-            {TTS_ENABLED_DST_D && (
-              <button
-                type="button"
-                onClick={() => (isSpeaking ? stopSpeaking() : handleSpeak({ text: dstText, lang: dstLang.code }))}
-                disabled={!dstText?.trim()}
-                className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition disabled:opacity-100"
-                aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
-                title={isSpeaking ? "Detener" : "Escuchar"}
-              >
-                <FontAwesomeIcon icon={isSpeaking ? faStop : faVolumeHigh} className="fa-lg" color="#0a8cde" />
-              </button>
-            )}
-          </div>
         </div>
         
         {ANY_TTS_VISIBLE && ttsError && (
@@ -1381,7 +1364,7 @@ export default function Translator() {
       <div className="translator-footer">
         {translationRestricted ? (<></>) : (
           <>
-            <strong>¿Qué te ha parecido esta traducción?</strong>
+            <strong>Déjanos tu opinión</strong>
 
             <FontAwesomeIcon
               icon={faThumbsUp}
@@ -1396,7 +1379,7 @@ export default function Translator() {
             />
 
             <FontAwesomeIcon
-              icon={faLightbulb}
+              icon={faComment}
               size="lg"
               onClick={() => handleSuggestionFeedback()}
             />

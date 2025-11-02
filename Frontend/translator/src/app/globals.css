@@ -180,3 +180,38 @@ body {
     @apply font-bold;
   }
 }
+
+
+@layer utilities {
+  /* Set a shared scrollbar width on the wrapper */
+  .scrollbar-theme {
+    --sb-w: 11px; /* change once here if you want a different width */
+  }
+
+  /* Main styling: transparent track, thin white thumb */
+  .scrollbar-white-thumb {
+    /* Firefox */
+    scrollbar-width: thin;                 /* thin track */
+    scrollbar-color: #ffffff transparent;  /* white thumb, transparent track */
+  }
+
+  /* WebKit (Chrome/Edge/Safari) */
+  .scrollbar-white-thumb::-webkit-scrollbar {
+    width: var(--sb-w, 11px);
+  }
+  .scrollbar-white-thumb::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-white-thumb::-webkit-scrollbar-thumb {
+    background: #ffffff;                   /* white bar */
+    border-radius: 9999px;
+    /* Make the bar thinner: shrink it with a transparent border */
+    border: 7px solid transparent;         /* increase to make even thinner */
+    background-clip: content-box;
+  }
+
+  /* Hide the corner when both scrollbars show */
+  .scrollbar-white-thumb::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
