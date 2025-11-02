@@ -123,6 +123,7 @@ export default function Translator() {
   const waveAnalyserRef = useRef(null);
   const waveSourceRef = useRef(null);
   const pulseRef = useRef(null);
+  const asrAbortRef = useRef(null);
 
   const router = useRouter()
 
@@ -161,9 +162,11 @@ export default function Translator() {
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
-  // Add ASR dynamic flag
-  const isASRSourceAllowed = (l) => isES(l) || isEN(l) || isRAP(l);
-  const ASR_ENABLED_D = !ASRRestricted && isASRSourceAllowed(srcLang); 
+  // Add ASR dynamic flags
+  const isASRSourceAllowed = (l) => isES(l) || isEN(l) || isRAP(l);   // ES/EN/RAP accepted by ASR
+  const isASRLang          = (l) => isES(l) || isRAP(l);              // ES/RAP only (your rule)
+  const ASR_MIC_VISIBLE_D  = !ASRRestricted && (isASRLang(srcLang) || isASRLang(dstLang));
+  const ASR_UPLOAD_VISIBLE_D = !ASRRestricted && isASRSourceAllowed(srcLang);
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -749,6 +752,35 @@ export default function Translator() {
     if (VARIANT_LANG === 'arn') return 'arn_Latn';
     return 'spa_Latn';
   }
+  
+  function getHintForLang(l) {
+    const c = (l?.code || '').toLowerCase();
+    if (c.includes('spa')) return 'spa_Latn';
+    if (c.includes('rap')) return 'rap_Latn';
+    return null; // not transcribable
+  }
+  
+  const srcHint = getHintForLang(srcLang);
+  const dstHint = getHintForLang(dstLang);
+  const srcDisplay = srcLang?.name || 'Fuente';
+  const dstDisplay = dstLang?.name || 'Destino';
+
+  async function performTranscribe(which) {
+    if (!lastRecordingBlobRef.current) return;
+    // If user chose the TARGET button, swap langs in the UI first
+    if (which === 'target') {
+      // prevent auto-translate side-effect on swap
+      setSuppressNextAutoTranslate(true);
+      const prevSrc = srcLang, prevDst = dstLang;
+      setSrcLang(prevDst);
+      setDstLang(prevSrc);
+    }
+    const hint = which === 'target' ? dstHint : srcHint;
+    if (!hint) return; // guard
+    setAsrStatus('transcribing');
+    handleTranscribeBlob(lastRecordingBlobRef.current, 'grabacion.webm', hint)
+      .catch(() => setAsrStatus('error'));
+  }
 
   async function handleTranscribeBlob(blob, filename = 'audio.webm', overrideHint) {
     const maxBytes = (Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB ?? 25)) * 1024 * 1024;
@@ -763,6 +795,10 @@ export default function Translator() {
 
     let timeoutId = null; // To hold the timer
 
+    // Abort ASR
+    const controller = new AbortController();
+    asrAbortRef.current = controller;
+
     try {
       // Set a timer to show a message if transcription takes too long
       timeoutId = setTimeout(() => {
@@ -776,8 +812,8 @@ export default function Translator() {
         });
       }, 5000);
 
-      // Use our asrService instead of direct API call
-      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+      // Use our asrService; pass AbortSignal if supported (extra arg is safe if ignored)
+      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename, { signal: controller.signal });
 
       // If we get here, transcription was fast enough, so clear the timer
       clearTimeout(timeoutId);
@@ -794,13 +830,19 @@ export default function Translator() {
       // If an error occurs, also clear the timer
       clearTimeout(timeoutId);
       console.error(err);
+	  if (err?.name === 'AbortError') {
+        toast('Transcripción cancelada.');
+        return; // don't reset again in finally
+      }
       toast('Error al transcribir.', {
         description: err?.response?.data?.error || 'Reintenta con otro archivo.',
       });
     } finally {
-      // NEW: add a small post-transcribe cooldown, then reset
+	  asrAbortRef.current = null;
+      // small post-transcribe cooldown, then reset
       await new Promise(r => setTimeout(r, COOLDOWN_MS));
-      resetAudioState(); // this sets prevStopAt & clears busy
+      // Only reset if not aborted earlier by Cancel
+      if (asrStatus !== 'idle') resetAudioState();
     }
   }
 
@@ -810,8 +852,8 @@ export default function Translator() {
 
     try {
 	  
-      // Avoid title flicker: mark as preparing before opening the modal
-      setAsrStatus('preparing');
+      setIsRecording(false);            // explicit
+      setAsrStatus('preparing');        // preparing state
       setShowRecordModal(true);
 	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1016,6 +1058,12 @@ export default function Translator() {
     } else {
       resetAudioState();
     }
+  }
+  
+  function cancelTranscription() {
+    try { asrAbortRef.current?.abort(); } catch {}
+    asrAbortRef.current = null;
+    resetAudioState();
   }
 
   useEffect(() => {
@@ -1233,6 +1281,8 @@ export default function Translator() {
     }
   }
 
+  const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing' || asrStatus === 'preparing';
+
   return (
     <div className="translator-container">
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
@@ -1296,7 +1346,7 @@ export default function Translator() {
           {/* LEFT: keep Upload*/}
           <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
             {/* Upload button */}
-            {ASR_ENABLED_D && (
+            {ASR_UPLOAD_VISIBLE_D && (
               <label
                 className="w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition cursor-pointer"
                 title="Subir audio"
@@ -1414,8 +1464,8 @@ export default function Translator() {
           />
         </div>
 		
-		{/* Mic button (moved to bottom-right) */}
-		{ASR_ENABLED_D && (
+        {/* Mic button (center-bottom) */}
+        {ASR_MIC_VISIBLE_D && (
 		  <div
 		    className={`box-content fixed left-1/2 bottom-4 -translate-x-1/2 w-[60px] h-[60px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[10px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${showRecordModal ? 'hidden' : ''}`}
 			onClick={async () => {
@@ -1517,11 +1567,12 @@ export default function Translator() {
         isSuggestionOnly={isSuggestionOnlyMode}
       />
 	  
-	  <Dialog
-		  open={showRecordModal}
-		  onOpenChange={(open) => {
+      <Dialog
+            open={showRecordModal}
+            onOpenChange={(open) => {
 			// closing the modal while recording will stop safely
 			if (!open) {
+			  if (isBusy) return; // ignore close while busy
 			  setShowRecordModal(false);
 			  if (isRecording) stopRecording();
 			  else resetAudioState();
@@ -1529,15 +1580,21 @@ export default function Translator() {
 			  setShowRecordModal(true);
 			}
 		  }}
-		>
-		  <DialogContent className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5">
+	  >
+      <DialogContent
+        className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5"
+        onInteractOutside={(e) => { if (isBusy || isRecording) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (isBusy || isRecording) e.preventDefault(); }}
+      >
             <DialogHeader className="flex items-center justify-between">
               <DialogTitle className="text-base">
-                {(isRecording || asrStatus === 'preparing')
-                  ? 'Grabando…'
-                  : (asrStatus === 'transcribing' || asrStatus === 'processing')
-                    ? 'Transcribiendo…'
-                    : 'Revisión de grabación'}
+                {asrStatus === 'preparing'
+                  ? 'Preparando…'
+                  : isRecording
+                    ? 'Grabando…'
+                    : (asrStatus === 'transcribing' || asrStatus === 'processing')
+                      ? 'Transcribiendo…'
+                      : 'Revisión de grabación'}
               </DialogTitle>
               {isRecording ? (
                 <button
@@ -1595,14 +1652,24 @@ export default function Translator() {
             )}
 			
 			{!isRecording && (asrStatus === 'transcribing' || asrStatus === 'processing') && (
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
-                <span>Transcribiendo…</span>
+              <div className="flex items-center justify-between gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-3">
+                  <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
+                  <span>Transcribiendo…</span>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={cancelTranscription}
+                  className="ml-auto"
+                >
+                  Cancelar
+                </Button>
               </div>
             )}
+			
 
-			{/* REVIEW VIEW: playback + actions */}
-			{!isRecording && asrStatus === 'reviewing' && lastRecordingUrl.current && (
+            {/* REVIEW VIEW: custom player + actions (dynamic) */}
+            {!isRecording && asrStatus === 'reviewing' && lastRecordingUrl.current && (
 			  <div className="space-y-4">
 				<audio
 				  ref={reviewAudioRef}
@@ -1622,28 +1689,24 @@ export default function Translator() {
 				  >
 					Cancelar
 				  </Button>
-				  <Button
-					className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
-					onClick={() => {
-					  if (!lastRecordingBlobRef.current) return;
-					  setAsrStatus('transcribing');
-					  handleTranscribeBlob(lastRecordingBlobRef.current, 'grabacion.webm', 'rap_Latn')
-						.catch(() => setAsrStatus('error'));
-					}}
-				  >
-					Transcribir rapa nui
-				  </Button>
-				  <Button
-					className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
-					onClick={() => {
-					  if (!lastRecordingBlobRef.current) return;
-					  setAsrStatus('transcribing');
-					  handleTranscribeBlob(lastRecordingBlobRef.current, 'grabacion.webm', 'spa_Latn')
-						.catch(() => setAsrStatus('error'));
-					}}
-				  >
-					Transcribir español
-				  </Button>
+                  {/* Show source first if transcribable */}
+                  {srcHint && (
+                    <Button
+                      className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
+                      onClick={() => performTranscribe('source')}
+                    >
+                      Transcribir {srcDisplay}
+                    </Button>
+                  )}
+                  {/* Show target second if transcribable */}
+                  {dstHint && (
+                    <Button
+                      className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
+                      onClick={() => performTranscribe('target')}
+                    >
+                      Transcribir {dstDisplay}
+                    </Button>
+                  )}
 				</div>
 			  </div>
 			)}
