@@ -17,8 +17,9 @@ from urllib.parse import urlparse
 
 from django.utils.translation import gettext_lazy as _
 from dotenv import load_dotenv
-from pydantic import Field, SecretStr
+from pydantic import AnyUrl, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 load_dotenv()
 
@@ -48,25 +49,52 @@ class EmailSettings(BaseSettings):
 class AppSettings(BaseSettings):
     """Settings for App."""
 
-    model_config = SettingsConfigDict(env_prefix="app_")
-    frontend_url: str
-    backend_url: str
+    model_config = SettingsConfigDict(env_prefix="app_", env_file=".env", populate_by_name=True,)
+    
+    frontend_url: AnyUrl
+    backend_url: AnyUrl
+    
+    tts_enabled: bool = False
+    asr_enabled: bool = False
+    
     inference_model_name: str
     raw_inference_model_name: str
-    inference_model_url: str
-    raw_inference_model_url: str
+    inference_model_url: AnyUrl
+    raw_inference_model_url: AnyUrl
 
-    inference_tts_model_url: str
-    inference_tts_model_name: str
+    # TTS (optional unless tts_enabled=True)
+    inference_tts_model_url: Optional[AnyUrl] = None
+    inference_tts_model_name: Optional[str] = None
+    raw_inference_tts_model_url: Optional[AnyUrl] = None
+    raw_inference_tts_model_name: Optional[str] = None
 
-    raw_inference_tts_model_url: str
-    raw_inference_tts_model_name: str
+    # ASR (optional unless asr_enabled=True)
+    inference_asr_model_url: Optional[AnyUrl] = None
+    inference_asr_model_name: Optional[str] = None
+    raw_inference_asr_model_url: Optional[AnyUrl] = None
+    raw_inference_asr_model_name: Optional[str] = None
+    
+    # enforce only when flags are ON
+    def model_post_init(self, _):
+        if self.tts_enabled:
+            for f in (
+                "inference_tts_model_url",
+                "inference_tts_model_name",
+                "raw_inference_tts_model_url",
+                "raw_inference_tts_model_name",
+            ):
+                if getattr(self, f) is None:
+                    raise ValueError(f"{f} is required when TTS is enabled")
 
-    inference_asr_model_url: str
-    inference_asr_model_name: str
-
-    raw_inference_asr_model_url: str
-    raw_inference_asr_model_name: str
+        if self.asr_enabled:
+            for f in (
+                "inference_asr_model_url",
+                "inference_asr_model_name",
+                "raw_inference_asr_model_url",
+                "raw_inference_asr_model_name",
+            ):
+                if getattr(self, f) is None:
+                    raise ValueError(f"{f} is required when ASR is enabled")
 
 
 # We need to create an instance of the Pydantic model to access the
@@ -102,7 +130,7 @@ backend_domain = urlparse(APP_SETTINGS.backend_url).netloc
 print(f"Backend Domain: {backend_domain}")
 
 ALLOWED_HOSTS = (
-    [backend_domain, backend_domain.strip("www.")]
+    [backend_domain, backend_domain.removeprefix("www.")]
     if not DEBUG
     else ["*"]  # Use just the domain part of the URL
 )
