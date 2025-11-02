@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { faCopy, faCheck, faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
+import { faCopy, faCheck, faVolumeHigh, faSpinner, faStop } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
