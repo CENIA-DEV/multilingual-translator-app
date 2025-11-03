@@ -22,6 +22,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
 
 from .models import (
+    CacheTTS,
     Dialect,
     GeneralSuggestion,
     InvitationToken,
@@ -30,6 +31,7 @@ from .models import (
     Profile,
     RequestAccess,
     Script,
+    SpeechToTextAudio,
     TextToSpeechAudio,
     TranslationPair,
 )
@@ -529,15 +531,25 @@ class TextToSpeechSerializer(serializers.ModelSerializer):
 
 class SpeechToTextSerializer(serializers.ModelSerializer):
 
-    audio = serializers.FileField(required=True)
+    audio = serializers.FileField(required=True, write_only=True)
+    audio_data = serializers.CharField(read_only=True)
+    audio_format = serializers.CharField(read_only=True)
     text = serializers.CharField(read_only=True)
     language = serializers.CharField(required=True)
     model_name = serializers.CharField(required=True)
     model_version = serializers.CharField(required=True)
 
     class Meta:
-        model = TextToSpeechAudio
-        fields = ["audio", "text", "language", "model_name", "model_version"]
+        model = SpeechToTextAudio
+        fields = [
+            "audio",
+            "audio_data",
+            "audio_format",
+            "text",
+            "language",
+            "model_name",
+            "model_version",
+        ]
         extra_kwargs = {
             "created_at": {"read_only": True},
         }
@@ -562,3 +574,15 @@ class GeneralSuggestionSerializer(serializers.ModelSerializer):
         user = validated_data.pop("user", None)
 
         return GeneralSuggestion.objects.create(user=user, **validated_data)
+
+
+class CacheTTSSerializer(serializers.ModelSerializer):
+    language = serializers.CharField()
+    audio_data = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = CacheTTS
+        fields = ["id", "text", "language", "audio_data", "audio_format"]
+        read_only_fields = [
+            "audio_data",
+        ]

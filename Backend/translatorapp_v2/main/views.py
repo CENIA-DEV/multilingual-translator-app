@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
 import logging
 from functools import reduce
 from operator import or_
@@ -785,17 +786,13 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
     permission_classes = [TranslationRequiresAuth]
     serializer_class = SpeechToTextSerializer
-    parser_classes = [MultiPartParser, FormParser]  # Add this line
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self, text=None, lang=None):
         results = (
             SpeechToTextAudio.objects.filter(
-                language__code=(
-                    lang.code if lang else None
-                ),  # TODO: review language__code
-            )
-            # Filter by text if provided
-            .filter(text__iexact=text)
+                language__code=(lang.code if lang else None),
+            ).filter(text__iexact=text)
             if text
             else SpeechToTextAudio.objects.none().order_by("-created_at")
         )
@@ -809,8 +806,6 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         if serializer.is_valid():
             audio_file = serializer.validated_data["audio"]
             language_code = serializer.validated_data["language"]
-            # model_name = serializer.validated_data["model_name"]
-            # model_version = serializer.validated_data["model_version"]
 
             logger.debug(f"Processing ASR request for language: {language_code}")
 
@@ -818,27 +813,43 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 # Get the Lang object from the language code
                 lang_obj = Lang.objects.get(code=language_code)
 
+                # Read audio bytes and convert to base64
+                audio_bytes = audio_file.read()
+                audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+
+                # Detect audio format from file name
+                audio_format = (
+                    audio_file.name.split(".")[-1].lower()
+                    if hasattr(audio_file, "name")
+                    else "unknown"
+                )
+
                 # generate_asr returns a dict with 'text', 'model_name', 'model_version'
-                asr_result = generate_asr(audio_file, lang_obj)
+                # ✅Pass the bytes directly to generate_asr
+                asr_result = generate_asr(audio_bytes, lang_obj)
 
                 # Extract the transcribed text
                 transcribed_text = asr_result["text"]
 
-                logger.info("ASR transcription complete", asr_result)
+                logger.info("ASR transcription complete")
 
-                # Create the database record
-                SpeechToTextAudio.objects.create(
+                # ✅ Create the database record with audio data
+                audio_obj = SpeechToTextAudio.objects.create(
                     text=transcribed_text,
                     language=lang_obj,
+                    audio_data=audio_base64,
+                    audio_format=audio_format,
                     model_name=asr_result["model_name"],
                     model_version=asr_result["model_version"],
                     user=request.user if request.user.is_authenticated else None,
                 )
 
-                # Create response data
+                # Create response data (optionally include audio_data)
                 response_data = {
+                    "id": audio_obj.id,
                     "text": transcribed_text,
                     "language": language_code,
+                    "audio_format": audio_format,
                     "model_name": asr_result["model_name"],
                     "model_version": asr_result["model_version"],
                 }

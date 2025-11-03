@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
 import hashlib
 import uuid
 from datetime import timedelta
@@ -244,7 +245,11 @@ class SpeechToTextAudio(models.Model):
     text = models.TextField(max_length=5000)
     language = models.ForeignKey("Lang", on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
-    # TODO: Include audio
+
+    audio_data = models.TextField(null=True, blank=True)  # Store base64 string
+    audio_format = models.CharField(
+        max_length=10, null=True, blank=True
+    )  # e.g., 'wav', 'mp3', 'webm'
 
     user = models.ForeignKey(
         User,
@@ -264,6 +269,12 @@ class SpeechToTextAudio(models.Model):
             models.Index(fields=["created_at"]),
             models.Index(fields=["model_name", "model_version"]),
         ]
+
+    def get_audio_bytes(self):
+        """Decode base64 audio data back to bytes"""
+        if self.audio_data:
+            return base64.b64decode(self.audio_data)
+        return None
 
 
 class GeneralSuggestion(models.Model):
@@ -320,3 +331,30 @@ class GeneralSuggestion(models.Model):
     def __str__(self):
         user_email = self.user.email if self.user else "Anonymous"
         return f"{user_email} - {self.created_at}"
+
+
+class CacheTTS(models.Model):
+    """
+    Cache for Text-to-Speech results to avoid redundant model calls.
+    Stores text and its corresponding audio in base64 format.
+    """
+
+    text = models.TextField(max_length=5000)
+    language = models.ForeignKey("Lang", on_delete=models.CASCADE)
+
+    # Store the generated audio in base64
+    audio_data = models.TextField()  # Base64 encoded audio
+    audio_format = models.CharField(max_length=10, default="wav")  # e.g., 'wav', 'mp3'
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["text", "language"]),
+        ]
+        # Ensure uniqueness for same text + language + model
+        unique_together = [["text", "language"]]
+
+    def get_audio_bytes(self):
+        """Decode base64 audio data back to bytes"""
+        if self.audio_data:
+            return base64.b64decode(self.audio_data)
+        return None
