@@ -298,7 +298,7 @@ class HybridASRWrapper(ASRModelWrapper):
         rap_model_path: str = None,
         rap_vocab_path: str = None,
         mms_base_path: str = None,  # ✅ New parameter for MMS base checkpoint
-        use_fp16: bool = True,
+        use_fp16: bool = False,
         whisper_model_id: str = "openai/whisper-base",
         hf_token: str = None,
     ):
@@ -413,9 +413,6 @@ class HybridASRWrapper(ASRModelWrapper):
             ).to(self._device)
 
             self.whisper_model.eval()
-            if self.use_fp16:
-                self.logger.info("Using FP16 precision for Whisper model")
-                self.whisper_model.half()
             self.logger.info(f"Whisper model loaded successfully from {whisper_path}")
         except Exception as e:
             self.logger.error(f"Failed to load Whisper model: {str(e)}")
@@ -452,10 +449,6 @@ class HybridASRWrapper(ASRModelWrapper):
                 ).to(self._device)
 
                 self.rap_model.eval()
-
-                if self.use_fp16:
-                    self.logger.info("Using FP16 precision for Rapa Nui model")
-                    self.rap_model = self.rap_model.half()
 
                 self.logger.info("Rapa Nui ASR model loaded successfully")
             except Exception as e:
