@@ -481,19 +481,12 @@ class HybridASRWrapper(ASRModelWrapper):
         audio = inputs["audio"]
         sampling_rate = inputs["sampling_rate"]
 
-        # Use specialized Rapa Nui model if available and language is rap
         if lang == "rap" and self.rap_model and self.rap_processor:
             self.logger.info("Using specialized Rapa Nui model for transcription")
             # Process audio for Rapa Nui model
             processed_inputs = self.rap_processor(
                 audio, sampling_rate=sampling_rate, return_tensors="pt"
             ).to(self._device)
-
-            # Apply FP16 precision if enabled for the Rapa Nui model
-            if self.use_fp16:
-                processed_inputs["input_values"] = processed_inputs[
-                    "input_values"
-                ].half()
 
             with torch.no_grad():
                 logits = self.rap_model(**processed_inputs).logits
@@ -505,8 +498,6 @@ class HybridASRWrapper(ASRModelWrapper):
         # Otherwise use the Whisper model for Spanish and English
         else:
             self.logger.info(f"Using Whisper model for transcription of {lang}")
-
-            # Map language codes for Whisper
             whisper_lang_map = {"spa": "es", "eng": "en"}
             task = "transcribe"
 
@@ -515,17 +506,11 @@ class HybridASRWrapper(ASRModelWrapper):
                 audio, sampling_rate=sampling_rate, return_tensors="pt"
             ).input_features.to(self._device)
 
-            # Apply FP16 precision if enabled for the Whisper model
-            if self.use_fp16:
-                input_features = input_features.half()
-
-            # Generate token ids
             with torch.no_grad():
                 predicted_ids = self.whisper_model.generate(
                     input_features, task=task, language=whisper_lang_map.get(lang)
                 )
 
-            # Decode token ids to text
             transcription = self.whisper_processor.batch_decode(
                 predicted_ids, skip_special_tokens=True
             )[0]
