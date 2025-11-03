@@ -412,26 +412,6 @@ def generate_asr(audio_file, lang):
         container = _sniff_container(audio_bytes)
         logger.debug(f"Detected container: {container}")
 
-        # Save original input for inspection
-        try:
-            dbg_dir = _asr_debug_dir()
-            ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S-%f")
-            lang_slug = _slug(lang_code)
-            orig_ext = (
-                "webm"
-                if container == "webm"
-                else (
-                    "ogg"
-                    if container == "ogg"
-                    else ("mp4" if container == "mp4" else "bin")
-                )
-            )
-            orig_path = dbg_dir / f"{ts}_{lang_slug}_orig.{orig_ext}"
-            orig_path.write_bytes(audio_bytes)
-            logger.debug(f"Saved original audio to {orig_path}")
-        except Exception as e:
-            logger.warning(f"Failed saving original audio for debug: {e}")
-
         # Convert to WAV 16kHz mono using ffmpeg
         try:
             inp = ffmpeg.input(
