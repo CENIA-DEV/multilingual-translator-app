@@ -21,6 +21,10 @@ limitations under the License. */
   animation: fade-in 1.2s cubic-bezier(0.390, 0.575, 0.565, 1.000) 1.5s both;
 }
 
+.is-left  { justify-content: flex-start; }
+
+.is-right { justify-content: flex-end; }
+
 .lang-selected{
   font-family: 'Roboto Condensed', sans-serif;
   font-size: 18px;
@@ -69,5 +73,6 @@ limitations under the License. */
 @media screen and (max-width: 850px) {
   .lang-container {
     width: calc(100% - 40px);
+	justify-content: flex-end !important;
   }
 }
