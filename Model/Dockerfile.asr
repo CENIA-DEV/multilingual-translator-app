@@ -5,7 +5,7 @@ FROM nvcr.io/nvidia/tritonserver:24.10-py3-min
 ARG HF_TOKEN
 ENV HUGGING_FACE_HUB_TOKEN=$HF_TOKEN
 
-# Install system dependencies required for audio processing and GCS access
+# Install system dependencies required for audio processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-transport-https \
     ca-certificates \
@@ -13,13 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libsndfile1 \
     python3-pip \
-    # Add the Google Cloud SDK repository
-    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
-    # Import the Google Cloud public key
-    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
-    # Update package list again and install the SDK
-    && apt-get update && apt-get install -y google-cloud-sdk \
-    # Clean up
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables first
@@ -28,17 +21,14 @@ ENV PYTHONUNBUFFERED=0
 # Copy only the requirements file first to leverage Docker layer caching
 COPY requirements.txt .
 
-# Install Python dependencies
-# Use no cache for smaller image size
 RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf ~/.cache/pip
 
-# Copy downloaded models to /app (following the same pattern as audio)
 COPY asr-rap/ /app/asr-rap/
 
-# Download the adapter file from GCS into the correct model directory
-# This requires the build environment to be authenticated with GCP
-RUN gsutil cp gs://models-traductor/asr-rap/mms-1b-all/adapter.rap.bin /app/asr-rap/mms-1b-all/
+# Ensure adapter directory exists and copy committed adapter file from repo root
+RUN mkdir -p /app/asr-rap/mms-1b-all
+COPY rap-adapter.bin /app/asr-rap/mms-1b-all/adapter.rap.bin
 
 # Set working directory for the application code
 WORKDIR /home/app/src
@@ -58,4 +48,3 @@ CMD [ \
     "--rap-model-path=/app/asr-rap/rap/model", \
     "--rap-vocab-path=/app/asr-rap/rap/vocab.json", \
     "--mms-base-path=/app/asr-rap/mms-1b-all" \
-]
