@@ -12,6 +12,7 @@ on:
           - raw
           - tts
           - asr
+          - asr-backup  # ✅ New option for backup ASR
 
       model_path:
         description: 'Model path'
@@ -44,15 +45,18 @@ jobs:
         with:
           sparse-checkout: |
             Model/
+
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v0.4.0'
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
           version: '>= 416.0.0'
+
       - name: Download model
         working-directory: Model/
         run: |
@@ -70,7 +74,7 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
             echo "dockerfile=Dockerfile.audio" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.inputs.variant }}" == "asr" ]]; then
+          elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             echo "dockerfile=Dockerfile.asr" >> $GITHUB_OUTPUT
           else
             echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
@@ -81,7 +85,7 @@ jobs:
         run: |
           echo "Using dockerfile: ${{ steps.set-dockerfile.outputs.dockerfile }}"
           # Pass the HF token as a build argument when building the ASR model
-          if [[ "${{ github.event.inputs.variant }}" == "asr" ]]; then
+          if [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             docker build \
               --build-arg HF_TOKEN=${{ secrets.HUGGING_FACE_TOKEN }} \
               -t model:${{ github.sha }} \

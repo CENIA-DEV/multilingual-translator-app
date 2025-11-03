@@ -509,3 +509,137 @@ class HybridASRWrapper(ASRModelWrapper):
             )[0]
 
         return transcription
+
+
+class BackupASRWrapper(ASRModelWrapper):
+    """
+    Hybrid wrapper that uses MMS model for Rapa Nui (rap)
+    and the Whisper model for other languages (spa, eng).
+    """
+
+    def __init__(
+        self,
+        logger: logging.Logger,
+        gpu: bool = True,
+        model_base_path: str = None,
+        rap_model_path: str = None,
+        rap_vocab_path: str = None,
+        mms_base_path: str = None,
+        use_fp16: bool = False,
+        whisper_model_id: str = "openai/whisper-base",
+        hf_token: str = None,
+    ):
+        self.rap_model_path = rap_model_path
+        self.rap_vocab_path = rap_vocab_path
+        self.mms_base_path = mms_base_path or "facebook/mms-1b-all"
+        self.use_fp16 = use_fp16 and gpu and torch.cuda.is_available()
+        self.whisper_model_id = whisper_model_id
+        self.hf_token = hf_token
+        super().__init__(logger, gpu, model_base_path)
+
+    def _preload_models(self):
+        """Preload both the Whisper model and the MMS Rapa Nui model."""
+        self.logger.info("=== STARTING BACKUP ASR MODEL LOADING ===")
+        self.logger.info(f"Device: {self._device}")
+        self.logger.info(f"MMS Base Checkpoint: {self.mms_base_path}")
+
+        # 1. Load Whisper model for Spanish and English
+        try:
+            whisper_path = self.model_base_path or self.whisper_model_id
+            self.logger.info(f"Loading Whisper model from: {whisper_path}")
+
+            local_files_only = (
+                os.path.exists(whisper_path) if isinstance(whisper_path, str) else False
+            )
+
+            self.whisper_processor = WhisperProcessor.from_pretrained(
+                whisper_path, token=self.hf_token, local_files_only=local_files_only
+            )
+            self.whisper_model = WhisperForConditionalGeneration.from_pretrained(
+                whisper_path, token=self.hf_token, local_files_only=local_files_only
+            ).to(self._device)
+
+            self.whisper_model.eval()
+            self.logger.info(f"Whisper model loaded successfully from {whisper_path}")
+        except Exception as e:
+            self.logger.error(f"Failed to load Whisper model: {str(e)}")
+            raise
+
+        # 2. Load MMS model for Rapa Nui
+        try:
+            self.logger.info("Loading MMS model for Rapa Nui")
+
+            # Check if using local path or Hugging Face model
+            local_files_only = (
+                os.path.exists(self.mms_base_path)
+                if isinstance(self.mms_base_path, str)
+                else False
+            )
+
+            # Load processor and model
+            self.mms_processor = AutoProcessor.from_pretrained(
+                self.mms_base_path, local_files_only=local_files_only
+            )
+            self.mms_model = Wav2Vec2ForCTC.from_pretrained(
+                self.mms_base_path, local_files_only=local_files_only
+            ).to(self._device)
+
+            # Set target language for Rapa Nui
+            self.mms_processor.tokenizer.set_target_lang("rap")
+            self.mms_model.load_adapter("rap")
+
+            self.mms_model.eval()
+            self.logger.info("MMS Rapa Nui model loaded successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to load MMS Rapa Nui model: {str(e)}")
+            self.logger.warning("Rapa Nui transcription will not be available")
+            self.mms_model = None
+            self.mms_processor = None
+
+        self.logger.info("=== BACKUP ASR MODEL LOADING COMPLETE ===")
+
+    def process_audio(self, audio, sampling_rate: int):
+        """Process audio based on target language."""
+        return {"audio": audio, "sampling_rate": sampling_rate}
+
+    def transcribe(self, inputs, lang: str) -> str:
+        """Transcribe audio using the appropriate model based on language."""
+        audio = inputs["audio"]
+        sampling_rate = inputs["sampling_rate"]
+
+        if lang == "rap" and self.mms_model and self.mms_processor:
+            self.logger.info("Using MMS model for Rapa Nui transcription")
+
+            # Process audio for MMS model
+            processed_inputs = self.mms_processor(
+                audio, sampling_rate=sampling_rate, return_tensors="pt"
+            ).to(self._device)
+
+            with torch.no_grad():
+                outputs = self.mms_model(**processed_inputs).logits
+
+            # Decode using argmax (greedy decoding)
+            ids = torch.argmax(outputs, dim=-1)[0]
+            transcription = self.mms_processor.decode(ids)
+
+        # Otherwise use the Whisper model for Spanish and English
+        else:
+            self.logger.info(f"Using Whisper model for transcription of {lang}")
+            whisper_lang_map = {"spa": "es", "eng": "en"}
+            task = "transcribe"
+
+            # Process audio for Whisper model
+            input_features = self.whisper_processor(
+                audio, sampling_rate=sampling_rate, return_tensors="pt"
+            ).input_features.to(self._device)
+
+            with torch.no_grad():
+                predicted_ids = self.whisper_model.generate(
+                    input_features, task=task, language=whisper_lang_map.get(lang)
+                )
+
+            transcription = self.whisper_processor.batch_decode(
+                predicted_ids, skip_special_tokens=True
+            )[0]
+
+        return transcription
