@@ -7,9 +7,19 @@ ENV HUGGING_FACE_HUB_TOKEN=$HF_TOKEN
 
 # Install system dependencies required for audio processing and GCS access
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-pip \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    curl \
     libsndfile1 \
-    google-cloud-sdk \
+    python3-pip \
+    # Add the Google Cloud SDK repository
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+    # Import the Google Cloud public key
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    # Update package list again and install the SDK
+    && apt-get update && apt-get install -y google-cloud-sdk \
+    # Clean up
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables first
