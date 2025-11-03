@@ -3,6 +3,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 
+import numpy as np
 import torch
 from dotenv import load_dotenv
 from transformers import (
@@ -81,22 +82,23 @@ class MMSASRWrapper(ASRModelWrapper):
         self.logger.info(f"Device: {self._device}")
 
         if self.model_base_path and os.path.exists(self.model_base_path):
-            # Use local model path if provided and exists
             model_path = self.model_base_path
             self.logger.info(f"Loading ASR model from local path: {model_path}")
 
             try:
-                self.processor = AutoProcessor.from_pretrained(model_path)
-                self.model = Wav2Vec2ForCTC.from_pretrained(model_path).to(self._device)
-                self.logger.info(f"MMS ASR Model loaded from local path: {model_path}")
-            except Exception as e:
-                self.logger.error(
-                    f"Failed to load MMS ASR Model from {model_path}: {str(e)}"
+                self.processor = AutoProcessor.from_pretrained(
+                    model_path, local_files_only=True
                 )
-                # Fallback to default model if local loading fails
+                self.model = Wav2Vec2ForCTC.from_pretrained(
+                    model_path, local_files_only=True
+                ).to(self._device)
+                self.logger.info(f"Loaded MMS ASR from local path: {model_path}")
+            except Exception as e:
+                self.logger.warning(
+                    f"Local MMS load failed: {e}. Falling back to default."
+                )
                 self._load_default_model()
         else:
-            # No model_base_path or path doesn't exist, use default model
             self._load_default_model()
 
         self.logger.info("=== ASR MODEL LOADING COMPLETE ===")
@@ -121,16 +123,15 @@ class MMSASRWrapper(ASRModelWrapper):
 
     def transcribe(self, inputs, lang: str):
         """Transcribe processed audio to text using the selected language."""
-        # Set the target language
         self.processor.tokenizer.set_target_lang(lang)
         self.model.load_adapter(lang)
 
         with torch.no_grad():
             outputs = self.model(**inputs).logits
 
-        ids = torch.argmax(outputs, dim=-1)[0]
-        transcription = self.processor.decode(ids)
-
+        # Use batch_decode for consistency
+        pred_ids = torch.argmax(outputs, dim=-1)
+        transcription = self.processor.batch_decode(pred_ids)[0]
         return transcription
 
 
@@ -543,7 +544,7 @@ class BackupASRWrapper(ASRModelWrapper):
         self.logger.info(f"Device: {self._device}")
         self.logger.info(f"MMS Base Checkpoint: {self.mms_base_path}")
 
-        # 1. Load Whisper model for Spanish and English
+        # 1) Whisper for spa/eng
         try:
             whisper_path = self.model_base_path or self.whisper_model_id
             self.logger.info(f"Loading Whisper model from: {whisper_path}")
@@ -565,7 +566,7 @@ class BackupASRWrapper(ASRModelWrapper):
             self.logger.error(f"Failed to load Whisper model: {str(e)}")
             raise
 
-        # 2. Load MMS model for Rapa Nui
+        # 2) MMS for rap
         try:
             self.logger.info("Loading MMS model for Rapa Nui")
 
@@ -584,17 +585,14 @@ class BackupASRWrapper(ASRModelWrapper):
                 self.mms_base_path, local_files_only=local_files_only
             ).to(self._device)
 
-            # Set target language for Rapa Nui
+            # Configure RAP adapter once
             self.mms_processor.tokenizer.set_target_lang("rap")
             self.mms_model.load_adapter("rap")
-
             self.mms_model.eval()
-            self.logger.info("MMS Rapa Nui model loaded successfully")
+            self.logger.info("MMS (rap) loaded and configured.")
         except Exception as e:
-            self.logger.error(f"Failed to load MMS Rapa Nui model: {str(e)}")
-            self.logger.warning("Rapa Nui transcription will not be available")
-            self.mms_model = None
-            self.mms_processor = None
+            self.logger.error(f"Failed to load MMS (rap): {e}")
+            raise
 
         self.logger.info("=== BACKUP ASR MODEL LOADING COMPLETE ===")
 
@@ -607,22 +605,28 @@ class BackupASRWrapper(ASRModelWrapper):
         audio = inputs["audio"]
         sampling_rate = inputs["sampling_rate"]
 
-        if lang == "rap" and self.mms_model and self.mms_processor:
-            self.logger.info("Using MMS model for Rapa Nui transcription")
+        # sanitize only (audio is already 16kHz)
+        if isinstance(audio, np.ndarray):
+            if np.isnan(audio).any() or np.isinf(audio).any():
+                audio = np.nan_to_num(audio)
+            audio = audio.astype(np.float32, copy=False)
 
-            # Process audio for MMS model
-            processed_inputs = self.mms_processor(
+        if (
+            lang == "rap"
+            and hasattr(self, "mms_model")
+            and hasattr(self, "mms_processor")
+        ):
+            # MMS path: pass input_values directly, use batch_decode
+            processed = self.mms_processor(
                 audio, sampling_rate=sampling_rate, return_tensors="pt"
-            ).to(self._device)
+            )
+            input_values = processed.input_values.to(self._device)
 
             with torch.no_grad():
-                outputs = self.mms_model(**processed_inputs).logits
+                logits = self.mms_model(input_values).logits
 
-            # Decode using argmax (greedy decoding)
-            ids = torch.argmax(outputs, dim=-1)[0]
-            transcription = self.mms_processor.decode(ids)
-
-        # Otherwise use the Whisper model for Spanish and English
+            pred_ids = torch.argmax(logits, dim=-1)
+            transcription = self.mms_processor.batch_decode(pred_ids)[0]
         else:
             self.logger.info(f"Using Whisper model for transcription of {lang}")
             whisper_lang_map = {"spa": "es", "eng": "en"}
