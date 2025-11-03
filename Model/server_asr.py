@@ -4,7 +4,7 @@ import logging
 import os
 
 import numpy as np
-from asr_models import HybridASRWrapper, MMSASRWrapper
+from asr_models import BackupASRWrapper, HybridASRWrapper, MMSASRWrapper
 from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig
@@ -106,9 +106,9 @@ def _parse_args():
 
     parser.add_argument(
         "--model-type",
-        choices=["mms", "hybrid"],
+        choices=["mms", "hybrid", "backup"],  # ✅ Added "backup" option
         default="mms",
-        help="Type of ASR model to use (mms or hybrid)",
+        help="Type of ASR model to use (mms, hybrid, or backup)",
     )
 
     parser.add_argument(
@@ -174,7 +174,15 @@ def main():
             model_base_path=args.model_base_path,
             rap_model_path=args.rap_model_path,
             rap_vocab_path=args.rap_vocab_path,
-            mms_base_path=args.mms_base_path,  # ✅ Pass MMS base path
+            mms_base_path=args.mms_base_path,
+            hf_token=hf_token,
+        )
+    elif args.model_type == "backup":  # ✅ New backup model type
+        asr_wrapper = BackupASRWrapper(
+            logger=logger,
+            gpu=args.gpu,
+            model_base_path=args.model_base_path,  # Whisper model path
+            mms_base_path=args.mms_base_path,  # MMS base checkpoint
             hf_token=hf_token,
         )
     else:
