@@ -86,6 +86,11 @@ export default function Translator() {
   // ASR state & refs (must be declared before useEffect that uses them)
   const [isRecording, setIsRecording] = useState(false);
   const [asrStatus, setAsrStatus] = useState('idle');
+  
+  const [transcribeChoice, setTranscribeChoice] = useState('source'); // which side to transcribe in the modal ("source" | "target")
+  const [reviewTranscript, setReviewTranscript] = useState('');
+
+  
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const prevStopAtRef = useRef(0);          // cooldown between sessions
@@ -385,6 +390,17 @@ export default function Translator() {
       }
     }
   }
+  
+  // Fully cancel the voice flow: abort ASR, stop recording, reset, and close
+  const handleFullCancel = () => {
+    try { asrAbortRef.current?.abort(); } catch {}
+    asrAbortRef.current = null;
+    if (isRecording) {
+      try { stopRecording(); } catch {}
+    }
+    resetAudioState();
+    setShowRecordModal(false);
+  };
   
   // TTS Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
@@ -846,15 +862,53 @@ export default function Translator() {
       if (asrStatus !== 'idle') resetAudioState();
     }
   }
+  
+  // Transcribe for modal review (no auto-reset) ---
+  async function transcribeForReview(blob, hint, filename = 'audio.webm') {
+    setAsrStatus('transcribing');
+    try {
+      // Direct call to ASR service (no auto-reset here)
+      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+      setReviewTranscript((data?.text || '').trim());
+      setAsrStatus('reviewing');
+    } catch (err) {
+      console.error(err);
+      setAsrStatus('error');
+      toast('Error al transcribir.', {
+        description: err?.response?.data?.error || 'Reintenta con otro archivo.',
+      });
+    }
+  }
+
+  // Start translation from the review text ---
+  async function startTranslationFromReview() {
+    const chosenText = (reviewTranscript || '').trim();
+    if (!chosenText) {
+      toast('No hay texto para traducir.');
+      return;
+    }
+    // If user chose to transcribe the target side, swap langs before translating
+    if (transcribeChoice === 'target') {
+      const prevSrc = srcLang, prevDst = dstLang;
+      setSrcLang(prevDst);
+      setDstLang(prevSrc);
+    }
+    // Populate src text and trigger translation
+    setSuppressNextAutoTranslate(true); // avoid double-auto
+    setSrcText(chosenText);
+    setShowRecordModal(false);
+    // Give state a tick to settle then translate
+    setTimeout(() => translate(), 0);
+    // Clean audio state (keeps text/langs)
+    resetAudioState();
+  }
 
   async function startRecording() {
     if (recorderBusyRef.current) return;
     recorderBusyRef.current = true;
 
     try {
-	  
       setIsRecording(false);            // explicit
-      setAsrStatus('preparing');        // preparing state
       setShowRecordModal(true);
 	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -978,7 +1032,6 @@ export default function Translator() {
             wasTruncated = true;
           }
 
-          setAsrStatus('reviewing');
           lastRecordingBlobRef.current = finalBlob;
           if (lastRecordingUrl.current) URL.revokeObjectURL(lastRecordingUrl.current);
           lastRecordingUrl.current = finalAudioURL;
@@ -986,6 +1039,13 @@ export default function Translator() {
           recorderBusyRef.current = false;
 
           if (wasTruncated) toast('El audio fue truncado a 30 segundos.');
+
+          // immediately transcribe for review with the chosen side
+          const hintChosen =
+            transcribeChoice === 'target'
+              ? (dstHint || inferHintFromSrcLang())
+              : (srcHint || inferHintFromSrcLang());
+          await transcribeForReview(finalBlob, hintChosen, 'grabacion.webm');
         } catch (err) {
           console.error('Finalizing recording failed:', err);
           toast('No se pudo procesar la grabación.');
@@ -1288,10 +1348,10 @@ export default function Translator() {
     }
   }
 
-  const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing' || asrStatus === 'preparing';
+  const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
   return (
-    <div className="translator-container">
+    <div className="translator-container relative min-h-[100dvh] overflow-hidden">
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
@@ -1437,8 +1497,37 @@ export default function Translator() {
           </div>
 
           {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
-          <div className="absolute right-4 bottom-4 z-[4] flex items-center gap-2 max-[850px]:right-3 max-[850px]:bottom-14">
+            <div className=" absolute right-4 bottom-4 z-[40] flex items-center gap-2 max-[850px]:fixed max-[850px]:inset-x-0 max-[850px]:bottom-0 max-[850px]:justify-center max-[850px]:gap-4 max-[850px]:bg-[#f3f4f6] max-[850px]:py-3 max-[850px]:px-6 max-[850px]:rounded-tl-[2rem] max-[850px]:rounded-tr-[2rem] max-[850px]:border-t max-[850px]:border-slate-200 max-[850px]:shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-[850px]:pb-[env(safe-area-inset-bottom)]">
             
+			{/* Mic button (center-bottom) */}
+			{ASR_MIC_VISIBLE_D && (
+			  <div
+				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
+							
+                onClick={async () => {
+                  if (translationRestricted) {
+                    setTranslationRestrictedDialogOpen(true);
+                    return;
+                  }
+                  // Open modal in "ready" state (do NOT start recording yet)
+                  setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+                  setReviewTranscript('');
+                  setShowRecordModal(true);
+                  setAsrStatus('ready'); // start screen
+                }}
+				aria-label="Grabar audio"
+				title="Grabar audio"
+				disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
+				style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
+			  >
+				<FontAwesomeIcon
+				  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
+				  className={`text-[1.5em] ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
+				  color={isRecording ? "#d40000" : "#0a8cde"}
+				/>
+			  </div>
+			)}
+			
             {/* --- NEW: Timer --- */}
             {isRecording && (
               <span className="text-xs font-mono px-2 py-1 rounded bg-white/80 border border-slate-200">
@@ -1446,6 +1535,7 @@ export default function Translator() {
               </span>
             )}
           </div>
+		  
         </div>
 
         <div
@@ -1472,38 +1562,7 @@ export default function Translator() {
           />
         </div>
 		
-        {/* Mic button (center-bottom) */}
-        {ASR_MIC_VISIBLE_D && (
-		  <div
-		    className={`box-content fixed left-1/2 bottom-4 -translate-x-1/2 w-[60px] h-[60px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[10px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${showRecordModal ? 'hidden' : ''}`}
-			onClick={async () => {
-			  if (translationRestricted) {
-				setTranslationRestrictedDialogOpen(true);
-				return;
-			  }
-			  if (!isRecording) {
-				try {
-				  await startRecording();
-				} catch {
-				  setAsrStatus('error');
-				  toast('No se pudo iniciar la grabación.');
-				}
-			  } else {
-				stopRecording();
-			  }
-			}}
-			aria-label="Grabar audio"
-			title="Grabar audio"
-			disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
-			style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
-		  >
-			<FontAwesomeIcon
-			  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
-			  className={`text-[1.75em] ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
-			  color={isRecording ? "#d40000" : "#0a8cde"}
-			/>
-		  </div>
-		)}
+        
 
         <div className="relative">
           <Card
@@ -1531,7 +1590,7 @@ export default function Translator() {
         )}
       </TooltipProvider>
 
-      <div className="translator-footer">
+      <div className="translator-footer max-[850px]:mb-[84px]">
         {translationRestricted ? (<></>) : (
           <>
             <strong className="max-[850px]:hidden">Déjanos tu opinión</strong>
@@ -1576,79 +1635,96 @@ export default function Translator() {
       />
 	  
       <Dialog
-            open={showRecordModal}
-            onOpenChange={(open) => {
-			// closing the modal while recording will stop safely
-			if (!open) {
-			  if (isBusy) return; // ignore close while busy
-			  setShowRecordModal(false);
-			  if (isRecording) stopRecording();
-			  else resetAudioState();
-			} else {
-			  setShowRecordModal(true);
-			}
-		  }}
-	  >
-      <DialogContent
-        className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5"
-        onInteractOutside={(e) => { if (isBusy || isRecording) e.preventDefault(); }}
-        onEscapeKeyDown={(e) => { if (isBusy || isRecording) e.preventDefault(); }}
+        open={showRecordModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleFullCancel();      // clicking the default X will hit this
+          } else {
+            setShowRecordModal(true);
+            setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+            setReviewTranscript('');
+            setAsrStatus((prev) => (prev === 'recording' ? prev : 'ready'));
+          }
+        }}
       >
-            <DialogHeader className="flex items-center justify-between">
-              <DialogTitle className="text-base">
-                {asrStatus === 'preparing'
-                  ? 'Preparando…'
-                  : isRecording
-                    ? 'Grabando…'
-                    : (asrStatus === 'transcribing' || asrStatus === 'processing')
-                      ? 'Transcribiendo…'
-                      : 'Revisión de grabación'}
-              </DialogTitle>
-              {isRecording ? (
-                <button
-                  onClick={stopRecording}
-                  className="px-4 h-11 rounded-full flex items-center gap-2 border-4 border-red-500 bg-white shadow hover:shadow-md transition text-red-600 font-medium"
-                  title="Detener"
-                  aria-label="Detener"
-                >
-                  <FontAwesomeIcon icon={faStop} />
-                  <span className="hidden sm:inline">Detener</span>
-                </button>
-                ) : asrStatus === 'preparing' ? (
-                  <button
-                    disabled
-                    className="px-4 h-11 rounded-full flex items-center gap-2 bg-slate-100 text-slate-500 border border-slate-200"
-                    title="Preparando micrófono…"
-                    aria-label="Preparando micrófono…"
-                  >
-                    <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
-                    <span className="hidden sm:inline">Preparando…</span>
-                  </button>
-                ) : asrStatus === 'reviewing' ? (
-                <button
-                  onClick={async () => {
-                    // clear previous preview and start a fresh recording
-                    safeUnloadReviewAudio();
-                    lastRecordingBlobRef.current = null;
-                    setAsrStatus('idle');
-                    await startRecording();
-                  }}
-                  className="px-4 h-11 rounded-full flex items-center gap-2 bg-[#0a8cde] text-white shadow hover:shadow-md transition font-medium"
-                  title="Grabar de nuevo"
-                  aria-label="Grabar de nuevo"
-                >
-                  <FontAwesomeIcon icon={faMicrophone} />
-                  <span className="hidden sm:inline">Grabar de nuevo</span>
-                </button>
-              ) : null}
-            </DialogHeader>
+
+      <DialogContent
+        onInteractOutside={(e) => e.preventDefault()}  // ignore outside clicks
+        onEscapeKeyDown={() => handleFullCancel()}    // Esc = full cancel
+        className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5"
+      >	
+			{/* READY VIEW: blue mic button + helper + source/target selector */}
+			{asrStatus === 'ready' && !isRecording && (
+			  <div className="space-y-5">
+				<div className="flex items-center gap-4">
+				  <button
+					onClick={startRecording}
+					className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0a8cde] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+					title="Iniciar grabación"
+					aria-label="Iniciar grabación"
+					style={{ WebkitTapHighlightColor: 'transparent' }}
+				  >
+					<FontAwesomeIcon icon={faMicrophone} className="fa-lg" color="#ffffff" />
+				  </button>
+				  <div>
+					<button
+					  onClick={startRecording}
+					  className="text-[#0a8cde] font-medium"
+					>
+					  Iniciar grabación
+					</button>
+					<p className="text-xs text-slate-500 mt-1">
+					  Recuerda activar el micrófono en tu dispositivo.
+					</p>
+				  </div>
+				</div>
+
+                <div className="pt-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-slate-600">Estás hablando en</span>
+                    <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
+                      <button
+                        onClick={() => setTranscribeChoice('source')}
+                        className={`px-3 py-1 text-sm rounded-full transition border ${
+                          transcribeChoice === 'source'
+                            ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                            : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        {srcDisplay}
+                      </button>
+                      <button
+                        onClick={() => dstHint && setTranscribeChoice('target')}
+                        disabled={!dstHint}
+                        className={`ml-1 px-3 py-1 text-sm rounded-full transition border ${
+                          transcribeChoice === 'target'
+                            ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                            : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                        } ${!dstHint ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {dstDisplay}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+			  </div>
+			)}
+
 
 			{/* RECORDING VIEW: live waveform */}
             {isRecording && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div ref={pulseRef} className="w-6 h-6 rounded-full bg-[#0a8cde] opacity-60 transition-transform" />
-                  <p className="text-sm text-slate-600">Habla al micrófono. Presiona el botón para detener.</p>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={stopRecording}
+                    className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center shadow hover:shadow-md transition"
+                    title="Detener grabación"
+                    aria-label="Detener grabación"
+                  >
+                    <span className="block w-3.5 h-3.5 bg-white" />
+                  </button>
+                  <p className="text-sm font-medium text-red-600">Detener grabación</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2">
                   <canvas ref={waveCanvasRef} className="w-full h-44 rounded" />
@@ -1675,49 +1751,65 @@ export default function Translator() {
               </div>
             )}
 			
-
-            {/* REVIEW VIEW: custom player + actions (dynamic) */}
+            {/* REVIEW VIEW: textarea + player + actions */}
             {!isRecording && asrStatus === 'reviewing' && lastRecordingUrl.current && (
-			  <div className="space-y-4">
-				<audio
-				  ref={reviewAudioRef}
-				  src={lastRecordingUrl.current}
-				  controls
-				  preload="metadata"
-				  className="w-full"
-				  onError={(e) => {
-					const err = e.currentTarget.error;
-					console.debug('Audio element error:', err?.message || err);
-				  }}
-				/>
-				<div className="flex flex-wrap gap-2 justify-end">
-				  <Button
-					variant="outline"
-					onClick={() => { resetAudioState(); setShowRecordModal(false); }}
-				  >
-					Cancelar
-				  </Button>
-                  {/* Show source first if transcribable */}
-                  {srcHint && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Transcripción ({transcribeChoice === 'source' ? srcDisplay : dstDisplay})
+                  </label>
+                  <textarea
+                    className="w-full h-40 p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0a8cde]"
+                    value={reviewTranscript}
+                    onChange={(e) => setReviewTranscript(e.target.value)}
+                    placeholder="Revisa o edita la transcripción…"
+                  />
+                </div>
+                <audio
+                  ref={reviewAudioRef}
+                  src={lastRecordingUrl.current}
+                  controls
+                  preload="metadata"
+                  className="w-full"
+                  onError={(e) => {
+                    const err = e.currentTarget.error;
+                    console.debug('Audio element error:', err?.message || err);
+                  }}
+                />
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => { resetAudioState(); setShowRecordModal(false); }}
+                  >
+                    Cancelar
+                  </Button>
+                  <div className="flex gap-2">
                     <Button
-                      className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
-                      onClick={() => performTranscribe('source')}
+                      className="bg-[#068cdc1a] text-default text-sm font-medium hover:bg-default hover:text-white"
+                      onClick={() => {
+                        // Return to READY: user will click mic and choose language again
+                        safeUnloadReviewAudio();
+                        lastRecordingBlobRef.current = null;
+                        setReviewTranscript('');
+                        setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+                        setAsrStatus('ready');
+                        setShowRecordModal(true);
+                      }}
                     >
-                      Transcribir {srcDisplay}
+                      <FontAwesomeIcon icon={faMicrophone} className="mr-2" />
+                      Volver a grabar
                     </Button>
-                  )}
-                  {/* Show target second if transcribable */}
-                  {dstHint && (
                     <Button
-                      className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
-                      onClick={() => performTranscribe('target')}
+                      className="bg-[#0a8cde] text-white text-sm font-medium hover:bg-[#067ac1]"
+                      onClick={startTranslationFromReview}
                     >
-                      Transcribir {dstDisplay}
+                      Comenzar traducción
+                      <FontAwesomeIcon icon={faArrowRight} className="ml-2" />
                     </Button>
-                  )}
-				</div>
-			  </div>
-			)}
+                  </div>
+                </div>
+              </div>
+            )}
 
 		  </DialogContent>
 	   </Dialog>
