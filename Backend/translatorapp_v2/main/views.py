@@ -26,7 +26,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
@@ -854,6 +854,14 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         if self.action == "validate_transcription":
             return [AllowAny()]
         return super().get_permissions()
+
+    def get_parsers(self):
+        """
+        Use JSON parser for validate_transcription, multipart for create
+        """
+        if self.action == "validate_transcription":
+            return [JSONParser()]
+        return super().get_parsers()
 
     def get_queryset(self, text=None, lang=None):
         results = (
