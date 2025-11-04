@@ -847,6 +847,14 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     serializer_class = SpeechToTextSerializer
     parser_classes = [MultiPartParser, FormParser]
 
+    def get_permissions(self):
+        """
+        Allow anyone to validate transcriptions
+        """
+        if self.action == "validate_transcription":
+            return [AllowAny()]
+        return super().get_permissions()
+
     def get_queryset(self, text=None, lang=None):
         results = (
             SpeechToTextAudio.objects.filter(
@@ -885,13 +893,13 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
                 audio_obj = SpeechToTextAudio.objects.create(
                     text=transcribed_text,
-                    original_text=transcribed_text,
                     language=lang_obj,
                     audio_data=audio_base64,
                     audio_format=audio_format,
                     model_name=asr_result["model_name"],
                     model_version=asr_result["model_version"],
                     validated=False,
+                    validated_text=None,
                     user=request.user if request.user.is_authenticated else None,
                 )
 
@@ -903,6 +911,7 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     "model_name": asr_result["model_name"],
                     "model_version": asr_result["model_version"],
                     "validated": False,
+                    "validated_text": None,
                 }
 
                 logger.info("ASR transcription complete")
@@ -927,48 +936,59 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     @action(detail=True, methods=["patch"])
     def validate_transcription(self, request, pk=None):
         """
-        Update transcription text after user edits and mark as validated
+        Update transcription with user's validated text.
+        Anyone can validate - anonymous, authenticated, or admin.
+        Each audio record stores ONE validated version (last one wins).
         """
         try:
             audio_obj = SpeechToTextAudio.objects.get(pk=pk)
 
-            if audio_obj.user and audio_obj.user != request.user:
-                return Response(
-                    {"detail": "No tiene permisos para validar esta transcripción"},
-                    status=HTTP_400_BAD_REQUEST,
-                )
-
             edited_text = request.data.get("text", "").strip()
 
             if not edited_text:
+                logger.warning(f"Empty text received for transcription {pk}")
                 return Response(
                     {"detail": "El texto no puede estar vacío"},
                     status=HTTP_400_BAD_REQUEST,
                 )
 
-            audio_obj.text = edited_text
+            # Store the validated text (overwrites previous validation if any)
+            audio_obj.validated_text = edited_text
             audio_obj.validated = True
             audio_obj.save()
 
-            logger.info(f"Transcription {pk} validated by user {request.user.id}")
+            user_info = (
+                f"user {request.user.id}"
+                if request.user.is_authenticated
+                else "anonymous user"
+            )
+            logger.info(
+                f"Transcription {pk} validated by {user_info}. "
+                f"Original: '{audio_obj.text[:50]}...', "
+                f"Validated: '{edited_text[:50]}...'"
+            )
 
             return Response(
                 {
                     "id": audio_obj.id,
-                    "text": audio_obj.text,
-                    "original_text": audio_obj.original_text,
+                    "text": audio_obj.text,  # Original model output
+                    "validated_text": audio_obj.validated_text,  # User's version
                     "validated": audio_obj.validated,
                     "language": audio_obj.language.code,
                 }
             )
 
         except SpeechToTextAudio.DoesNotExist:
+            logger.error(f"Transcription {pk} not found")
             return Response(
                 {"detail": "Transcripción no encontrada"},
                 status=HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
-            logger.error(f"Error validating transcription: {str(e)}")
+            logger.error(f"Error validating transcription {pk}: {str(e)}")
+            import traceback
+
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return Response(
                 {"detail": "Error al validar transcripción"},
                 status=HTTP_400_BAD_REQUEST,
