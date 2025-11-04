@@ -362,3 +362,60 @@ class CacheTTS(models.Model):
         if self.audio_data:
             return base64.b64decode(self.audio_data)
         return None
+
+
+class TranslationRequest(models.Model):
+    """
+    Simple table to track all translation requests.
+    Stores every translation that users request, regardless of feedback.
+    """
+
+    src_lang = models.ForeignKey(
+        Lang,
+        related_name="src_translation_requests",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+    dst_lang = models.ForeignKey(
+        Lang,
+        related_name="dst_translation_requests",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    src_text = models.TextField(max_length=10000)
+    dst_text = models.TextField(max_length=10000)
+
+    # Track which user made the request (null for anonymous)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="translation_requests",
+    )
+
+    # Model info
+    model_name = models.CharField(max_length=100, null=True)
+    model_version = models.CharField(max_length=100, null=True)
+
+    # Track if translation came from cache or model
+    from_cache = models.BooleanField(default=False)
+
+    client_request_id = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, db_index=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["src_lang", "dst_lang"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["from_cache"]),
+            models.Index(fields=["model_name", "model_version"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.src_lang.code} → {self.dst_lang.code} | {self.created_at}"

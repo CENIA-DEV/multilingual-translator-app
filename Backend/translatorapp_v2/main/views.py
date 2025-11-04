@@ -19,6 +19,7 @@ from operator import or_
 
 import numpy as np
 from django.contrib.auth.models import User
+from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, viewsets
@@ -42,8 +43,10 @@ from .models import (
     SpeechToTextAudio,
     TextToSpeechAudio,
     TranslationPair,
+    TranslationRequest,
 )
 from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
+from .serializers import TranslationRequestSerializer  # Add this import
 from .serializers import (
     FullUserSerializer,
     GeneralSuggestionSerializer,
@@ -631,24 +634,37 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     def create(self, request):
         logger.info(f"Received translation request: {request.data}")
         serializer = self.get_serializer(data=request.data)
+
         if serializer.is_valid():
             src_lang = serializer.validated_data["src_lang"]
             dst_lang = serializer.validated_data["dst_lang"]
             src_text = serializer.validated_data["src_text"]
-            print(src_text)
+
             logger.debug(
                 f"Validated translation request: src_lang={src_lang}, "
                 f"dst_lang={dst_lang}, src_text={src_text}"
             )
+
+            # Get user (or None for anonymous)
+            user = request.user if request.user.is_authenticated else None
+            dst_text = None
+            model_name = None
+            model_version = None
+            from_cache = False
 
             if src_lang == dst_lang:  # same lang return same text
                 logger.debug(
                     "Source and destination languages are the same, "
                     "returning original text"
                 )
-                # this save doesnt actually save a translation pair
-                # but its necessary to format correct response
-                serializer.save(dst_text=src_text)
+                dst_text = src_text
+                model_name = "no_translation"
+                model_version = "v1"
+                from_cache = False
+
+                # Save to original serializer for response
+                serializer.save(dst_text=dst_text)
+
             else:
                 # check for cache hits
                 cache_results = self.get_queryset(
@@ -657,12 +673,20 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 cache_result, cache_dst_lang = filter_cache(
                     src_lang, dst_lang, cache_results
                 )
+
                 if cache_result is None:
                     logger.debug("No cache hit, calling translation model")
+                    from_cache = False
+
                     # if no cache then call model translate endpoint
                     try:
                         translation = translate(src_text, src_lang, dst_lang)
+                        dst_text = translation["dst_text"]
+                        model_name = translation["model_name"]
+                        model_version = translation["model_version"]
+
                         serializer.save(**translation)
+
                     except Exception as e:
                         logger.error(f"Translation model error: {str(e)}")
                         return Response(
@@ -671,11 +695,44 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                         )
                 else:
                     logger.debug("Cache hit found, returning cached translation")
-                    # return cache
-                    translation = cache_result
+                    from_cache = True
+                    dst_text = cache_result
+
+                    # Get model info from cached result if available
+                    if cache_results:
+                        cached_pair = cache_results[0]
+                        model_name = cached_pair.model_name
+                        model_version = cached_pair.model_version
+
                     serializer.save(dst_text=cache_result, dst_lang=cache_dst_lang)
+
+            # SAVE TO TRACKING TABLE (every translation request)
+            idem_key = request.data.get("request_id")  # body-only
+            log_defaults = {
+                "src_text": src_text,
+                "dst_text": dst_text,
+                "src_lang": src_lang,
+                "dst_lang": dst_lang if src_lang != dst_lang else src_lang,
+                "user": user,
+                "model_name": model_name or "unknown",
+                "model_version": model_version or "unknown",
+                "from_cache": from_cache,
+            }
+            try:
+                if idem_key:
+                    TranslationRequest.objects.get_or_create(
+                        client_request_id=idem_key, defaults=log_defaults
+                    )
+                else:
+                    TranslationRequest.objects.create(**log_defaults)
+            except IntegrityError:
+                logger.info(f"Skip duplicate TranslationRequest key={idem_key}")
+            except Exception as e:
+                logger.error(f"Failed to log translation request: {e}")
+
             logger.info(f"Translation response: {serializer.data}")
             return Response(serializer.data)
+
         else:
             logger.warning(f"Invalid translation request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)
@@ -993,3 +1050,35 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 {"detail": "Error al validar transcripción"},
                 status=HTTP_400_BAD_REQUEST,
             )
+
+
+class TranslationRequestViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet to view all translation requests (admin only).
+    Read-only - records are created automatically.
+    """
+
+    queryset = TranslationRequest.objects.all()
+    serializer_class = TranslationRequestSerializer
+    permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self):
+        queryset = TranslationRequest.objects.all()
+
+        # Filter by language
+        src_lang = self.request.query_params.get("src_lang")
+        dst_lang = self.request.query_params.get("dst_lang")
+        from_cache = self.request.query_params.get("from_cache")
+        user_id = self.request.query_params.get("user")
+
+        if src_lang:
+            queryset = queryset.filter(src_lang__code=src_lang)
+        if dst_lang:
+            queryset = queryset.filter(dst_lang__code=dst_lang)
+        if from_cache is not None:
+            queryset = queryset.filter(from_cache=from_cache.lower() == "true")
+        if user_id:
+            queryset = queryset.filter(user__id=user_id)
+
+        return queryset.order_by("-created_at")
