@@ -242,7 +242,7 @@ class TextToSpeechAudio(models.Model):
 
 class SpeechToTextAudio(models.Model):
 
-    text = models.TextField(max_length=5000)
+    text = models.TextField(max_length=5000)  # Original model transcription
     language = models.ForeignKey("Lang", on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -261,10 +261,9 @@ class SpeechToTextAudio(models.Model):
 
     model_name = models.CharField(max_length=100, null=True)
     model_version = models.CharField(max_length=100, null=True)
+
+    validated_text = models.TextField(max_length=5000, null=True, blank=True)
     validated = models.BooleanField(default=False)
-    original_text = models.TextField(
-        max_length=5000, null=True, blank=True
-    )  # Store original model output
 
     class Meta:
         indexes = [
