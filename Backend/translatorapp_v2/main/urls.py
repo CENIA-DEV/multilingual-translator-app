@@ -23,6 +23,7 @@ from .views import (
     SpeechToTextViewSet,
     SuggestionViewSet,
     TranslateViewSet,
+    TranslationRequestViewSet,
     UserViewSet,
 )
 
@@ -38,4 +39,8 @@ router.register(
     r"text-to-speech", TextToSpeechViewSet, basename="text-to-speech"
 )  # TODO: Investigate what basename is about
 router.register(r"speech-to-text", SpeechToTextViewSet, basename="speech-to-text")
+router.register(
+    r"translation-requests", TranslationRequestViewSet, basename="translation-request"
+)
+
 urlpatterns = router.urls

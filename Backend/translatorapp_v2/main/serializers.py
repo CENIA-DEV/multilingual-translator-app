@@ -34,6 +34,7 @@ from .models import (
     SpeechToTextAudio,
     TextToSpeechAudio,
     TranslationPair,
+    TranslationRequest,
 )
 
 
@@ -591,3 +592,27 @@ class CacheTTSSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "audio_data",
         ]
+
+
+class TranslationRequestSerializer(serializers.ModelSerializer):
+    src_lang_code = serializers.CharField(source="src_lang.code", read_only=True)
+    dst_lang_code = serializers.CharField(source="dst_lang.code", read_only=True)
+    user_email = serializers.CharField(
+        source="user.email", read_only=True, allow_null=True
+    )
+
+    class Meta:
+        model = TranslationRequest
+        fields = [
+            "id",
+            "src_text",
+            "dst_text",
+            "src_lang_code",
+            "dst_lang_code",
+            "user_email",
+            "model_name",
+            "model_version",
+            "from_cache",
+            "created_at",
+        ]
+        read_only_fields = ["created_at"]
