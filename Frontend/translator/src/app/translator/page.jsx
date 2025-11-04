@@ -664,7 +664,6 @@ export default function Translator() {
   }
 
   const resetAudioState = () => {
-	  
     stopWaveformVisualization();
     setShowRecordModal(false);
 
@@ -700,6 +699,7 @@ export default function Translator() {
     dropFirstChunkRef.current = true;
     prevStopAtRef.current = performance.now();
     recorderBusyRef.current = false;
+    setCurrentAsrId(null); // NEW: Clear ASR ID on reset
     forceUpdate(x => x + 1);
   };
 
@@ -870,12 +870,37 @@ export default function Translator() {
       // Direct call to ASR service (no auto-reset here)
       const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
       setReviewTranscript((data?.text || '').trim());
+      setCurrentAsrId(data?.id || null); // NEW: Store ASR record ID
       setAsrStatus('reviewing');
     } catch (err) {
       console.error(err);
       setAsrStatus('error');
       toast('Error al transcribir.', {
         description: err?.response?.data?.error || 'Reintenta con otro archivo.',
+      });
+    }
+  }
+
+  // NEW: Function to validate transcription
+  async function validateTranscription(asrId, editedText) {
+    if (!asrId || !editedText?.trim()) return;
+    
+    try {
+      await api.patch(
+        `${API_ENDPOINTS.SPEECH_TO_TEXT}${asrId}/validate_transcription/`,
+        { text: editedText.trim() }
+      );
+      
+      logger.info(`Transcription ${asrId} validated with edited text`);
+      trackEvent('asr_transcription_validated', {
+        asr_id: asrId,
+        was_edited: editedText !== reviewTranscript,
+        page: 'translator'
+      });
+    } catch (err) {
+      console.error('Failed to validate transcription:', err);
+      toast('No se pudo guardar la validación', {
+        description: 'La transcripción se usará de todas formas.',
       });
     }
   }
@@ -887,6 +912,12 @@ export default function Translator() {
       toast('No hay texto para traducir.');
       return;
     }
+    
+    // NEW: Validate transcription before translating
+    if (currentAsrId) {
+      await validateTranscription(currentAsrId, chosenText);
+    }
+    
     // If user chose to transcribe the target side, swap langs before translating
     if (transcribeChoice === 'target') {
       const prevSrc = srcLang, prevDst = dstLang;
@@ -901,6 +932,7 @@ export default function Translator() {
     setTimeout(() => translate(), 0);
     // Clean audio state (keeps text/langs)
     resetAudioState();
+    setCurrentAsrId(null); // NEW: Clear ASR ID
   }
 
   async function startRecording() {

@@ -261,6 +261,10 @@ class SpeechToTextAudio(models.Model):
 
     model_name = models.CharField(max_length=100, null=True)
     model_version = models.CharField(max_length=100, null=True)
+    validated = models.BooleanField(default=False)
+    original_text = models.TextField(
+        max_length=5000, null=True, blank=True
+    )  # Store original model output
 
     class Meta:
         indexes = [
@@ -268,6 +272,7 @@ class SpeechToTextAudio(models.Model):
             models.Index(fields=["user"]),
             models.Index(fields=["created_at"]),
             models.Index(fields=["model_name", "model_version"]),
+            models.Index(fields=["validated"]),
         ]
 
     def get_audio_bytes(self):

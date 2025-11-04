@@ -869,41 +869,32 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             logger.debug(f"Processing ASR request for language: {language_code}")
 
             try:
-                # Get the Lang object from the language code
                 lang_obj = Lang.objects.get(code=language_code)
-
-                # Read audio bytes and convert to base64
                 audio_bytes = audio_file.read()
                 audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
-
-                # Detect audio format from file name
                 audio_format = (
                     audio_file.name.split(".")[-1].lower()
                     if hasattr(audio_file, "name")
                     else "unknown"
                 )
 
-                # generate_asr returns a dict with 'text', 'model_name', 'model_version'
-                # ✅Pass the bytes directly to generate_asr
                 asr_result = generate_asr(audio_bytes, lang_obj)
-
-                # Extract the transcribed text
                 transcribed_text = asr_result["text"]
 
                 logger.info("ASR transcription complete")
 
-                # ✅ Create the database record with audio data
                 audio_obj = SpeechToTextAudio.objects.create(
                     text=transcribed_text,
+                    original_text=transcribed_text,
                     language=lang_obj,
                     audio_data=audio_base64,
                     audio_format=audio_format,
                     model_name=asr_result["model_name"],
                     model_version=asr_result["model_version"],
+                    validated=False,
                     user=request.user if request.user.is_authenticated else None,
                 )
 
-                # Create response data (optionally include audio_data)
                 response_data = {
                     "id": audio_obj.id,
                     "text": transcribed_text,
@@ -911,6 +902,7 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     "audio_format": audio_format,
                     "model_name": asr_result["model_name"],
                     "model_version": asr_result["model_version"],
+                    "validated": False,
                 }
 
                 logger.info("ASR transcription complete")
@@ -931,3 +923,53 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         else:
             logger.warning(f"Invalid ASR request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["patch"])
+    def validate_transcription(self, request, pk=None):
+        """
+        Update transcription text after user edits and mark as validated
+        """
+        try:
+            audio_obj = SpeechToTextAudio.objects.get(pk=pk)
+
+            if audio_obj.user and audio_obj.user != request.user:
+                return Response(
+                    {"detail": "No tiene permisos para validar esta transcripción"},
+                    status=HTTP_400_BAD_REQUEST,
+                )
+
+            edited_text = request.data.get("text", "").strip()
+
+            if not edited_text:
+                return Response(
+                    {"detail": "El texto no puede estar vacío"},
+                    status=HTTP_400_BAD_REQUEST,
+                )
+
+            audio_obj.text = edited_text
+            audio_obj.validated = True
+            audio_obj.save()
+
+            logger.info(f"Transcription {pk} validated by user {request.user.id}")
+
+            return Response(
+                {
+                    "id": audio_obj.id,
+                    "text": audio_obj.text,
+                    "original_text": audio_obj.original_text,
+                    "validated": audio_obj.validated,
+                    "language": audio_obj.language.code,
+                }
+            )
+
+        except SpeechToTextAudio.DoesNotExist:
+            return Response(
+                {"detail": "Transcripción no encontrada"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.error(f"Error validating transcription: {str(e)}")
+            return Response(
+                {"detail": "Error al validar transcripción"},
+                status=HTTP_400_BAD_REQUEST,
+            )
