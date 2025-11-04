@@ -1291,7 +1291,7 @@ export default function Translator() {
   const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing' || asrStatus === 'preparing';
 
   return (
-    <div className="translator-container">
+    <div className="translator-container relative min-h-[100dvh] overflow-hidden">
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
@@ -1437,8 +1437,42 @@ export default function Translator() {
           </div>
 
           {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
-          <div className="absolute right-4 bottom-4 z-[4] flex items-center gap-2 max-[850px]:right-3 max-[850px]:bottom-14">
+            <div className=" absolute right-4 bottom-4 z-[40] flex items-center gap-2 max-[850px]:fixed max-[850px]:inset-x-0 max-[850px]:bottom-0 max-[850px]:justify-center max-[850px]:gap-4 max-[850px]:bg-[#f3f4f6] max-[850px]:py-3 max-[850px]:px-6 max-[850px]:rounded-tl-[2rem] max-[850px]:rounded-tr-[2rem] max-[850px]:border-t max-[850px]:border-slate-200 max-[850px]:shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-[850px]:pb-[env(safe-area-inset-bottom)]">
             
+			{/* Mic button (center-bottom) */}
+			{ASR_MIC_VISIBLE_D && (
+			  <div
+				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
+							
+				onClick={async () => {
+				  if (translationRestricted) {
+					setTranslationRestrictedDialogOpen(true);
+					return;
+				  }
+				  if (!isRecording) {
+					try {
+					  await startRecording();
+					} catch {
+					  setAsrStatus('error');
+					  toast('No se pudo iniciar la grabación.');
+					}
+				  } else {
+					stopRecording();
+				  }
+				}}
+				aria-label="Grabar audio"
+				title="Grabar audio"
+				disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
+				style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
+			  >
+				<FontAwesomeIcon
+				  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
+				  className={`text-[1.5em] ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
+				  color={isRecording ? "#d40000" : "#0a8cde"}
+				/>
+			  </div>
+			)}
+			
             {/* --- NEW: Timer --- */}
             {isRecording && (
               <span className="text-xs font-mono px-2 py-1 rounded bg-white/80 border border-slate-200">
@@ -1446,6 +1480,7 @@ export default function Translator() {
               </span>
             )}
           </div>
+		  
         </div>
 
         <div
@@ -1472,38 +1507,7 @@ export default function Translator() {
           />
         </div>
 		
-        {/* Mic button (center-bottom) */}
-        {ASR_MIC_VISIBLE_D && (
-		  <div
-		    className={`box-content fixed left-1/2 bottom-4 -translate-x-1/2 w-[60px] h-[60px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[10px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${showRecordModal ? 'hidden' : ''}`}
-			onClick={async () => {
-			  if (translationRestricted) {
-				setTranslationRestrictedDialogOpen(true);
-				return;
-			  }
-			  if (!isRecording) {
-				try {
-				  await startRecording();
-				} catch {
-				  setAsrStatus('error');
-				  toast('No se pudo iniciar la grabación.');
-				}
-			  } else {
-				stopRecording();
-			  }
-			}}
-			aria-label="Grabar audio"
-			title="Grabar audio"
-			disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
-			style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
-		  >
-			<FontAwesomeIcon
-			  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
-			  className={`text-[1.75em] ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
-			  color={isRecording ? "#d40000" : "#0a8cde"}
-			/>
-		  </div>
-		)}
+        
 
         <div className="relative">
           <Card
@@ -1531,7 +1535,7 @@ export default function Translator() {
         )}
       </TooltipProvider>
 
-      <div className="translator-footer">
+      <div className="translator-footer max-[850px]:mb-[84px]">
         {translationRestricted ? (<></>) : (
           <>
             <strong className="max-[850px]:hidden">Déjanos tu opinión</strong>
