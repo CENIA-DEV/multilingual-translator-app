@@ -882,32 +882,43 @@ export default function Translator() {
     }
   }
 
+  const [isSubmittingValidation, setIsSubmittingValidation] = useState(false); // Add this state
+
   // NEW: Function to validate transcription
   async function validateTranscription(asrId, editedText) {
-    if (!asrId || !editedText?.trim()) return;
+    if (!asrId || !editedText?.trim() || isSubmittingValidation) return;
     
+    setIsSubmittingValidation(true);
     try {
-      await api.patch(
+      const response = await api.patch(
         `${API_ENDPOINTS.SPEECH_TO_TEXT}${asrId}/validate_transcription/`,
         { text: editedText.trim() }
       );
       
-      logger.info(`Transcription ${asrId} validated with edited text`);
+      console.log('Validation successful:', response.data);
       trackEvent('asr_transcription_validated', {
         asr_id: asrId,
         was_edited: editedText !== reviewTranscript,
         page: 'translator'
       });
+      return true;
     } catch (err) {
       console.error('Failed to validate transcription:', err);
-      toast('No se pudo guardar la validación', {
-        description: 'La transcripción se usará de todas formas.',
-      });
+      if (err?.response?.status && err.response.status !== 200) {
+        toast('No se pudo guardar la validación', {
+          description: 'La transcripción se usará de todas formas.',
+        });
+      }
+      return false;
+    } finally {
+      setIsSubmittingValidation(false);
     }
   }
 
   // Start translation from the review text ---
   async function startTranslationFromReview() {
+    if (isSubmittingValidation) return; // Prevent double-submit
+    
     const chosenText = (reviewTranscript || '').trim();
     if (!chosenText) {
       toast('No hay texto para traducir.');
@@ -916,7 +927,8 @@ export default function Translator() {
     
     // NEW: Validate transcription before translating
     if (currentAsrId) {
-      await validateTranscription(currentAsrId, chosenText);
+      const validated = await validateTranscription(currentAsrId, chosenText);
+      console.log('Validation result:', validated);
     }
     
     // If user chose to transcribe the target side, swap langs before translating
@@ -925,15 +937,18 @@ export default function Translator() {
       setSrcLang(prevDst);
       setDstLang(prevSrc);
     }
+    
     // Populate src text and trigger translation
-    setSuppressNextAutoTranslate(true); // avoid double-auto
+    setSuppressNextAutoTranslate(true);
     setSrcText(chosenText);
     setShowRecordModal(false);
-    // Give state a tick to settle then translate
-    setTimeout(() => translate(), 0);
-    // Clean audio state (keeps text/langs)
+    
+    // Clean audio state
     resetAudioState();
-    setCurrentAsrId(null); // NEW: Clear ASR ID
+    setCurrentAsrId(null);
+    
+    // Trigger translation
+    setTimeout(() => translate(), 0);
   }
 
   async function startRecording() {
@@ -1835,6 +1850,7 @@ export default function Translator() {
                     <Button
                       className="bg-[#0a8cde] text-white text-sm font-medium hover:bg-[#067ac1]"
                       onClick={startTranslationFromReview}
+                      disabled={isSubmittingValidation} // Add disabled state
                     >
                       Comenzar traducción
                       <FontAwesomeIcon icon={faArrowRight} className="ml-2" />
