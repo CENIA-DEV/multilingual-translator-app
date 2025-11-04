@@ -136,7 +136,7 @@ export default function Translator() {
 
   const { trackEvent } = useAnalytics();
   const currentUser = useContext(AuthContext);
-  const isLoggedIn = !!currentUser;
+  const isLoggedIn = true; // !!currentUser;
 
   // Check if translation is restricted for current user
   const translationRestricted = isTranslationRestricted(currentUser);
@@ -1648,28 +1648,8 @@ export default function Translator() {
       >
             <DialogHeader className="flex items-center justify-between">
               <DialogTitle className="text-base">
-                {asrStatus === 'ready'
-                  ? 'Listo para grabar'
-                  : (asrStatus === 'transcribing' || asrStatus === 'processing')
-                    ? 'Transcribiendo…'
-                    : (!isRecording ? 'Revisión de grabación' : null)}
+                {(asrStatus === 'transcribing' || asrStatus === 'processing') ? 'Transcribiendo…' : null}
               </DialogTitle>
-              {asrStatus === 'reviewing' && (
-                <button
-                  onClick={async () => {
-                    safeUnloadReviewAudio();
-                    lastRecordingBlobRef.current = null;
-                    setAsrStatus('idle');
-                    await startRecording();
-                  }}
-                  className="px-4 h-11 rounded-full flex items-center gap-2 bg-[#0a8cde] text-white shadow hover:shadow-md transition font-medium"
-                  title="Grabar de nuevo"
-                  aria-label="Grabar de nuevo"
-                >
-                  <FontAwesomeIcon icon={faMicrophone} />
-                  <span className="hidden sm:inline">Grabar de nuevo</span>
-                </button>
-              )}
             </DialogHeader>
 			
 			{/* READY VIEW: blue mic button + helper + source/target selector */}
@@ -1697,31 +1677,35 @@ export default function Translator() {
 				  </div>
 				</div>
 
-				<div className="pt-1">
-				  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
-					<button
-					  onClick={() => setTranscribeChoice('source')}
-					  className={`px-3 py-1 text-sm rounded-full transition ${
-						transcribeChoice === 'source'
-						  ? 'bg-white border border-slate-200 shadow text-slate-800'
-						  : 'text-slate-600 hover:text-slate-800'
-					  }`}
-					>
-					  Transcribir {srcDisplay}
-					</button>
-					<button
-					  onClick={() => dstHint && setTranscribeChoice('target')}
-					  disabled={!dstHint}
-					  className={`ml-1 px-3 py-1 text-sm rounded-full transition ${
-						transcribeChoice === 'target'
-						  ? 'bg-white border border-slate-200 shadow text-slate-800'
-						  : 'text-slate-600 hover:text-slate-800'
-					  } ${!dstHint ? 'opacity-50 cursor-not-allowed' : ''}`}
-					>
-					  Transcribir {dstDisplay}
-					</button>
-				  </div>
-				</div>
+                <div className="pt-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-slate-600">Estás hablando en</span>
+                    <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
+                      <button
+                        onClick={() => setTranscribeChoice('source')}
+                        className={`px-3 py-1 text-sm rounded-full transition border ${
+                          transcribeChoice === 'source'
+                            ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                            : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        {srcDisplay}
+                      </button>
+                      <button
+                        onClick={() => dstHint && setTranscribeChoice('target')}
+                        disabled={!dstHint}
+                        className={`ml-1 px-3 py-1 text-sm rounded-full transition border ${
+                          transcribeChoice === 'target'
+                            ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                            : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                        } ${!dstHint ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {dstDisplay}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
 			  </div>
 			)}
 
