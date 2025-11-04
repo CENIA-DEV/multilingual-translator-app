@@ -86,6 +86,11 @@ export default function Translator() {
   // ASR state & refs (must be declared before useEffect that uses them)
   const [isRecording, setIsRecording] = useState(false);
   const [asrStatus, setAsrStatus] = useState('idle');
+  
+  const [transcribeChoice, setTranscribeChoice] = useState('source'); // which side to transcribe in the modal ("source" | "target")
+  const [reviewTranscript, setReviewTranscript] = useState('');
+
+  
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const prevStopAtRef = useRef(0);          // cooldown between sessions
@@ -846,15 +851,53 @@ export default function Translator() {
       if (asrStatus !== 'idle') resetAudioState();
     }
   }
+  
+  // Transcribe for modal review (no auto-reset) ---
+  async function transcribeForReview(blob, hint, filename = 'audio.webm') {
+    setAsrStatus('transcribing');
+    try {
+      // Direct call to ASR service (no auto-reset here)
+      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+      setReviewTranscript((data?.text || '').trim());
+      setAsrStatus('reviewing');
+    } catch (err) {
+      console.error(err);
+      setAsrStatus('error');
+      toast('Error al transcribir.', {
+        description: err?.response?.data?.error || 'Reintenta con otro archivo.',
+      });
+    }
+  }
+
+  // Start translation from the review text ---
+  async function startTranslationFromReview() {
+    const chosenText = (reviewTranscript || '').trim();
+    if (!chosenText) {
+      toast('No hay texto para traducir.');
+      return;
+    }
+    // If user chose to transcribe the target side, swap langs before translating
+    if (transcribeChoice === 'target') {
+      const prevSrc = srcLang, prevDst = dstLang;
+      setSrcLang(prevDst);
+      setDstLang(prevSrc);
+    }
+    // Populate src text and trigger translation
+    setSuppressNextAutoTranslate(true); // avoid double-auto
+    setSrcText(chosenText);
+    setShowRecordModal(false);
+    // Give state a tick to settle then translate
+    setTimeout(() => translate(), 0);
+    // Clean audio state (keeps text/langs)
+    resetAudioState();
+  }
 
   async function startRecording() {
     if (recorderBusyRef.current) return;
     recorderBusyRef.current = true;
 
     try {
-	  
       setIsRecording(false);            // explicit
-      setAsrStatus('preparing');        // preparing state
       setShowRecordModal(true);
 	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -978,7 +1021,6 @@ export default function Translator() {
             wasTruncated = true;
           }
 
-          setAsrStatus('reviewing');
           lastRecordingBlobRef.current = finalBlob;
           if (lastRecordingUrl.current) URL.revokeObjectURL(lastRecordingUrl.current);
           lastRecordingUrl.current = finalAudioURL;
@@ -986,6 +1028,13 @@ export default function Translator() {
           recorderBusyRef.current = false;
 
           if (wasTruncated) toast('El audio fue truncado a 30 segundos.');
+
+          // immediately transcribe for review with the chosen side
+          const hintChosen =
+            transcribeChoice === 'target'
+              ? (dstHint || inferHintFromSrcLang())
+              : (srcHint || inferHintFromSrcLang());
+          await transcribeForReview(finalBlob, hintChosen, 'grabacion.webm');
         } catch (err) {
           console.error('Finalizing recording failed:', err);
           toast('No se pudo procesar la grabación.');
@@ -1288,7 +1337,7 @@ export default function Translator() {
     }
   }
 
-  const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing' || asrStatus === 'preparing';
+  const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
   return (
     <div className="translator-container relative min-h-[100dvh] overflow-hidden">
@@ -1444,22 +1493,17 @@ export default function Translator() {
 			  <div
 				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
 							
-				onClick={async () => {
-				  if (translationRestricted) {
-					setTranslationRestrictedDialogOpen(true);
-					return;
-				  }
-				  if (!isRecording) {
-					try {
-					  await startRecording();
-					} catch {
-					  setAsrStatus('error');
-					  toast('No se pudo iniciar la grabación.');
-					}
-				  } else {
-					stopRecording();
-				  }
-				}}
+                onClick={async () => {
+                  if (translationRestricted) {
+                    setTranslationRestrictedDialogOpen(true);
+                    return;
+                  }
+                  // Open modal in "ready" state (do NOT start recording yet)
+                  setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+                  setReviewTranscript('');
+                  setShowRecordModal(true);
+                  setAsrStatus('ready'); // start screen
+                }}
 				aria-label="Grabar audio"
 				title="Grabar audio"
 				disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
@@ -1590,6 +1634,10 @@ export default function Translator() {
 			  else resetAudioState();
 			} else {
 			  setShowRecordModal(true);
+              // default to source (or target if only target is possible)
+              setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+              setReviewTranscript('');
+              setAsrStatus((prev) => (prev === 'recording' ? prev : 'ready'));
 			}
 		  }}
 	  >
@@ -1600,38 +1648,15 @@ export default function Translator() {
       >
             <DialogHeader className="flex items-center justify-between">
               <DialogTitle className="text-base">
-                {asrStatus === 'preparing'
-                  ? 'Preparando…'
-                  : isRecording
-                    ? 'Grabando…'
-                    : (asrStatus === 'transcribing' || asrStatus === 'processing')
-                      ? 'Transcribiendo…'
-                      : 'Revisión de grabación'}
+                {asrStatus === 'ready'
+                  ? 'Listo para grabar'
+                  : (asrStatus === 'transcribing' || asrStatus === 'processing')
+                    ? 'Transcribiendo…'
+                    : (!isRecording ? 'Revisión de grabación' : null)}
               </DialogTitle>
-              {isRecording ? (
-                <button
-                  onClick={stopRecording}
-                  className="px-4 h-11 rounded-full flex items-center gap-2 border-4 border-red-500 bg-white shadow hover:shadow-md transition text-red-600 font-medium"
-                  title="Detener"
-                  aria-label="Detener"
-                >
-                  <FontAwesomeIcon icon={faStop} />
-                  <span className="hidden sm:inline">Detener</span>
-                </button>
-                ) : asrStatus === 'preparing' ? (
-                  <button
-                    disabled
-                    className="px-4 h-11 rounded-full flex items-center gap-2 bg-slate-100 text-slate-500 border border-slate-200"
-                    title="Preparando micrófono…"
-                    aria-label="Preparando micrófono…"
-                  >
-                    <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
-                    <span className="hidden sm:inline">Preparando…</span>
-                  </button>
-                ) : asrStatus === 'reviewing' ? (
+              {asrStatus === 'reviewing' && (
                 <button
                   onClick={async () => {
-                    // clear previous preview and start a fresh recording
                     safeUnloadReviewAudio();
                     lastRecordingBlobRef.current = null;
                     setAsrStatus('idle');
@@ -1644,15 +1669,80 @@ export default function Translator() {
                   <FontAwesomeIcon icon={faMicrophone} />
                   <span className="hidden sm:inline">Grabar de nuevo</span>
                 </button>
-              ) : null}
+              )}
             </DialogHeader>
+			
+			{/* READY VIEW: blue mic button + helper + source/target selector */}
+			{asrStatus === 'ready' && !isRecording && (
+			  <div className="space-y-5">
+				<div className="flex items-center gap-4">
+				  <button
+					onClick={startRecording}
+					className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition"
+					title="Iniciar grabación"
+					aria-label="Iniciar grabación"
+				  >
+					<FontAwesomeIcon icon={faMicrophone} className="fa-lg" color="#ffffff" />
+				  </button>
+				  <div>
+					<button
+					  onClick={startRecording}
+					  className="text-[#0a8cde] font-medium"
+					>
+					  Iniciar grabación
+					</button>
+					<p className="text-xs text-slate-500 mt-1">
+					  Recuerda activar el micrófono en tu dispositivo.
+					</p>
+				  </div>
+				</div>
+
+				<div className="pt-1">
+				  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+					<button
+					  onClick={() => setTranscribeChoice('source')}
+					  className={`px-3 py-1 text-sm rounded-full transition ${
+						transcribeChoice === 'source'
+						  ? 'bg-white border border-slate-200 shadow text-slate-800'
+						  : 'text-slate-600 hover:text-slate-800'
+					  }`}
+					>
+					  Transcribir {srcDisplay}
+					</button>
+					<button
+					  onClick={() => dstHint && setTranscribeChoice('target')}
+					  disabled={!dstHint}
+					  className={`ml-1 px-3 py-1 text-sm rounded-full transition ${
+						transcribeChoice === 'target'
+						  ? 'bg-white border border-slate-200 shadow text-slate-800'
+						  : 'text-slate-600 hover:text-slate-800'
+					  } ${!dstHint ? 'opacity-50 cursor-not-allowed' : ''}`}
+					>
+					  Transcribir {dstDisplay}
+					</button>
+				  </div>
+				</div>
+			  </div>
+			)}
+
 
 			{/* RECORDING VIEW: live waveform */}
             {isRecording && (
               <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={stopRecording}
+                    className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center shadow hover:shadow-md transition"
+                    title="Detener grabación"
+                    aria-label="Detener grabación"
+                  >
+                    <span className="block w-3.5 h-3.5 bg-white" />
+                  </button>
+                  <p className="text-sm font-medium text-red-600">Detener grabación</p>
+                </div>
                 <div className="flex items-center gap-3">
                   <div ref={pulseRef} className="w-6 h-6 rounded-full bg-[#0a8cde] opacity-60 transition-transform" />
-                  <p className="text-sm text-slate-600">Habla al micrófono. Presiona el botón para detener.</p>
+                  <p className="text-sm text-slate-600">Habla al micrófono…</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2">
                   <canvas ref={waveCanvasRef} className="w-full h-44 rounded" />
@@ -1679,49 +1769,62 @@ export default function Translator() {
               </div>
             )}
 			
-
-            {/* REVIEW VIEW: custom player + actions (dynamic) */}
+            {/* REVIEW VIEW: textarea + player + actions */}
             {!isRecording && asrStatus === 'reviewing' && lastRecordingUrl.current && (
-			  <div className="space-y-4">
-				<audio
-				  ref={reviewAudioRef}
-				  src={lastRecordingUrl.current}
-				  controls
-				  preload="metadata"
-				  className="w-full"
-				  onError={(e) => {
-					const err = e.currentTarget.error;
-					console.debug('Audio element error:', err?.message || err);
-				  }}
-				/>
-				<div className="flex flex-wrap gap-2 justify-end">
-				  <Button
-					variant="outline"
-					onClick={() => { resetAudioState(); setShowRecordModal(false); }}
-				  >
-					Cancelar
-				  </Button>
-                  {/* Show source first if transcribable */}
-                  {srcHint && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Transcripción ({transcribeChoice === 'source' ? srcDisplay : dstDisplay})
+                  </label>
+                  <textarea
+                    className="w-full h-40 p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0a8cde]"
+                    value={reviewTranscript}
+                    onChange={(e) => setReviewTranscript(e.target.value)}
+                    placeholder="Revisa o edita la transcripción…"
+                  />
+                </div>
+                <audio
+                  ref={reviewAudioRef}
+                  src={lastRecordingUrl.current}
+                  controls
+                  preload="metadata"
+                  className="w-full"
+                  onError={(e) => {
+                    const err = e.currentTarget.error;
+                    console.debug('Audio element error:', err?.message || err);
+                  }}
+                />
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => { resetAudioState(); setShowRecordModal(false); }}
+                  >
+                    Cancelar
+                  </Button>
+                  <div className="flex gap-2">
                     <Button
                       className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
-                      onClick={() => performTranscribe('source')}
+                      onClick={async () => {
+                        // record again immediately
+                        safeUnloadReviewAudio();
+                        lastRecordingBlobRef.current = null;
+                        setAsrStatus('idle');
+                        await startRecording();
+                      }}
                     >
-                      Transcribir {srcDisplay}
+                      <FontAwesomeIcon icon={faMicrophone} className="mr-2" />
+                      Volver a grabar
                     </Button>
-                  )}
-                  {/* Show target second if transcribable */}
-                  {dstHint && (
                     <Button
-                      className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
-                      onClick={() => performTranscribe('target')}
+                      className="bg-[#0a8cde] text-white text-xs font-bold hover:bg-[#067ac1]"
+                      onClick={startTranslationFromReview}
                     >
-                      Transcribir {dstDisplay}
+                      --&gt; Comenzar traducción
                     </Button>
-                  )}
-				</div>
-			  </div>
-			)}
+                  </div>
+                </div>
+              </div>
+            )}
 
 		  </DialogContent>
 	   </Dialog>
