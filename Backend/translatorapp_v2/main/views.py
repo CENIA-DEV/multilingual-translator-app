@@ -17,6 +17,7 @@ import logging
 from functools import reduce
 from operator import or_
 
+import numpy as np
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -32,6 +33,7 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 
 from .models import (
+    CacheTTS,
     GeneralSuggestion,
     InvitationToken,
     Lang,
@@ -701,18 +703,14 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     ViewSet for text-to-speech functionality
     """
 
-    permission_classes = [TranslationRequiresAuth]  # any user can translate
+    permission_classes = [TranslationRequiresAuth]
     serializer_class = TextToSpeechSerializer
 
     def get_queryset(self, text=None, lang=None):
         results = (
             TextToSpeechAudio.objects.filter(
-                language__code=(
-                    lang.code if lang else None
-                ),  # TODO: review language__code
-            )
-            # Filter by text if provided
-            .filter(text__iexact=text)
+                language__code=(lang.code if lang else None),
+            ).filter(text__iexact=text)
             if text
             else TextToSpeechAudio.objects.none().order_by("-created_at")
         )
@@ -725,42 +723,100 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         if serializer.is_valid():
             text = serializer.validated_data["text"]
             language_code = serializer.validated_data["language"]
-            model_name = serializer.validated_data["model_name"]
-            model_version = serializer.validated_data["model_version"]
+            model_name = serializer.validated_data.get("model_name")
+            model_version = serializer.validated_data.get("model_version")
 
-            logger.debug(f"Validated translation request: {language_code}")
+            logger.debug(f"Validated TTS request: {language_code}")
 
             try:
                 # Get the Lang object from the language code
                 lang_obj = Lang.objects.get(code=language_code)
 
-                # Generate the audio using the language code
-                generated_audio = generate_tts(text, language_code)
+                # Check cache first (ONLY SOURCE OF DATA)
+                try:
+                    cached_tts = CacheTTS.objects.get(text=text, language=lang_obj)
+                    logger.info("Cache hit for TTS request")
 
-                # Extract data
-                waveform_data = generated_audio.pop("waveform")
+                    # Decode base64 audio to list of floats (waveform format)
+                    try:
+                        audio_bytes = base64.b64decode(cached_tts.audio_data)
+                        logger.debug(f"Decoded {len(audio_bytes)} bytes from cache")
 
-                audio_obj = TextToSpeechAudio.objects.create(
-                    text=text,
-                    language=lang_obj,
-                    model_name=model_name,
-                    model_version=model_version,
-                    user=request.user if request.user.is_authenticated else None,
-                )
+                        # Verify byte length is valid for float32
+                        if len(audio_bytes) % 4 != 0:
+                            logger.error("Invalid byte length")
+                            raise ValueError("Invalid cached audio data")
 
-                # serializer.save(language=lang_obj, **generated_audio)
+                        # Convert bytes back to numpy array, then to list
+                        waveform_array = np.frombuffer(audio_bytes, dtype=np.float32)
+                        waveform_data = waveform_array.tolist()
 
-                response_data = {
-                    "id": audio_obj.id,
-                    "text": audio_obj.text,
-                    "language": language_code,
-                    "model_name": audio_obj.model_name,
-                    "model_version": audio_obj.model_version,
-                    "waveform": waveform_data,
-                }
+                        logger.debug("Success")
 
-                logger.info("TTS response generated!")
-                return Response(response_data)
+                    except (ValueError, Exception):
+                        logger.error("Failed to decode cached audio, model")
+                        raise CacheTTS.DoesNotExist("Corrupted cache entry")
+
+                    # Create TextToSpeechAudio record for tracking
+                    audio_obj = TextToSpeechAudio.objects.create(
+                        text=text,
+                        language=lang_obj,
+                        model_name=model_name or "cached",
+                        model_version=model_version or "cached",
+                        user=request.user if request.user.is_authenticated else None,
+                    )
+
+                    response_data = {
+                        "id": audio_obj.id,
+                        "text": audio_obj.text,
+                        "language": language_code,
+                        "model_name": audio_obj.model_name,
+                        "model_version": audio_obj.model_version,
+                        "waveform": waveform_data,
+                    }
+
+                    logger.info("Successfully returned cached TTS audio")
+                    return Response(response_data)
+
+                except CacheTTS.DoesNotExist:
+                    logger.warning(
+                        "Cache miss - calling model as fallback (no caching)"
+                    )
+
+                    # Generate new audio using the language code (FALLBACK ONLY)
+                    generated_audio = generate_tts(text, language_code)
+
+                    # Extract data
+                    waveform_data = generated_audio.pop("waveform")
+                    model_name = generated_audio.get(
+                        "model_name", model_name or "unknown"
+                    )
+                    model_version = generated_audio.get(
+                        "model_version", model_version or "unknown"
+                    )
+
+                    logger.info("TTS audio generated but NOT cached (inference mode)")
+
+                    # Create tracking record
+                    audio_obj = TextToSpeechAudio.objects.create(
+                        text=text,
+                        language=lang_obj,
+                        model_name=model_name,
+                        model_version=model_version,
+                        user=request.user if request.user.is_authenticated else None,
+                    )
+
+                    response_data = {
+                        "id": audio_obj.id,
+                        "text": audio_obj.text,
+                        "language": language_code,
+                        "model_name": audio_obj.model_name,
+                        "model_version": audio_obj.model_version,
+                        "waveform": waveform_data,
+                    }
+
+                    logger.info("TTS response generated (not cached)!")
+                    return Response(response_data)
 
             except Lang.DoesNotExist:
                 logger.error(f"Language with code '{language_code}' not found")
@@ -769,7 +825,10 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     status=HTTP_400_BAD_REQUEST,
                 )
             except Exception as e:
-                logger.error(f"Translation model error: {str(e)}")
+                logger.error(f"TTS model error: {str(e)}")
+                import traceback
+
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 return Response(
                     "Error en la predicción del modelo",
                     status=HTTP_400_BAD_REQUEST,
