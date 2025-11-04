@@ -855,14 +855,6 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             return [AllowAny()]
         return super().get_permissions()
 
-    def get_parsers(self):
-        """
-        Use JSON parser for validate_transcription, multipart for create
-        """
-        if self.action == "validate_transcription":
-            return [JSONParser()]
-        return super().get_parsers()
-
     def get_queryset(self, text=None, lang=None):
         results = (
             SpeechToTextAudio.objects.filter(
@@ -941,7 +933,7 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             logger.warning(f"Invalid ASR request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=["patch"])
+    @action(detail=True, methods=["patch"], parser_classes=[JSONParser])
     def validate_transcription(self, request, pk=None):
         """
         Update transcription with user's validated text.
