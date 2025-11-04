@@ -61,6 +61,7 @@ from .serializers import (
     TranslationPairSerializer,
     UserSerializer,
 )
+from .utils import find_cached_tts_normalized  # added
 from .utils import (
     filter_cache,
     generate_asr,
@@ -786,15 +787,17 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             logger.debug(f"Validated TTS request: {language_code}")
 
             try:
-                # Get the Lang object from the language code
                 lang_obj = Lang.objects.get(code=language_code)
 
-                # Check cache first (ONLY SOURCE OF DATA)
+                # Check cache (normalized matching, no schema changes)
                 try:
-                    cached_tts = CacheTTS.objects.get(text=text, language=lang_obj)
-                    logger.info("Cache hit for TTS request")
+                    cached_tts = find_cached_tts_normalized(lang_obj, text)
+                    if not cached_tts:
+                        raise CacheTTS.DoesNotExist()
 
-                    # Decode base64 audio to list of floats (waveform format)
+                    logger.info("Cache hit for TTS request (normalized match)")
+
+                    # Decode base64 -> float32 waveform list
                     try:
                         audio_bytes = base64.b64decode(cached_tts.audio_data)
                         logger.debug(f"Decoded {len(audio_bytes)} bytes from cache")
@@ -807,9 +810,6 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                         # Convert bytes back to numpy array, then to list
                         waveform_array = np.frombuffer(audio_bytes, dtype=np.float32)
                         waveform_data = waveform_array.tolist()
-
-                        logger.debug("Success")
-
                     except (ValueError, Exception):
                         logger.error("Failed to decode cached audio, model")
                         raise CacheTTS.DoesNotExist("Corrupted cache entry")
