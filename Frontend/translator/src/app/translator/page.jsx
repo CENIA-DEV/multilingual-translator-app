@@ -136,7 +136,7 @@ export default function Translator() {
 
   const { trackEvent } = useAnalytics();
   const currentUser = useContext(AuthContext);
-  const isLoggedIn = true; // !!currentUser;
+  const isLoggedIn = !!currentUser;
 
   // Check if translation is restricted for current user
   const translationRestricted = isTranslationRestricted(currentUser);
@@ -390,6 +390,17 @@ export default function Translator() {
       }
     }
   }
+  
+  // Fully cancel the voice flow: abort ASR, stop recording, reset, and close
+  const handleFullCancel = () => {
+    try { asrAbortRef.current?.abort(); } catch {}
+    asrAbortRef.current = null;
+    if (isRecording) {
+      try { stopRecording(); } catch {}
+    }
+    resetAudioState();
+    setShowRecordModal(false);
+  };
   
   // TTS Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
@@ -1624,43 +1635,34 @@ export default function Translator() {
       />
 	  
       <Dialog
-            open={showRecordModal}
-            onOpenChange={(open) => {
-			// closing the modal while recording will stop safely
-			if (!open) {
-			  if (isBusy) return; // ignore close while busy
-			  setShowRecordModal(false);
-			  if (isRecording) stopRecording();
-			  else resetAudioState();
-			} else {
-			  setShowRecordModal(true);
-              // default to source (or target if only target is possible)
-              setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
-              setReviewTranscript('');
-              setAsrStatus((prev) => (prev === 'recording' ? prev : 'ready'));
-			}
-		  }}
-	  >
-      <DialogContent
-        className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5"
-        onInteractOutside={(e) => { if (isBusy || isRecording) e.preventDefault(); }}
-        onEscapeKeyDown={(e) => { if (isBusy || isRecording) e.preventDefault(); }}
+        open={showRecordModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleFullCancel();      // clicking the default X will hit this
+          } else {
+            setShowRecordModal(true);
+            setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+            setReviewTranscript('');
+            setAsrStatus((prev) => (prev === 'recording' ? prev : 'ready'));
+          }
+        }}
       >
-            <DialogHeader className="flex items-center justify-between">
-              <DialogTitle className="text-base">
-                {(asrStatus === 'transcribing' || asrStatus === 'processing') ? 'Transcribiendo…' : null}
-              </DialogTitle>
-            </DialogHeader>
-			
+
+      <DialogContent
+        onInteractOutside={(e) => e.preventDefault()}  // ignore outside clicks
+        onEscapeKeyDown={() => handleFullCancel()}    // Esc = full cancel
+        className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5"
+      >	
 			{/* READY VIEW: blue mic button + helper + source/target selector */}
 			{asrStatus === 'ready' && !isRecording && (
 			  <div className="space-y-5">
 				<div className="flex items-center gap-4">
 				  <button
 					onClick={startRecording}
-					className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition"
+					className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0a8cde] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
 					title="Iniciar grabación"
 					aria-label="Iniciar grabación"
+					style={{ WebkitTapHighlightColor: 'transparent' }}
 				  >
 					<FontAwesomeIcon icon={faMicrophone} className="fa-lg" color="#ffffff" />
 				  </button>
@@ -1724,10 +1726,6 @@ export default function Translator() {
                   </button>
                   <p className="text-sm font-medium text-red-600">Detener grabación</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div ref={pulseRef} className="w-6 h-6 rounded-full bg-[#0a8cde] opacity-60 transition-transform" />
-                  <p className="text-sm text-slate-600">Habla al micrófono…</p>
-                </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2">
                   <canvas ref={waveCanvasRef} className="w-full h-44 rounded" />
                 </div>
@@ -1787,23 +1785,26 @@ export default function Translator() {
                   </Button>
                   <div className="flex gap-2">
                     <Button
-                      className="bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white"
-                      onClick={async () => {
-                        // record again immediately
+                      className="bg-[#068cdc1a] text-default text-sm font-medium hover:bg-default hover:text-white"
+                      onClick={() => {
+                        // Return to READY: user will click mic and choose language again
                         safeUnloadReviewAudio();
                         lastRecordingBlobRef.current = null;
-                        setAsrStatus('idle');
-                        await startRecording();
+                        setReviewTranscript('');
+                        setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+                        setAsrStatus('ready');
+                        setShowRecordModal(true);
                       }}
                     >
                       <FontAwesomeIcon icon={faMicrophone} className="mr-2" />
                       Volver a grabar
                     </Button>
                     <Button
-                      className="bg-[#0a8cde] text-white text-xs font-bold hover:bg-[#067ac1]"
+                      className="bg-[#0a8cde] text-white text-sm font-medium hover:bg-[#067ac1]"
                       onClick={startTranslationFromReview}
                     >
-                      --&gt; Comenzar traducción
+                      Comenzar traducción
+                      <FontAwesomeIcon icon={faArrowRight} className="ml-2" />
                     </Button>
                   </div>
                 </div>
