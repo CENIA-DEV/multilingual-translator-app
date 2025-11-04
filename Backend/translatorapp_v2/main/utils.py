@@ -17,9 +17,8 @@ import hashlib
 import io
 import json
 import logging
-
-# import os
 import re
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,8 +28,11 @@ import requests
 import soundfile as sf
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, send_mail
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+
+from .models import CacheTTS
 
 logger = logging.getLogger(__name__)
 
@@ -393,6 +395,64 @@ def _asr_debug_dir() -> Path:
 
 def _slug(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "-", str(s))
+
+
+def normalize_text_for_cache(s: str) -> str:
+    """Lowercase, remove diacritics and punctuation, collapse whitespace."""
+    if not s:
+        return ""
+    s = s.lower()
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))  # strip diacritics
+    s = re.sub(r"[^\w\s]", "", s, flags=re.UNICODE)  # strip punctuation
+    s = re.sub(r"\s+", " ", s, flags=re.UNICODE).strip()  # collapse spaces
+    return s
+
+
+def find_cached_tts_normalized(
+    lang_obj, raw_text: str, max_token_candidates: int = 100, max_fallback: int = 200
+):
+    """
+    Find CacheTTS by normalized text without changing DB schema.
+    1) exact icase match
+    2) token-filtered candidates (icontains) then normalized compare
+    3) fallback: recent N rows normalized compare
+    Returns CacheTTS or None.
+    """
+    if not raw_text:
+        return None
+
+    # 1) exact icase match (fast path)
+    try:
+        return CacheTTS.objects.get(language=lang_obj, text__iexact=raw_text)
+    except CacheTTS.DoesNotExist:
+        pass
+
+    norm = normalize_text_for_cache(raw_text)
+    tokens = re.findall(r"\w+", norm)
+
+    # 2) token-filtered candidates
+    q = Q()
+    for t in tokens[:5]:  # cap tokens to keep the query fast
+        q &= Q(text__icontains=t)
+
+    if q:
+        candidates = (
+            CacheTTS.objects.filter(language=lang_obj)
+            .filter(q)
+            .order_by("-id")[:max_token_candidates]
+        )
+        for c in candidates:
+            if normalize_text_for_cache(c.text) == norm:
+                return c
+
+    # 3) small recent-window fallback
+    recent = CacheTTS.objects.filter(language=lang_obj).order_by("-id")[:max_fallback]
+    for c in recent:
+        if normalize_text_for_cache(c.text) == norm:
+            return c
+
+    return None
 
 
 def generate_asr(audio_file, lang):
