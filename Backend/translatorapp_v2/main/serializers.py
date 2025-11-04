@@ -538,6 +538,8 @@ class SpeechToTextSerializer(serializers.ModelSerializer):
     language = serializers.CharField(required=True)
     model_name = serializers.CharField(required=True)
     model_version = serializers.CharField(required=True)
+    validated = serializers.BooleanField(required=False, default=False)
+    original_text = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = SpeechToTextAudio
@@ -549,6 +551,8 @@ class SpeechToTextSerializer(serializers.ModelSerializer):
             "language",
             "model_name",
             "model_version",
+            "validated",
+            "original_text",
         ]
         extra_kwargs = {
             "created_at": {"read_only": True},
