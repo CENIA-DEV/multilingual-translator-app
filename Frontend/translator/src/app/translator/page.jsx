@@ -318,11 +318,24 @@ export default function Translator() {
     }
   };
 
+  const reqIdRef = useRef(null);
+  const autoTranslateTimerRef = useRef(null);   // NEW
+  const translateLockRef = useRef(false);       // NEW
+
+  // Ensure manual click doesn’t collide with the auto-translate effect
   const handleTranslate = async () => {
-    translate();
-    trackEvent('translation_button_click', {
-      page: 'translator'
-    });
+    if (translateLockRef.current) return;     // prevent double-click
+    translateLockRef.current = true;
+
+    // cancel any pending auto-translate
+    if (autoTranslateTimerRef.current) {
+      clearTimeout(autoTranslateTimerRef.current);
+      autoTranslateTimerRef.current = null;
+    }
+
+    setSuppressNextAutoTranslate(true);
+    await translate();
+    translateLockRef.current = false;
   }
 
   const handleLogin = () => {
@@ -406,6 +419,7 @@ export default function Translator() {
   // TTS Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
     if (!isLoggedIn || TTSRestricted || !text?.trim()) return;
+    if (isLoadingAudio || isSpeaking) return;  // NEW guard
 
     setTtsError('');
     setIsSpeaking(true);
@@ -536,85 +550,44 @@ export default function Translator() {
   }
 
   const translate = async () => {
-    if(translationRestricted){
-      setTranslationRestrictedDialogOpen(true);
-      return;
-    }
-    if(!loadingState){
-      if(srcText.length === 0){
-        setDstText('');
-      }
-      else{
-        setLoadingState(true);
-        
-        const startTime = performance.now();
-        try {
-          // Add timer for long-running request
-          let timeoutId = setTimeout(() => {
-            toast("La traducción está tardando más tiempo de lo esperado...", {
-              description: "Por favor, espere un momento mientras el modelo se carga",
-              duration: 20000,
-              cancel: {
-                label: 'Cerrar',
-                onClick: () => console.log('Pop up cerrado'),
-              },
-            });
-          }, 5000);
-          const res = await api.post(
-            API_ENDPOINTS.TRANSLATION,
-            {
-              src_text: srcText,
-              src_lang: srcLang,
-              dst_lang: dstLang,
-            },
-          );
-          
-          setDstText(res.data.dst_text);
-          setModelData({
-            modelName: res.data.model_name,
-            modelVersion: res.data.model_version
-          });
-          clearTimeout(timeoutId);
-          const endTime = performance.now();
-          const translationTime = endTime - startTime;
-          trackEvent('translation_success', {
-            src_text: srcText.slice(0, 100),
-            dst_text: res.data.dst_text.slice(0, 100),
-            src_lang: srcLang,
-            dst_lang: dstLang,
-            model_name: res.data.model_name,
-            model_version: res.data.model_version,
-            translation_time_ms: translationTime,
-            is_timeout: translationTime > 5000,
-            is_mobile: window.innerWidth <= 850,
-            is_question: srcText.includes('?'),
-            word_count: srcText.split(/\s+/).length,
-            page: 'translator'
-          });
-        } 
-        catch (error) {
-          console.log(error)
-          if (error.response.status === 400){
-            toast("Error",{
-              description: "Por favor reintente la traducción",
-              cancel: {
-                label: 'Cerrar',
-                onClick: () => console.log('Pop up cerrado'),
-              },
-            })
-            trackEvent('translation_error', {
-              status: error.response.status,
-              page: 'translator'
-            }); 
-          }
-          console.log('Error in translation')
-        } 
-        finally {
-          setLoadingState(false);
+    if (translationRestricted) { setTranslationRestrictedDialogOpen(true); return; }
+    if (loadingState) return;                      // extra guard
+    if (srcText.length === 0) { setDstText(''); return; }
+    setLoadingState(true);
+    const startTime = performance.now();
+    let timeoutId = setTimeout(() => {
+      toast("La traducción está tardando más tiempo de lo esperado...", { duration: 20000 });
+    }, 5000);
+
+    try {
+      const requestId = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
+      reqIdRef.current = requestId;
+
+      const res = await api.post(
+        API_ENDPOINTS.TRANSLATION,
+        {
+          src_text: srcText,
+          src_lang: srcLang,
+          dst_lang: dstLang,
+          request_id: requestId,        // body-only idempotency key
         }
+        // REMOVED: headers: { 'X-Idempotency-Key': requestId }
+      );
+
+      clearTimeout(timeoutId);
+      setDstText(res.data.dst_text);
+      setModelData({ modelName: res.data.model_name, modelVersion: res.data.model_version });
+      const endTime = performance.now();
+      trackEvent('translation_success', { translation_time_ms: endTime - startTime, page: 'translator' });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.log('Request error:', error);
+      if (!error?.response) {
+        toast("No hay conexión con el backend", { description: "Verifique la URL del servidor." });
+      } else if (error.response.status === 400) {
+        toast("Error", { description: "Por favor reintente la traducción" });
       }
-    }
-    else{
+    } finally {
       setLoadingState(false);
     }
   }
@@ -735,14 +708,28 @@ export default function Translator() {
     // Don't auto-translate if explicitly suppressed (after ASR)
     if (suppressNextAutoTranslate) {
       setSuppressNextAutoTranslate(false);
+      if (autoTranslateTimerRef.current) {
+        clearTimeout(autoTranslateTimerRef.current);
+        autoTranslateTimerRef.current = null;
+      }
       return;
     }
 
-    const timeoutId = setTimeout(() => {
+    if (autoTranslateTimerRef.current) {
+      clearTimeout(autoTranslateTimerRef.current);
+      autoTranslateTimerRef.current = null;
+    }
+    autoTranslateTimerRef.current = setTimeout(() => {
       translate();
+      autoTranslateTimerRef.current = null;
     }, 1500);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      if (autoTranslateTimerRef.current) {
+        clearTimeout(autoTranslateTimerRef.current);
+        autoTranslateTimerRef.current = null;
+      }
+    };
   }, [srcText, srcLang, dstLang, translationRestricted, suppressNextAutoTranslate]);
   
   // Start/attach the waveform once the modal is open, recording is true, and the canvas is mounted
@@ -882,15 +869,15 @@ export default function Translator() {
     }
   }
 
-  const [isSubmittingValidation, setIsSubmittingValidation] = useState(false); // Add this state
+  const [isSubmittingValidation, setIsSubmittingValidation] = useState(false);
 
-  // NEW: Function to validate transcription
+  // Function to validate transcription
   async function validateTranscription(asrId, editedText) {
     if (!asrId || !editedText?.trim() || isSubmittingValidation) return;
     
     setIsSubmittingValidation(true);
     try {
-      const response = await api.patch(
+      const response = await api.post(  //CHANGED: patch → post
         `${API_ENDPOINTS.SPEECH_TO_TEXT}${asrId}/validate_transcription/`,
         { text: editedText.trim() }
       );
