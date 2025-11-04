@@ -89,6 +89,7 @@ export default function Translator() {
   
   const [transcribeChoice, setTranscribeChoice] = useState('source'); // which side to transcribe in the modal ("source" | "target")
   const [reviewTranscript, setReviewTranscript] = useState('');
+  const [currentAsrId, setCurrentAsrId] = useState(null);
 
   
   const mediaRecorderRef = useRef(null);
