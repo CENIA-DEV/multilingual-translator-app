@@ -526,16 +526,18 @@ class BackupASRWrapper(ASRModelWrapper):
         rap_model_path: str = None,
         rap_vocab_path: str = None,
         mms_base_path: str = None,
-        use_fp16: bool = False,
+        use_bf16: bool = False,
+        use_tf32: bool = True,
         whisper_model_id: str = "openai/whisper-base",
         hf_token: str = None,
     ):
         self.rap_model_path = rap_model_path
         self.rap_vocab_path = rap_vocab_path
         self.mms_base_path = mms_base_path or "facebook/mms-1b-all"
-        self.use_fp16 = use_fp16 and gpu and torch.cuda.is_available()
+        self.use_bf16 = use_bf16 and gpu and torch.cuda.is_available()
         self.whisper_model_id = whisper_model_id
         self.hf_token = hf_token
+        self.use_tf32 = use_tf32
         super().__init__(logger, gpu, model_base_path)
 
     def _preload_models(self):
@@ -556,9 +558,18 @@ class BackupASRWrapper(ASRModelWrapper):
             self.whisper_processor = WhisperProcessor.from_pretrained(
                 whisper_path, token=self.hf_token, local_files_only=local_files_only
             )
-            self.whisper_model = WhisperForConditionalGeneration.from_pretrained(
-                whisper_path, token=self.hf_token, local_files_only=local_files_only
-            ).to(self._device)
+
+            if self.use_bf16:
+                self.whisper_model = WhisperForConditionalGeneration.from_pretrained(
+                    whisper_path,
+                    token=self.hf_token,
+                    local_files_only=local_files_only,
+                    torch_dtype=torch.bfloat16,
+                ).to(self._device)
+            else:
+                self.whisper_model = WhisperForConditionalGeneration.from_pretrained(
+                    whisper_path, token=self.hf_token, local_files_only=local_files_only
+                ).to(self._device)
 
             self.whisper_model.eval()
             self.logger.info(f"Whisper model loaded successfully from {whisper_path}")
@@ -581,9 +592,17 @@ class BackupASRWrapper(ASRModelWrapper):
             self.mms_processor = AutoProcessor.from_pretrained(
                 self.mms_base_path, local_files_only=local_files_only
             )
-            self.mms_model = Wav2Vec2ForCTC.from_pretrained(
-                self.mms_base_path, local_files_only=local_files_only
-            ).to(self._device)
+
+            if self.use_bf16:
+                self.mms_model = Wav2Vec2ForCTC.from_pretrained(
+                    self.mms_base_path,
+                    local_files_only=local_files_only,
+                    torch_dtype=torch.bfloat16,
+                ).to(self._device)
+            else:
+                self.mms_model = Wav2Vec2ForCTC.from_pretrained(
+                    self.mms_base_path, local_files_only=local_files_only
+                ).to(self._device)
 
             # Configure RAP adapter once
             self.mms_processor.tokenizer.set_target_lang("rap")
@@ -595,6 +614,24 @@ class BackupASRWrapper(ASRModelWrapper):
             raise
 
         self.logger.info("=== BACKUP ASR MODEL LOADING COMPLETE ===")
+
+        self.optimize(tf32=self.use_tf32)
+
+    def optimize(self, tf32: bool = True):
+        """
+        Optimize the model for inference.
+        """
+        device_is_cuda = (
+            hasattr(self._device, "type") and self._device.type == "cuda"
+        ) or ("cuda" == self._device)
+        if tf32:
+            if device_is_cuda and min(torch.cuda.get_device_capability()) >= 7:
+                self.logger.info("Setting TensorFloat32 precision...")
+                torch.set_float32_matmul_precision("high")
+            else:
+                self.logger.warning(
+                    "TensorFloat32 precision not available. Using default precision."
+                )
 
     def process_audio(self, audio, sampling_rate: int):
         """Process audio based on target language."""
@@ -617,6 +654,7 @@ class BackupASRWrapper(ASRModelWrapper):
             and hasattr(self, "mms_processor")
         ):
             # MMS path: pass input_values directly, use batch_decode
+
             processed = self.mms_processor(
                 audio, sampling_rate=sampling_rate, return_tensors="pt"
             )
