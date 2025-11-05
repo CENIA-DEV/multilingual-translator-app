@@ -654,11 +654,14 @@ class BackupASRWrapper(ASRModelWrapper):
             and hasattr(self, "mms_processor")
         ):
             # MMS path: pass input_values directly, use batch_decode
-
             processed = self.mms_processor(
                 audio, sampling_rate=sampling_rate, return_tensors="pt"
             )
             input_values = processed.input_values.to(self._device)
+
+            # ✅ Cast to bfloat16 if model is in bfloat16
+            if self.use_bf16:
+                input_values = input_values.to(torch.bfloat16)
 
             with torch.no_grad():
                 logits = self.mms_model(input_values).logits
@@ -666,6 +669,7 @@ class BackupASRWrapper(ASRModelWrapper):
             pred_ids = torch.argmax(logits, dim=-1)
             transcription = self.mms_processor.batch_decode(pred_ids)[0]
         else:
+            # Whisper path for Spanish and English
             self.logger.info(f"Using Whisper model for transcription of {lang}")
             whisper_lang_map = {"spa": "es", "eng": "en"}
             task = "transcribe"
@@ -674,6 +678,10 @@ class BackupASRWrapper(ASRModelWrapper):
             input_features = self.whisper_processor(
                 audio, sampling_rate=sampling_rate, return_tensors="pt"
             ).input_features.to(self._device)
+
+            # ✅ Cast to bfloat16 if model is in bfloat16
+            if self.use_bf16:
+                input_features = input_features.to(torch.bfloat16)
 
             with torch.no_grad():
                 predicted_ids = self.whisper_model.generate(
