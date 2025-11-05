@@ -54,12 +54,26 @@ class _TTSInferFuncWrapper:
         return {"waveform": waveform_np}
 
 
-def _tts_infer_function_factory(logger, gpu, model_base_path=None):
+def _tts_infer_function_factory(num_copies, logger, gpu, model_base_path=None):
     """
-    Factory for TTS inference function.
+    Factory for TTS inference function. Creates multiple copies of the model.
+
+    Args:
+        num_copies (int): Number of model copies to create
+        logger: Logger instance
+        gpu (bool): Whether to use GPU
+        model_base_path (str): Base path to model directory
+
+    Returns:
+        list: List of inference function wrappers
     """
-    tts_wrapper = MMSTTSWrapper(logger, gpu, model_base_path)
-    return _TTSInferFuncWrapper(tts_wrapper=tts_wrapper, logger=logger)
+    infer_fns = []
+    for i in range(num_copies):
+        logger.info(f"Loading TTS model copy {i+1}/{num_copies}")
+        tts_wrapper = MMSTTSWrapper(logger, gpu, model_base_path)
+        logger.info(f"TTS model copy {i+1} loaded!")
+        infer_fns.append(_TTSInferFuncWrapper(tts_wrapper=tts_wrapper, logger=logger))
+    return infer_fns
 
 
 def _parse_args():
@@ -157,7 +171,10 @@ def main():
         triton.bind(
             model_name=tts_model_name,
             infer_func=_tts_infer_function_factory(
-                logger, args.gpu, args.model_base_path
+                num_copies=args.copies,
+                logger=logger,
+                gpu=args.gpu,
+                model_base_path=args.model_base_path,
             ),
             inputs=[
                 Tensor(name="text", dtype=np.bytes_, shape=(1,)),

@@ -106,7 +106,7 @@ def _parse_args():
 
     parser.add_argument(
         "--model-type",
-        choices=["mms", "hybrid", "backup"],  # ✅ Added "backup" option
+        choices=["mms", "hybrid", "backup"],
         default="mms",
         help="Type of ASR model to use (mms, hybrid, or backup)",
     )
@@ -137,6 +137,27 @@ def _parse_args():
         help="Number of copies of the model to load",
     )
 
+    parser.add_argument(
+        "--use-tf32",
+        action="store_true",
+        default=True,
+        help="Enable TensorFloat32 precision for faster inference on Ampere+ GPUs",
+    )
+
+    parser.add_argument(
+        "--no-tf32",
+        action="store_true",
+        default=False,
+        help="Disable TensorFloat32 precision",
+    )
+
+    parser.add_argument(
+        "--use-bf16",
+        action="store_true",
+        default=False,
+        help="Use bfloat16 precision for model weights (if supported)",
+    )
+
     return parser.parse_args()
 
 
@@ -155,6 +176,8 @@ def main():
     if not hf_token:
         logger.warning("HUGGING_FACE_HUB_TOKEN environment variable not set")
 
+    use_tf32 = args.use_tf32 and not args.no_tf32
+
     # Instantiate the appropriate ASR wrapper based on model_type
     logger.info(f"Loading {args.model_type} ASR model...")
     if args.model_type == "mms":
@@ -163,6 +186,9 @@ def main():
             gpu=args.gpu,
             model_base_path=args.model_base_path,
         )
+        if args.gpu:  # TODO: review later
+            asr_wrapper.optimize(tf32=use_tf32)
+
     elif args.model_type == "hybrid":
         if not args.rap_model_path or not args.rap_vocab_path:
             raise ValueError(
@@ -177,16 +203,23 @@ def main():
             mms_base_path=args.mms_base_path,
             hf_token=hf_token,
         )
-    elif args.model_type == "backup":  # ✅ New backup model type
+        # TODO: review later
+        if args.gpu:
+            asr_wrapper.optimize(tf32=use_tf32)
+
+    elif args.model_type == "backup":
         asr_wrapper = BackupASRWrapper(
             logger=logger,
             gpu=args.gpu,
-            model_base_path=args.model_base_path,  # Whisper model path
-            mms_base_path=args.mms_base_path,  # MMS base checkpoint
+            model_base_path=args.model_base_path,
+            mms_base_path=args.mms_base_path,
+            use_bf16=args.use_bf16,
+            use_tf32=use_tf32,
             hf_token=hf_token,
         )
     else:
         raise ValueError(f"Invalid model type: {args.model_type}")
+
     logger.info("ASR model loaded successfully!")
 
     # Create inference functions from the single loaded wrapper
