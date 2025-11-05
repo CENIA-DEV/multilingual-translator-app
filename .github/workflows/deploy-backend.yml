@@ -105,34 +105,6 @@ jobs:
         with:
           version: '>= 416.0.0'
 
-      - name: 'Create env file'
-        working-directory: Backend/translatorapp_v2/
-        run: |
-          echo "${{ env.ENV_FILE_BACK }}" > .env
-          echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
-          echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
-          echo "APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}" >> .env
-          echo "APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}" >> .env
-          echo "APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}" >> .env
-          echo "APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}" >> .env
-
-      - name: Build Docker Image
-        working-directory: Backend/translatorapp_v2/
-        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
-
-      - name: Configure Docker Client
-        run: |-
-          gcloud auth configure-docker --quiet
-          gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
-
-      - name: Push Docker Image to Artifact Registry
-        run: |-
-          ARTIFACT_REGISTRY_URL=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          echo "Artifact Registry URL: $ARTIFACT_REGISTRY_URL"
-          echo "ARTIFACT_REGISTRY_URL=$ARTIFACT_REGISTRY_URL" >> $GITHUB_ENV
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_URL
-          docker push $ARTIFACT_REGISTRY_URL
-
       - name: Get Cloud Run Service URLs
         id: get-urls
         run: |
@@ -204,6 +176,34 @@ jobs:
           echo "RAW_TTS_INFERENCE_URL=$RAW_TTS_INFERENCE_URL" >> $GITHUB_ENV
           echo "ASR_INFERENCE_URL=$ASR_INFERENCE_URL" >> $GITHUB_ENV
           echo "RAW_ASR_INFERENCE_URL=$RAW_ASR_INFERENCE_URL" >> $GITHUB_ENV
+
+      - name: 'Create env file'
+        working-directory: Backend/translatorapp_v2/
+        run: |
+          echo "${{ env.ENV_FILE_BACK }}" > .env
+          echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
+          echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
+          echo "APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}" >> .env
+          echo "APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}" >> .env
+
+      - name: Build Docker Image
+        working-directory: Backend/translatorapp_v2/
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Configure Docker Client
+        run: |-
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
+
+      - name: Push Docker Image to Artifact Registry
+        run: |-
+          ARTIFACT_REGISTRY_URL=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          echo "Artifact Registry URL: $ARTIFACT_REGISTRY_URL"
+          echo "ARTIFACT_REGISTRY_URL=$ARTIFACT_REGISTRY_URL" >> $GITHUB_ENV
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_URL
+          docker push $ARTIFACT_REGISTRY_URL
 
       - name: Deploy to cloud run
         uses: 'google-github-actions/deploy-cloudrun@v2'
