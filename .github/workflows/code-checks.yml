@@ -69,6 +69,16 @@ jobs:
           echo "DB_HOST=localhost" >> .env
           echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
           echo "APP_RAW_INFERENCE_MODEL=${{ vars.RAW_INFERENCE_MODEL_NAME }}" >> .env
+          # Add mock TTS environment variables for testing
+          echo "APP_INFERENCE_TTS_MODEL_URL=http://localhost:8000/tts" >> .env
+          echo "APP_INFERENCE_TTS_MODEL_NAME=mock-tts-model" >> .env
+          echo "APP_RAW_INFERENCE_TTS_MODEL_URL=http://localhost:8000/raw-tts" >> .env
+          echo "APP_RAW_INFERENCE_TTS_MODEL_NAME=mock-raw-tts-model" >> .env
+          # Add mock ASR environment variables for testing
+          echo "APP_INFERENCE_ASR_MODEL_URL=http://localhost:8000/asr" >> .env
+          echo "APP_INFERENCE_ASR_MODEL_NAME=mock-asr-model" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_URL=http://localhost:8000/raw-asr" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_NAME=mock-raw-asr-model" >> .env
       - name: Install dependencies
         working-directory: Backend/translatorapp_v2/
         run: |

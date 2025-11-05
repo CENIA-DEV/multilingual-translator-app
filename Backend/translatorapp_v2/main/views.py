@@ -12,11 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
 import logging
 from functools import reduce
 from operator import or_
 
+import numpy as np
 from django.contrib.auth.models import User
+from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, viewsets
@@ -24,32 +27,45 @@ from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 
 from .models import (
+    CacheTTS,
+    GeneralSuggestion,
     InvitationToken,
     Lang,
     PasswordResetToken,
     RequestAccess,
+    SpeechToTextAudio,
+    TextToSpeechAudio,
     TranslationPair,
+    TranslationRequest,
 )
 from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
+from .serializers import TranslationRequestSerializer  # Add this import
 from .serializers import (
     FullUserSerializer,
+    GeneralSuggestionSerializer,
     InvitationSerializer,
     LanguageSerializer,
     ParticipateSerializer,
     PasswordResetSerializer,
     RequestSerializer,
+    SpeechToTextSerializer,
     SuggestionSerializer,
+    TextToSpeechSerializer,
     TranslationPairSerializer,
     UserSerializer,
 )
+from .utils import find_cached_tts_normalized  # added
 from .utils import (
     filter_cache,
+    generate_asr,
+    generate_tts,
     send_invite_email,
     send_participate_email,
     send_recovery_email,
@@ -383,7 +399,11 @@ class SuggestionViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
 
     def get_permissions(self):
-        if self.action in ["accept_translation", "reject_translation"]:
+        if self.action in [
+            "accept_translation",
+            "reject_translation",
+            "add_suggestion",
+        ]:  # TODO: Review
             permission_classes = [AllowAny]
         else:
             permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
@@ -527,6 +547,49 @@ class SuggestionViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=["post"])
+    def add_suggestion(self, request):
+        """
+        Handle general suggestions/comments from users (lightbulb button).
+        Stores user feedback in separate GeneralSuggestion table.
+        """
+        serializer = GeneralSuggestionSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = (
+                request.user
+                if hasattr(request, "user") and request.user.is_authenticated
+                else None
+            )
+
+            serializer.save(user=user)
+
+            return Response(
+                serializer.data,
+                status=HTTP_201_CREATED,
+            )
+        else:
+            return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+    # Optional: Action to get all general suggestions for admins
+    @action(detail=False, methods=["get"])
+    def get_general_suggestions(self, request):
+        """Get all general suggestions for admin review"""
+        reviewed = request.query_params.get("reviewed")
+        queryset = GeneralSuggestion.objects.all()
+
+        if reviewed is not None:
+            reviewed = reviewed.lower() == "true"
+            queryset = queryset.filter(reviewed=reviewed)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = GeneralSuggestionSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = GeneralSuggestionSerializer(queryset, many=True)
+        return Response(serializer.data)
+
 
 class RequestViewSet(viewsets.ModelViewSet):
     serializer_class = RequestSerializer
@@ -572,24 +635,37 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     def create(self, request):
         logger.info(f"Received translation request: {request.data}")
         serializer = self.get_serializer(data=request.data)
+
         if serializer.is_valid():
             src_lang = serializer.validated_data["src_lang"]
             dst_lang = serializer.validated_data["dst_lang"]
             src_text = serializer.validated_data["src_text"]
-            print(src_text)
+
             logger.debug(
                 f"Validated translation request: src_lang={src_lang}, "
                 f"dst_lang={dst_lang}, src_text={src_text}"
             )
+
+            # Get user (or None for anonymous)
+            user = request.user if request.user.is_authenticated else None
+            dst_text = None
+            model_name = None
+            model_version = None
+            from_cache = False
 
             if src_lang == dst_lang:  # same lang return same text
                 logger.debug(
                     "Source and destination languages are the same, "
                     "returning original text"
                 )
-                # this save doesnt actually save a translation pair
-                # but its necessary to format correct response
-                serializer.save(dst_text=src_text)
+                dst_text = src_text
+                model_name = "no_translation"
+                model_version = "v1"
+                from_cache = False
+
+                # Save to original serializer for response
+                serializer.save(dst_text=dst_text)
+
             else:
                 # check for cache hits
                 cache_results = self.get_queryset(
@@ -598,12 +674,20 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 cache_result, cache_dst_lang = filter_cache(
                     src_lang, dst_lang, cache_results
                 )
+
                 if cache_result is None:
                     logger.debug("No cache hit, calling translation model")
+                    from_cache = False
+
                     # if no cache then call model translate endpoint
                     try:
                         translation = translate(src_text, src_lang, dst_lang)
+                        dst_text = translation["dst_text"]
+                        model_name = translation["model_name"]
+                        model_version = translation["model_version"]
+
                         serializer.save(**translation)
+
                     except Exception as e:
                         logger.error(f"Translation model error: {str(e)}")
                         return Response(
@@ -612,11 +696,44 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                         )
                 else:
                     logger.debug("Cache hit found, returning cached translation")
-                    # return cache
-                    translation = cache_result
+                    from_cache = True
+                    dst_text = cache_result
+
+                    # Get model info from cached result if available
+                    if cache_results:
+                        cached_pair = cache_results[0]
+                        model_name = cached_pair.model_name
+                        model_version = cached_pair.model_version
+
                     serializer.save(dst_text=cache_result, dst_lang=cache_dst_lang)
+
+            # SAVE TO TRACKING TABLE (every translation request)
+            idem_key = request.data.get("request_id")  # body-only
+            log_defaults = {
+                "src_text": src_text,
+                "dst_text": dst_text,
+                "src_lang": src_lang,
+                "dst_lang": dst_lang if src_lang != dst_lang else src_lang,
+                "user": user,
+                "model_name": model_name or "unknown",
+                "model_version": model_version or "unknown",
+                "from_cache": from_cache,
+            }
+            try:
+                if idem_key:
+                    TranslationRequest.objects.get_or_create(
+                        client_request_id=idem_key, defaults=log_defaults
+                    )
+                else:
+                    TranslationRequest.objects.create(**log_defaults)
+            except IntegrityError:
+                logger.info(f"Skip duplicate TranslationRequest key={idem_key}")
+            except Exception as e:
+                logger.error(f"Failed to log translation request: {e}")
+
             logger.info(f"Translation response: {serializer.data}")
             return Response(serializer.data)
+
         else:
             logger.warning(f"Invalid translation request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)
@@ -637,3 +754,331 @@ class ParticipateRequestEndpoint(APIView):
             send_participate_email(email, organization, reason, first_name, last_name)
             return Response(serializer.data)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """
+    ViewSet for text-to-speech functionality
+    """
+
+    permission_classes = [TranslationRequiresAuth]
+    serializer_class = TextToSpeechSerializer
+
+    def get_queryset(self, text=None, lang=None):
+        results = (
+            TextToSpeechAudio.objects.filter(
+                language__code=(lang.code if lang else None),
+            ).filter(text__iexact=text)
+            if text
+            else TextToSpeechAudio.objects.none().order_by("-created_at")
+        )
+        return [s for s in results]
+
+    def create(self, request):
+        logger.info(f"Received text request: {request.data}")
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            text = serializer.validated_data["text"]
+            language_code = serializer.validated_data["language"]
+            model_name = serializer.validated_data.get("model_name")
+            model_version = serializer.validated_data.get("model_version")
+
+            logger.debug(f"Validated TTS request: {language_code}")
+
+            try:
+                lang_obj = Lang.objects.get(code=language_code)
+
+                # Check cache (normalized matching, no schema changes)
+                try:
+                    cached_tts = find_cached_tts_normalized(lang_obj, text)
+                    if not cached_tts:
+                        raise CacheTTS.DoesNotExist()
+
+                    logger.info("Cache hit for TTS request (normalized match)")
+
+                    # Decode base64 -> float32 waveform list
+                    try:
+                        audio_bytes = base64.b64decode(cached_tts.audio_data)
+                        logger.debug(f"Decoded {len(audio_bytes)} bytes from cache")
+
+                        # Verify byte length is valid for float32
+                        if len(audio_bytes) % 4 != 0:
+                            logger.error("Invalid byte length")
+                            raise ValueError("Invalid cached audio data")
+
+                        # Convert bytes back to numpy array, then to list
+                        waveform_array = np.frombuffer(audio_bytes, dtype=np.float32)
+                        waveform_data = waveform_array.tolist()
+                    except (ValueError, Exception):
+                        logger.error("Failed to decode cached audio, model")
+                        raise CacheTTS.DoesNotExist("Corrupted cache entry")
+
+                    # Create TextToSpeechAudio record for tracking
+                    audio_obj = TextToSpeechAudio.objects.create(
+                        text=text,
+                        language=lang_obj,
+                        model_name=model_name or "cached",
+                        model_version=model_version or "cached",
+                        user=request.user if request.user.is_authenticated else None,
+                    )
+
+                    response_data = {
+                        "id": audio_obj.id,
+                        "text": audio_obj.text,
+                        "language": language_code,
+                        "model_name": audio_obj.model_name,
+                        "model_version": audio_obj.model_version,
+                        "waveform": waveform_data,
+                    }
+
+                    logger.info("Successfully returned cached TTS audio")
+                    return Response(response_data)
+
+                except CacheTTS.DoesNotExist:
+                    logger.warning(
+                        "Cache miss - calling model as fallback (no caching)"
+                    )
+
+                    # Generate new audio using the language code (FALLBACK ONLY)
+                    generated_audio = generate_tts(text, language_code)
+
+                    # Extract data
+                    waveform_data = generated_audio.pop("waveform")
+                    model_name = generated_audio.get(
+                        "model_name", model_name or "unknown"
+                    )
+                    model_version = generated_audio.get(
+                        "model_version", model_version or "unknown"
+                    )
+
+                    logger.info("TTS audio generated but NOT cached (inference mode)")
+
+                    # Create tracking record
+                    audio_obj = TextToSpeechAudio.objects.create(
+                        text=text,
+                        language=lang_obj,
+                        model_name=model_name,
+                        model_version=model_version,
+                        user=request.user if request.user.is_authenticated else None,
+                    )
+
+                    response_data = {
+                        "id": audio_obj.id,
+                        "text": audio_obj.text,
+                        "language": language_code,
+                        "model_name": audio_obj.model_name,
+                        "model_version": audio_obj.model_version,
+                        "waveform": waveform_data,
+                    }
+
+                    logger.info("TTS response generated (not cached)!")
+                    return Response(response_data)
+
+            except Lang.DoesNotExist:
+                logger.error(f"Language with code '{language_code}' not found")
+                return Response(
+                    f"Language code '{language_code}' not supported",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+            except Exception as e:
+                logger.error(f"TTS model error: {str(e)}")
+                import traceback
+
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                return Response(
+                    "Error en la predicción del modelo",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+        else:
+            logger.warning(f"Invalid text request: {serializer.errors}")
+            return Response(serializer.errors, HTTP_400_BAD_REQUEST)
+
+
+class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """
+    ViewSet for speech-to-text functionality
+    """
+
+    permission_classes = [TranslationRequiresAuth]
+    serializer_class = SpeechToTextSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        """
+        Allow anyone to validate transcriptions
+        """
+        if self.action == "validate_transcription":
+            return [AllowAny()]
+        return super().get_permissions()
+
+    def get_queryset(self, text=None, lang=None):
+        results = (
+            SpeechToTextAudio.objects.filter(
+                language__code=(lang.code if lang else None),
+            ).filter(text__iexact=text)
+            if text
+            else SpeechToTextAudio.objects.none().order_by("-created_at")
+        )
+        return [s for s in results]
+
+    def create(self, request):
+        logger.info("Received speech-to-text request")
+
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            audio_file = serializer.validated_data["audio"]
+            language_code = serializer.validated_data["language"]
+
+            logger.debug(f"Processing ASR request for language: {language_code}")
+
+            try:
+                lang_obj = Lang.objects.get(code=language_code)
+                audio_bytes = audio_file.read()
+                audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+                audio_format = (
+                    audio_file.name.split(".")[-1].lower()
+                    if hasattr(audio_file, "name")
+                    else "unknown"
+                )
+
+                asr_result = generate_asr(audio_bytes, lang_obj)
+                transcribed_text = asr_result["text"]
+
+                logger.info("ASR transcription complete")
+
+                audio_obj = SpeechToTextAudio.objects.create(
+                    text=transcribed_text,
+                    language=lang_obj,
+                    audio_data=audio_base64,
+                    audio_format=audio_format,
+                    model_name=asr_result["model_name"],
+                    model_version=asr_result["model_version"],
+                    validated=False,
+                    validated_text=None,
+                    user=request.user if request.user.is_authenticated else None,
+                )
+
+                response_data = {
+                    "id": audio_obj.id,
+                    "text": transcribed_text,
+                    "language": language_code,
+                    "audio_format": audio_format,
+                    "model_name": asr_result["model_name"],
+                    "model_version": asr_result["model_version"],
+                    "validated": False,
+                    "validated_text": None,
+                }
+
+                logger.info("ASR transcription complete")
+                return Response(response_data)
+
+            except Lang.DoesNotExist:
+                logger.error(f"Language with code '{language_code}' not found")
+                return Response(
+                    f"Language code '{language_code}' not supported",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+            except Exception as e:
+                logger.error(f"ASR processing error: {str(e)}")
+                return Response(
+                    "Error in speech recognition",
+                    status=HTTP_400_BAD_REQUEST,
+                )
+        else:
+            logger.warning(f"Invalid ASR request: {serializer.errors}")
+            return Response(serializer.errors, HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["patch"], parser_classes=[JSONParser])
+    def validate_transcription(self, request, pk=None):
+        """
+        Update transcription with user's validated text.
+        Anyone can validate - anonymous, authenticated, or admin.
+        Each audio record stores ONE validated version (last one wins).
+        """
+        try:
+            audio_obj = SpeechToTextAudio.objects.get(pk=pk)
+
+            edited_text = request.data.get("text", "").strip()
+
+            if not edited_text:
+                logger.warning(f"Empty text received for transcription {pk}")
+                return Response(
+                    {"detail": "El texto no puede estar vacío"},
+                    status=HTTP_400_BAD_REQUEST,
+                )
+
+            # Store the validated text (overwrites previous validation if any)
+            audio_obj.validated_text = edited_text
+            audio_obj.validated = True
+            audio_obj.save()
+
+            user_info = (
+                f"user {request.user.id}"
+                if request.user.is_authenticated
+                else "anonymous user"
+            )
+            logger.info(
+                f"Transcription {pk} validated by {user_info}. "
+                f"Original: '{audio_obj.text[:50]}...', "
+                f"Validated: '{edited_text[:50]}...'"
+            )
+
+            return Response(
+                {
+                    "id": audio_obj.id,
+                    "text": audio_obj.text,  # Original model output
+                    "validated_text": audio_obj.validated_text,  # User's version
+                    "validated": audio_obj.validated,
+                    "language": audio_obj.language.code,
+                }
+            )
+
+        except SpeechToTextAudio.DoesNotExist:
+            logger.error(f"Transcription {pk} not found")
+            return Response(
+                {"detail": "Transcripción no encontrada"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.error(f"Error validating transcription {pk}: {str(e)}")
+            import traceback
+
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return Response(
+                {"detail": "Error al validar transcripción"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+
+
+class TranslationRequestViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet to view all translation requests (admin only).
+    Read-only - records are created automatically.
+    """
+
+    queryset = TranslationRequest.objects.all()
+    serializer_class = TranslationRequestSerializer
+    permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self):
+        queryset = TranslationRequest.objects.all()
+
+        # Filter by language
+        src_lang = self.request.query_params.get("src_lang")
+        dst_lang = self.request.query_params.get("dst_lang")
+        from_cache = self.request.query_params.get("from_cache")
+        user_id = self.request.query_params.get("user")
+
+        if src_lang:
+            queryset = queryset.filter(src_lang__code=src_lang)
+        if dst_lang:
+            queryset = queryset.filter(dst_lang__code=dst_lang)
+        if from_cache is not None:
+            queryset = queryset.filter(from_cache=from_cache.lower() == "true")
+        if user_id:
+            queryset = queryset.filter(user__id=user_id)
+
+        return queryset.order_by("-created_at")

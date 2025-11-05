@@ -24,7 +24,7 @@ body {
 .dot {
   width: 24px;
   height: 24px;
-  background: #3ac;
+  background: #3d88d4;
   border-radius: 100%;
   display: inline-block;
   animation: slide 1s infinite;
@@ -32,27 +32,27 @@ body {
 
 .dot:nth-child(1) {
   animation-delay: 0.1s;
-  background: #32aacc;
+  background: #3d88d4ff;
 }
 
 .dot:nth-child(2) {
   animation-delay: 0.2s;
-  background: #64aacc;
+  background: #77a7d8;
 }
 
 .dot:nth-child(3) {
   animation-delay: 0.3s;
-  background: #96aacc;
+  background: #adc4dc;
 }
 
 .dot:nth-child(4) {
   animation-delay: 0.4s;
-  background: #c8aacc;
+  background: #7abad4;
 }
 
 .dot:nth-child(5) {
   animation-delay: 0.5s;
-  background: #faaacc;
+  background: #33aacc;
 }
 
 @keyframes slide {
@@ -178,5 +178,40 @@ body {
 
   strong {
     @apply font-bold;
+  }
+}
+
+
+@layer utilities {
+  /* Set a shared scrollbar width on the wrapper */
+  .scrollbar-theme {
+    --sb-w: 11px; /* change once here if you want a different width */
+  }
+
+  /* Main styling: transparent track, thin white thumb */
+  .scrollbar-white-thumb {
+    /* Firefox */
+    scrollbar-width: thin;                 /* thin track */
+    scrollbar-color: #ffffff transparent;  /* white thumb, transparent track */
+  }
+
+  /* WebKit (Chrome/Edge/Safari) */
+  .scrollbar-white-thumb::-webkit-scrollbar {
+    width: var(--sb-w, 11px);
+  }
+  .scrollbar-white-thumb::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-white-thumb::-webkit-scrollbar-thumb {
+    background: #ffffff;                   /* white bar */
+    border-radius: 9999px;
+    /* Make the bar thinner: shrink it with a transparent border */
+    border: 7px solid transparent;         /* increase to make even thinner */
+    background-clip: content-box;
+  }
+
+  /* Hide the corner when both scrollbars show */
+  .scrollbar-white-thumb::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

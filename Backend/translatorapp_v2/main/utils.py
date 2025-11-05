@@ -14,15 +14,25 @@
 # limitations under the License.
 
 import hashlib
+import io
 import json
 import logging
+import re
+import unicodedata
 from datetime import datetime, timezone
+from pathlib import Path
 
+import ffmpeg
+import numpy as np
 import requests
+import soundfile as sf
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, send_mail
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+
+from .models import CacheTTS
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +227,339 @@ def translate(src_text, src_lang, dst_lang):
             "model_name": model_name,
             "model_version": model_version,
         }
+
+
+def get_tts_prediction(text, lang_code, deployment):
+    """
+    Send request to TTS model server and get audio waveform.
+    """
+    payload = {
+        "id": "0",
+        "inputs": [
+            {
+                "name": "text",
+                "shape": [1, 1],
+                "datatype": "BYTES",
+                "data": [[text]],
+            },
+            {
+                "name": "lang_code",
+                "shape": [1, 1],
+                "datatype": "BYTES",
+                "data": [[lang_code]],
+            },
+        ],
+    }
+
+    response = requests.post(url=deployment, data=json.dumps(payload))
+    response = response.json()
+
+    # Process the response
+    if "outputs" in response:
+        logger.debug("TTS generation successful")
+        return (
+            response["outputs"][0]["data"],  # waveform data
+            response["model_name"],
+            response["model_version"],
+        )
+    elif "error" in response:
+        logger.error(f"Error in TTS generation: {response['error']}")
+        raise Exception("Error in TTS generation")
+    else:
+        logger.error("TTS API responded with unexpected format")
+        raise Exception("Error in TTS generation")
+
+
+def generate_tts(src_text, src_lang):
+    """
+    Generate text-to-speech audio.
+    """
+    # Handle both Lang objects and string language codes
+    lang_code = src_lang
+    if hasattr(src_lang, "code"):
+        lang_code = src_lang.code
+
+    native_deployment = (
+        f"{settings.APP_SETTINGS.inference_tts_model_url}/v2/models/"
+        f"{settings.APP_SETTINGS.inference_tts_model_name}/infer"
+    )
+
+    raw_deployment = (
+        f"{settings.APP_SETTINGS.raw_inference_tts_model_url}/v2/models/"
+        f"{settings.APP_SETTINGS.raw_inference_tts_model_name}/infer"
+    )
+
+    logger.debug(f"Generating audio from {src_text}")
+    src_text_paragraphs = src_text.split("\n")
+    logger.debug(f"Src text paragraphs: {src_text_paragraphs}")
+    logger.debug(f"Native deployment: {native_deployment}")
+    logger.debug(f"Raw deployment: {raw_deployment}")
+
+    deployment = raw_deployment
+
+    try:
+        # Pass the lang_code directly instead of trying to access .code
+        waveform_data, model_name, model_version = get_tts_prediction(
+            src_text, lang_code, deployment=deployment  # Pass the code string directly
+        )
+        logger.debug(f"Successfully generated audio for text in {lang_code}")
+
+        return {
+            "waveform": waveform_data,
+            "model_name": model_name,
+            "model_version": model_version,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to generate speech: {str(e)}")
+        raise e
+
+
+def get_asr_prediction(audio_data, sampling_rate, lang_code, deployment):
+
+    audio_samples = audio_data.astype(np.float32).tolist()
+
+    payload = {
+        "id": "0",
+        "inputs": [
+            {
+                "name": "audio",
+                "shape": [1, len(audio_samples)],
+                "datatype": "FP32",
+                "data": [audio_samples],
+            },
+            {
+                "name": "sampling_rate",
+                "shape": [1, 1],
+                "datatype": "INT32",
+                "data": [[sampling_rate]],
+            },
+            {
+                "name": "lang_code",
+                "shape": [1, 1],
+                "datatype": "BYTES",
+                "data": [[lang_code]],
+            },
+        ],
+    }
+
+    logger.debug(f"Sending ASR request to {deployment}")
+    response = requests.post(url=deployment, data=json.dumps(payload))
+    response = response.json()
+
+    # Process the response
+    if "outputs" in response:
+        logger.debug("ASR transcription successful")
+        # Extract the transcribed text from the response
+        transcribed_text = response["outputs"][0]["data"][0]
+        return (
+            transcribed_text,
+            response["model_name"],
+            response["model_version"],
+        )
+    elif "error" in response:
+        logger.error(f"Error in ASR transcription: {response['error']}")
+        raise Exception("Error in ASR transcription")
+    else:
+        logger.error("ASR API responded with unexpected format")
+        raise Exception("Error in ASR transcription")
+
+
+def _sniff_container(b: bytes) -> str | None:
+    try:
+        if b.startswith(b"OggS"):
+            return "ogg"
+        if b.startswith(b"\x1aE\xdf\xa3") or b[0:64].find(b"webm") != -1:
+            return "webm"
+        if b.startswith(b"RIFF") and b[8:12] == b"WAVE":
+            return "wav"
+        # naive MP4/ISOBMFF check
+        if b[4:8] == b"ftyp":
+            return "mp4"
+    except Exception:
+        pass
+    return None
+
+
+# Add small helpers for debug saving
+def _asr_debug_dir() -> Path:
+    base = (
+        getattr(settings, "ASR_DEBUG_DIR", None)
+        or getattr(settings, "MEDIA_ROOT", None)
+        or "/tmp"
+    )
+    p = Path(base) / "asr_debug"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _slug(s: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", str(s))
+
+
+def normalize_text_for_cache(s: str) -> str:
+    """Lowercase, remove diacritics and punctuation, collapse whitespace."""
+    if not s:
+        return ""
+    s = s.lower()
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))  # strip diacritics
+    s = re.sub(r"[^\w\s]", "", s, flags=re.UNICODE)  # strip punctuation
+    s = re.sub(r"\s+", " ", s, flags=re.UNICODE).strip()  # collapse spaces
+    return s
+
+
+def find_cached_tts_normalized(
+    lang_obj, raw_text: str, max_token_candidates: int = 100, max_fallback: int = 200
+):
+    """
+    Find CacheTTS by normalized text without changing DB schema.
+    1) exact icase match
+    2) token-filtered candidates (icontains) then normalized compare
+    3) fallback: recent N rows normalized compare
+    Returns CacheTTS or None.
+    """
+    if not raw_text:
+        return None
+
+    # 1) exact icase match (fast path)
+    try:
+        return CacheTTS.objects.get(language=lang_obj, text__iexact=raw_text)
+    except CacheTTS.DoesNotExist:
+        pass
+
+    norm = normalize_text_for_cache(raw_text)
+    tokens = re.findall(r"\w+", norm)
+
+    # 2) token-filtered candidates
+    q = Q()
+    for t in tokens[:5]:  # cap tokens to keep the query fast
+        q &= Q(text__icontains=t)
+
+    if q:
+        candidates = (
+            CacheTTS.objects.filter(language=lang_obj)
+            .filter(q)
+            .order_by("-id")[:max_token_candidates]
+        )
+        for c in candidates:
+            if normalize_text_for_cache(c.text) == norm:
+                return c
+
+    # 3) small recent-window fallback
+    recent = CacheTTS.objects.filter(language=lang_obj).order_by("-id")[:max_fallback]
+    for c in recent:
+        if normalize_text_for_cache(c.text) == norm:
+            return c
+
+    return None
+
+
+def generate_asr(audio_file, lang):
+    lang_code = getattr(lang, "code", lang)
+    base_url = settings.APP_SETTINGS.inference_asr_model_url
+    model_name = settings.APP_SETTINGS.inference_asr_model_name
+    raw_deployment = f"{base_url}/v2/models/{model_name}/infer"
+    logger.debug(f"Generating ASR transcription for language: {lang_code}")
+
+    try:
+        # Read input bytes
+        audio_bytes = audio_file.read() if hasattr(audio_file, "read") else audio_file
+        if not isinstance(audio_bytes, bytes):
+            raise TypeError("audio_file must be bytes or a file-like object")
+
+        logger.debug(f"Received audio bytes: {len(audio_bytes)}")
+        container = _sniff_container(audio_bytes)
+        logger.debug(f"Detected container: {container}")
+
+        # Convert to WAV 16kHz mono using ffmpeg
+        try:
+            inp = ffmpeg.input(
+                "pipe:0",
+                **({"f": container} if container in ("webm", "ogg", "mp4") else {}),
+            )
+            out = ffmpeg.output(
+                inp,
+                "pipe:1",
+                ar=16000,
+                ac=1,
+                format="wav",
+                acodec="pcm_s16le",
+                # Add these options to preserve audio start
+                **{
+                    "af": "apad=pad_dur=0.1",  # Add 100ms padding at start
+                    "analyzeduration": "10M",  # Increase analysis duration
+                    "probesize": "10M",  # Increase probe size
+                },
+            )
+            wav_bytes, ff_err = ffmpeg.run(
+                out,
+                input=audio_bytes,
+                capture_stdout=True,
+                capture_stderr=True,
+                quiet=True,
+            )
+            if not wav_bytes:
+                logger.error(f"error{ff_err.decode(errors='ignore') if ff_err else ''}")
+                raise Exception("Empty WAV after ffmpeg conversion")
+        except Exception as e:
+            logger.error(f"FFmpeg conversion failed: {str(e)}")
+            raise
+
+        # Load PCM samples
+        samples, sample_rate = sf.read(io.BytesIO(wav_bytes), dtype="float32")
+        if samples is None or (hasattr(samples, "size") and samples.size == 0):
+            raise Exception("Decoded audio has zero length")
+
+        # Downmix to mono if needed
+        if hasattr(samples, "ndim") and samples.ndim > 1:
+            logger.debug(f"Downmixing from shape {samples.shape} to mono")
+            samples = samples.mean(axis=1)
+
+        """
+         # Save quick metadata
+        try:
+            stats = {
+                "num_bytes_in": len(audio_bytes),
+                "container": container,
+                "wav_bytes": len(wav_bytes),
+                "shape": list(samples.shape) if hasattr(samples, "shape") else None,
+                "sr": int(sample_rate),
+                "min": float(np.min(samples)) if getattr(samples, "size", 0) else None,
+                "max": float(np.max(samples)) if getattr(samples, "size", 0) else None,
+                "rms": (
+                    float(np.sqrt(np.mean(samples**2)))
+                    if getattr(samples, "size", 0)
+                    else None
+                ),
+                "ffmpeg_stderr_tail": (
+                    ff_err.decode(errors="ignore")[-1024:] if ff_err else None
+                ),
+            }
+            meta_path = dbg_dir / f"{ts}_{lang_slug}_meta.json"
+            meta_path.write_text(json.dumps(stats, ensure_ascii=False, indent=2))
+            logger.debug(f"Saved ASR debug metadata to {meta_path}")
+        except Exception as e:
+            logger.warning(f"Failed saving ASR debug : {e}")
+        logger.debug(
+            f"Prepared sampl: shape={getattr(samples, 'shape', None)}, sr={sample_rate}"
+        )
+        """
+
+        # Predict ASR
+        transcribed_text, model_name, model_version = get_asr_prediction(
+            samples, 16000, lang_code, deployment=raw_deployment
+        )
+
+        return {
+            "text": transcribed_text,
+            "model_name": model_name,
+            "model_version": model_version,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to transcribe speech: {str(e)}")
+        raise
 
 
 def convert_timestamp(timestamp_str):

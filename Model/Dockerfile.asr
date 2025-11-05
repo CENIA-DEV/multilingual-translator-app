@@ -1,0 +1,50 @@
+# Use a Triton-ready base image with Python and CUDA support
+FROM nvcr.io/nvidia/tritonserver:24.10-py3-min
+
+# Accept HF token as build argument
+ARG HF_TOKEN
+ENV HUGGING_FACE_HUB_TOKEN=$HF_TOKEN
+
+# Install system dependencies required for audio processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    curl \
+    libsndfile1 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables first
+ENV PYTHONUNBUFFERED=0
+
+# Copy only the requirements file first to leverage Docker layer caching
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf ~/.cache/pip
+
+COPY asr-rap/ /app/asr-rap/
+
+# Ensure adapter directory exists and copy committed adapter file from repo root
+RUN mkdir -p /app/asr-rap/mms-1b-all
+COPY rap-adapter.bin /app/asr-rap/mms-1b-all/adapter.rap.bin
+
+# Set working directory for the application code
+WORKDIR /home/app/src
+COPY . .
+
+# Configure Hugging Face cache location
+ENV HF_HOME=/app/.cache/huggingface
+
+EXPOSE 8017
+
+# Update paths to match the directory structure in the downloaded models
+ENTRYPOINT ["python3", "server_asr.py"]
+CMD [ \
+    "--gpu", \
+    "--model-type=hybrid", \
+    "--model-base-path=/app/asr-rap/whisper", \
+    "--rap-model-path=/app/asr-rap/rap/model", \
+    "--rap-vocab-path=/app/asr-rap/rap/vocab.json", \
+    "--mms-base-path=/app/asr-rap/mms-1b-all" \

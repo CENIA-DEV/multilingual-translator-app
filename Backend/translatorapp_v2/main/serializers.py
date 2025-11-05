@@ -22,14 +22,19 @@ from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
 
 from .models import (
+    CacheTTS,
     Dialect,
+    GeneralSuggestion,
     InvitationToken,
     Lang,
     PasswordResetToken,
     Profile,
     RequestAccess,
     Script,
+    SpeechToTextAudio,
+    TextToSpeechAudio,
     TranslationPair,
+    TranslationRequest,
 )
 
 
@@ -396,7 +401,6 @@ class SuggestionSerializer(serializers.ModelSerializer):
     user = UserEmailSerializer(read_only=True)
     updated_suggestion = serializers.CharField(required=False)
 
-    # dst_text = serializers.SerializerMethodField()
     class Meta:
         model = TranslationPair
         fields = [
@@ -413,6 +417,7 @@ class SuggestionSerializer(serializers.ModelSerializer):
             "validated",
             "user",
             "updated_suggestion",
+            "is_uncertain",
         ]
 
     def validate_src_lang(self, src_lang):
@@ -507,3 +512,107 @@ class ParticipateSerializer(serializers.Serializer):
     organization = serializers.CharField(
         allow_null=True, allow_blank=True, default=None
     )
+
+
+class TextToSpeechSerializer(serializers.ModelSerializer):
+    text = serializers.CharField(required=True)
+    language = serializers.CharField(required=True)
+    model_name = serializers.CharField(required=True)
+    model_version = serializers.CharField(required=True)
+
+    class Meta:
+        model = TextToSpeechAudio
+        fields = ["text", "language", "model_name", "model_version"]
+        extra_kwargs = {
+            "created_at": {"read_only": True},
+        }
+
+    # TODO: Implement logic to filter out text long text
+
+
+class SpeechToTextSerializer(serializers.ModelSerializer):
+
+    audio = serializers.FileField(required=True, write_only=True)
+    audio_data = serializers.CharField(read_only=True)
+    audio_format = serializers.CharField(read_only=True)
+    text = serializers.CharField(read_only=True)
+    language = serializers.CharField(required=True)
+    model_name = serializers.CharField(required=True)
+    model_version = serializers.CharField(required=True)
+    validated = serializers.BooleanField(read_only=True)
+    validated_text = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = SpeechToTextAudio
+        fields = [
+            "id",
+            "audio",
+            "audio_data",
+            "audio_format",
+            "text",
+            "language",
+            "model_name",
+            "model_version",
+            "validated",
+            "validated_text",
+        ]
+        extra_kwargs = {
+            "created_at": {"read_only": True},
+        }
+
+
+class GeneralSuggestionSerializer(serializers.ModelSerializer):
+    user = UserEmailSerializer(read_only=True)
+
+    class Meta:
+        model = GeneralSuggestion
+        fields = [
+            "id",
+            "comment",
+            "user",
+            "reviewed",
+            "reviewed_by",
+            "created_at",
+        ]
+        read_only_fields = ["reviewed", "reviewed_by", "created_at"]
+
+    def create(self, validated_data):
+        user = validated_data.pop("user", None)
+
+        return GeneralSuggestion.objects.create(user=user, **validated_data)
+
+
+class CacheTTSSerializer(serializers.ModelSerializer):
+    language = serializers.CharField()
+    audio_data = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = CacheTTS
+        fields = ["id", "text", "language", "audio_data", "audio_format"]
+        read_only_fields = [
+            "audio_data",
+        ]
+
+
+class TranslationRequestSerializer(serializers.ModelSerializer):
+    src_lang_code = serializers.CharField(source="src_lang.code", read_only=True)
+    dst_lang_code = serializers.CharField(source="dst_lang.code", read_only=True)
+    user_email = serializers.CharField(
+        source="user.email", read_only=True, allow_null=True
+    )
+
+    class Meta:
+        model = TranslationRequest
+        fields = [
+            "id",
+            "src_text",
+            "dst_text",
+            "src_lang_code",
+            "dst_lang_code",
+            "user_email",
+            "model_name",
+            "model_version",
+            "from_cache",
+            "created_at",
+        ]
+        read_only_fields = ["created_at"]

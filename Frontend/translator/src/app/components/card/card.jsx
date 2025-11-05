@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { faCopy, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
@@ -37,6 +37,16 @@ export default function Card(props) {
   const handleCopyText = props.handleCopyText;
   const copyReady = props.copyReady;
   const showTextMessage = props.showTextMessage;
+  const ttsEnabled = props.ttsEnabled;
+  const ttsText = props.ttsText;
+  const ttsLangCode = props.ttsLangCode;
+  const isSpeaking = props.isSpeaking;
+  const isLoadingAudio = props.isLoadingAudio;
+  const onSpeak = props.onSpeak;
+  const onStop = props.onStop;
+  const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
+  const showSpeaker = ttsEnabled && !!ttsText?.trim();
+  const showClearLeft = side === 'left' && !!srcText?.trim();
   return(
     <div 
       className={`card-container flex flex-col items-center relative ${
@@ -48,7 +58,7 @@ export default function Card(props) {
     >
 
       <div className={`flex h-[70px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
-        side === 'left' ? '' : 'w-full'
+        side === 'left' ? 'max-[850px]:h-[25px]' : 'w-full max-[850px]:h-[12px]'
       }`}>
 
         {side === 'left'?
@@ -80,44 +90,120 @@ export default function Card(props) {
       />
 
       {side === 'left'?
-        <>
-          <Textarea
-            value={srcText}
-            placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
-            onChange={e => handleSrcText(e.target.value)}
-          className={`mt-[15px] w-[calc(100%-80px)] h-[calc(60%-80px)] ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
-        /> 
-        {showTextMessage &&
-          <p className="text-red-500 text-sm">
-            El texto no puede tener más de 150 palabras
-          </p>
-        } 
+	   <>
+        <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px]">
+            <Textarea
+              value={srcText}
+              placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
+              onChange={e => handleSrcText(e.target.value)}
+              className={`w-full h-full ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
+            />
+		    {/* speaker (only if text exists) */}
+            {(showSpeaker || showClearLeft) && (
+              <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">
+                {showSpeaker && (
+                  <Tooltip delayDuration={1000}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => (isSpeaking ? onStop() : onSpeak())}
+                        aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+                        title={isSpeaking ? "Detener" : "Escuchar"}
+                        className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
+                        disabled={isLoadingAudio}
+                      >
+                        <FontAwesomeIcon
+                          icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
+                          className={isLoadingAudio ? "fa-spin" : ""}
+                          color={speakerColor}
+                        />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="rounded-full">
+                      <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+           
+                {showClearLeft && (
+                  <Tooltip delayDuration={1000}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => { if (isSpeaking) onStop?.(); props.onClearTexts?.(); }}
+                        aria-label="Borrar texto"
+                        title="Borrar texto"
+                        className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
+                      >
+                        <FontAwesomeIcon icon={faTrash} color={speakerColor} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="rounded-full">
+                      <p>Limpiar</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            )}
+          </div>
+
+          {showTextMessage && (
+            <p className="text-red-500 text-sm">El texto no puede tener más de 150 palabras</p>
+          )}
         </>
         :
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px]">
+          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white">
             <Textarea readOnly 
               key={dstText}
               wrapper="span"
               cursor={false}
               speed={70}
               deletionSpeed={70}
-            value={dstText}
-              className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0"
+              value={dstText}
+              className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0 scrollbar-white-thumb"
             />
-              {dstText && dstText.length > 0 && (
-                <Tooltip delayDuration={1000} >
-                  <TooltipTrigger asChild>
-                    <button onClick={handleCopyText} className="transition-transform duration-200 transform hover:scale-150 h-9">
-					  <FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                    <p>Copiar traducción</p>
-                  </TooltipContent>
-                </Tooltip>
-            
-          )}
+			{dstText && dstText.length > 0 && (
+				<div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">	
+				
+				  {showSpeaker && (
+					  <Tooltip delayDuration={1000}>
+						<TooltipTrigger asChild>
+						  <button
+							onClick={() => (isSpeaking ? onStop() : onSpeak())}
+							aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+							title={isSpeaking ? "Detener" : "Escuchar"}
+							className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
+							disabled={isLoadingAudio}
+						  >
+							<FontAwesomeIcon
+							  icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
+							  className={isLoadingAudio ? "fa-spin" : ""}
+							  color={speakerColor /* white on right */}
+							/>
+						  </button>
+						</TooltipTrigger>
+						<TooltipContent className="bg-default border-white text-white rounded-full border-2">
+						  <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+						</TooltipContent>
+					  </Tooltip>
+                  )}
+				  
+				  <Tooltip delayDuration={1000}>
+					<TooltipTrigger asChild>
+					  <button
+						onClick={handleCopyText}
+						aria-label="Copiar traducción"
+						title="Copiar traducción"
+						className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
+					  >
+						<FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
+					  </button>
+					</TooltipTrigger>
+					<TooltipContent className="bg-default border-white text-white rounded-full border-2">
+					  <p>Copiar traducción</p>
+					</TooltipContent>
+				  </Tooltip>
+				</div>
+            )}
           </div>
         </>
       }

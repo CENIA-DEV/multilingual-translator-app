@@ -1,4 +1,5 @@
 name: Deploy backend pipeline
+
 on:
   workflow_dispatch:
     inputs:
@@ -28,28 +29,54 @@ on:
         required: true
         type: number
         default: 150
+      tts_model_name:
+        description: 'TTS model name'
+        required: true
+        type: string
+        default: 'tts-model'
+      raw_tts_model_name:
+        description: 'Raw TTS model name'
+        required: true
+        type: string
+        default: 'tts-model'
+      asr_model_name:
+        description: 'ASR model name'
+        required: true
+        type: string
+        default: 'asr-model'
+      raw_asr_model_name:
+        description: 'Raw ASR model name'
+        required: true
+        type: string
+        default: 'asr-model'
+
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'PRODUCTION' || 'STAGING' }}
     env:
-        PROJECT_ID: ${{ secrets.PROJECT_ID }}
-        SERVICE_REGION: ${{ vars.SERVICE_REGION }}
-        DB_REGION: ${{ vars.DB_REGION }}
-        MODEL_REGION: ${{ vars.MODEL_REGION }}
-        ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
-        INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
-        REP_NAME: native-translator
-        IMAGE_NAME: ${{ vars.IMAGE_NAME_BACKEND }}
-        DB_HOST: ${{ secrets.DB_HOST }}
-        VPC_NAME: ${{ vars.VPC_NAME }}
-        SUBNET_NAME: ${{ vars.BACKEND_SUBNET }}
-        ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        PORT: 8000
-        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-        MAX_WORDS_TRANSLATION: ${{ github.event.inputs.max_words_translation }}
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      SERVICE_REGION: ${{ vars.SERVICE_REGION }}
+      DB_REGION: ${{ vars.DB_REGION }}
+      MODEL_REGION: ${{ vars.MODEL_REGION }}
+      ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
+      INSTANCE_NAME: ${{ secrets.DB_INSTANCE_NAME }}
+      REP_NAME: native-translator
+      IMAGE_NAME: ${{ vars.IMAGE_NAME_BACKEND }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      VPC_NAME: ${{ vars.VPC_NAME }}
+      SUBNET_NAME: ${{ vars.BACKEND_SUBNET }}
+      ENV_FILE_BACK: ${{ secrets.ENV_FILE_BACK }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      PORT: 8000
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      MAX_WORDS_TRANSLATION: ${{ github.event.inputs.max_words_translation }}
+      SERVICE_NAME_TTS_INFERENCE: ${{ vars.SERVICE_NAME_TTS_INFERENCE }}
+      SERVICE_NAME_RAW_TTS_INFERENCE: ${{ vars.SERVICE_NAME_RAW_TTS_INFERENCE }}
+      SERVICE_NAME_ASR_INFERENCE: ${{ vars.SERVICE_NAME_ASR_INFERENCE }}
+      SERVICE_NAME_RAW_ASR_INFERENCE: ${{ vars.SERVICE_NAME_RAW_ASR_INFERENCE }}
+
     steps:
       - name: Set environment
         id: set-environment
@@ -59,14 +86,16 @@ jobs:
           else
             echo "environment=STAGING" >> $GITHUB_OUTPUT
           fi
+
       - name: Set variant from dispatch event or branch
         id: set-variant
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          if [ ! -z "${{ github.event.inputs.variant }}" ]; then
+          if [ -n "${{ github.event.inputs.variant }}" ]; then
             echo "variant=${{ github.event.inputs.variant }}" >> $GITHUB_OUTPUT
           else
-            # Extract variant from branch name (e.g., main-rap -> rap)
-            VARIANT=$(echo $BRANCH | rev | cut -d'-' -f1 | rev)
+            VARIANT=$(echo "$BRANCH_NAME" | rev | cut -d'-' -f1 | rev)
             if [[ "$VARIANT" != "rap" && "$VARIANT" != "arn" ]]; then
               echo "Invalid variant: $VARIANT. Must be one of: rap, arn"
               exit 1
@@ -74,54 +103,63 @@ jobs:
               echo "variant=$VARIANT" >> $GITHUB_OUTPUT
             fi
           fi
+
       - name: Check out code
-        uses: actions/checkout@v3
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v0.4.0'
+        uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+          export_environment_variables: true
+
       - name: Set up Cloud SDK
-        uses: 'google-github-actions/setup-gcloud@v2'
+        uses: google-github-actions/setup-gcloud@v2
         with:
           version: '>= 416.0.0'
-      - name: 'Create env file'
-        working-directory: Backend/translatorapp_v2/
-        run: |
-          echo "${{ env.ENV_FILE_BACK }}" > .env
-          echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
-          echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
-      - name: Build Docker Image
-        working-directory: Backend/translatorapp_v2/
-        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
-
-      - name: Configure Docker Client # aunthenticate to rep
-        run: |-
-          gcloud auth configure-docker --quiet
-          gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
-
-      - name: Push Docker Image to Artifact Registry
-        run: |-
-          ARTIFACT_REGISTRY_URL=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          echo "Artifact Registry URL: $ARTIFACT_REGISTRY_URL"
-          echo "ARTIFACT_REGISTRY_URL=$ARTIFACT_REGISTRY_URL" >> $GITHUB_ENV
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $ARTIFACT_REGISTRY_URL
-          docker push $ARTIFACT_REGISTRY_URL
 
       - name: Get Cloud Run Service URLs
         id: get-urls
         run: |
           echo "Service Region: ${{ env.SERVICE_REGION }}"
-          echo "Region: ${{ env.ARTIFACT_REGION }}"
+          echo "Artifact Region: ${{ env.ARTIFACT_REGION }}"
+
           SERVICE_NAME_INFERENCE=${{ vars.SERVICE_NAME_INFERENCE }}-${{ steps.set-variant.outputs.variant }}
           SERVICE_NAME_RAW_INFERENCE=${{ vars.SERVICE_NAME_RAW_INFERENCE }}
           echo "Service Name Inference: $SERVICE_NAME_INFERENCE"
           echo "Service Name Raw Inference: $SERVICE_NAME_RAW_INFERENCE"
-          INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
-          RAW_INFERENCE_URL=$(gcloud run services describe $SERVICE_NAME_RAW_INFERENCE --platform managed --region ${{ env.MODEL_REGION }} --format 'value(status.url)')
+          INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+          RAW_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+
+          SERVICE_NAME_TTS_INFERENCE=${{ env.SERVICE_NAME_TTS_INFERENCE }}
+          SERVICE_NAME_RAW_TTS_INFERENCE=${{ env.SERVICE_NAME_RAW_TTS_INFERENCE }}
+          echo "Service Name TTS Inference: $SERVICE_NAME_TTS_INFERENCE"
+          echo "Service Name Raw TTS Inference: $SERVICE_NAME_RAW_TTS_INFERENCE"
+          TTS_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_TTS_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+          RAW_TTS_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_TTS_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+
+          SERVICE_NAME_ASR_INFERENCE=${{ env.SERVICE_NAME_ASR_INFERENCE }}
+          SERVICE_NAME_RAW_ASR_INFERENCE=${{ env.SERVICE_NAME_RAW_ASR_INFERENCE }}
+
+          if [[ -z "$SERVICE_NAME_ASR_INFERENCE" ]]; then
+            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+              SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}"
+            else
+              SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}-staging"
+            fi
+          fi
+          if [[ -z "$SERVICE_NAME_RAW_ASR_INFERENCE" ]]; then
+            SERVICE_NAME_RAW_ASR_INFERENCE="$SERVICE_NAME_ASR_INFERENCE"
+          fi
+
+          echo "Service Name ASR Inference: $SERVICE_NAME_ASR_INFERENCE"
+          echo "Service Name Raw ASR Inference: $SERVICE_NAME_RAW_ASR_INFERENCE"
+          ASR_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_ASR_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+          RAW_ASR_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_ASR_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+
           if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
             if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
-              # in production, both urls are the same
               FRONTEND_URL=${{ vars.URL_RAP }}
               BACKEND_URL=${{ vars.URL_RAP }}
             else
@@ -131,40 +169,93 @@ jobs:
           else
             SERVICE_NAME_BACKEND=${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}
             SERVICE_NAME_FRONTEND=${{ vars.SERVICE_NAME_FRONTEND }}-${{ steps.set-variant.outputs.variant }}
-            # in staging, frontend url is the backend url
-            BACKEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
-            FRONTEND_URL=$(gcloud run services describe $SERVICE_NAME_FRONTEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
+            BACKEND_URL=$(gcloud run services describe "$SERVICE_NAME_BACKEND" --platform managed --region "${{ env.SERVICE_REGION }}" --format 'value(status.url)')
+            FRONTEND_URL=$(gcloud run services describe "$SERVICE_NAME_FRONTEND" --platform managed --region "${{ env.SERVICE_REGION }}" --format 'value(status.url)')
           fi
+
           echo "Inference URL: $INFERENCE_URL"
           echo "Raw Inference URL: $RAW_INFERENCE_URL"
           echo "Frontend URL: $FRONTEND_URL"
           echo "Backend URL: $BACKEND_URL"
+          echo "TTS Inference URL: $TTS_INFERENCE_URL"
+          echo "Raw TTS Inference URL: $RAW_TTS_INFERENCE_URL"
+          echo "ASR Inference URL: $ASR_INFERENCE_URL"
+          echo "Raw ASR Inference URL: $RAW_ASR_INFERENCE_URL"
+
           echo "INFERENCE_URL=$INFERENCE_URL" >> $GITHUB_ENV
           echo "RAW_INFERENCE_URL=$RAW_INFERENCE_URL" >> $GITHUB_ENV
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
           echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
+          echo "TTS_INFERENCE_URL=$TTS_INFERENCE_URL" >> $GITHUB_ENV
+          echo "RAW_TTS_INFERENCE_URL=$RAW_TTS_INFERENCE_URL" >> $GITHUB_ENV
+          echo "ASR_INFERENCE_URL=$ASR_INFERENCE_URL" >> $GITHUB_ENV
+          echo "RAW_ASR_INFERENCE_URL=$RAW_ASR_INFERENCE_URL" >> $GITHUB_ENV
+
+      - name: 'Create env file'
+        working-directory: Backend/translatorapp_v2/
+        run: |
+          cat > .env << 'EOF'
+          ${{ env.ENV_FILE_BACK }}
+          EOF
+          echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
+          echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
+          echo "APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}" >> .env
+          echo "APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}" >> .env
+
+          echo "=== Generated .env file (first 20 lines) ==="
+          head -n 20 .env || true
+          echo "=== Total lines in .env ==="
+          wc -l .env || true
+
+      - name: Build Docker Image
+        working-directory: Backend/translatorapp_v2/
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Configure Docker Client
+        run: |
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
+
+      - name: Push Docker Image to Artifact Registry
+        run: |
+          ARTIFACT_REGISTRY_URL=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ steps.set-variant.outputs.variant }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          echo "Artifact Registry URL: $ARTIFACT_REGISTRY_URL"
+          echo "ARTIFACT_REGISTRY_URL=$ARTIFACT_REGISTRY_URL" >> $GITHUB_ENV
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} "$ARTIFACT_REGISTRY_URL"
+          docker push "$ARTIFACT_REGISTRY_URL"
 
       - name: Deploy to cloud run
-        uses: 'google-github-actions/deploy-cloudrun@v2'
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: '${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}'
           image: ${{ env.ARTIFACT_REGISTRY_URL }}
           env_vars: |-
             SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}
-            PRODUCTION=True
+            PRODUCTION=${{ steps.set-environment.outputs.environment == 'PRODUCTION' && 'True' || 'False' }}
             TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
             VARIANT=${{ steps.set-variant.outputs.variant }}
             DB_HOST=${{ env.DB_HOST }}
+            DB_PASSWORD=${{ env.DB_PASSWORD }}
             APP_FRONTEND_URL=${{ env.FRONTEND_URL }}
             APP_BACKEND_URL=${{ env.BACKEND_URL }}
             DB_NAME=${{ steps.set-variant.outputs.variant }}
             INVITATION_GUIDE_URL=${{ env.FRONTEND_URL }}
-            INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.INSTANCE_NAME }}
+            INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }}
             APP_INFERENCE_MODEL_NAME=${{ github.event.inputs.model_name }}
             APP_RAW_INFERENCE_MODEL_NAME=${{ github.event.inputs.raw_model_name }}
             APP_INFERENCE_MODEL_URL=${{ env.INFERENCE_URL }}
             APP_RAW_INFERENCE_MODEL_URL=${{ env.RAW_INFERENCE_URL }}
+            APP_INFERENCE_TTS_MODEL_NAME=${{ github.event.inputs.tts_model_name }}
+            APP_RAW_INFERENCE_TTS_MODEL_NAME=${{ github.event.inputs.raw_tts_model_name }}
+            APP_INFERENCE_TTS_MODEL_URL=${{ env.TTS_INFERENCE_URL }}
+            APP_RAW_INFERENCE_TTS_MODEL_URL=${{ env.RAW_TTS_INFERENCE_URL }}
+            APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}
+            APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}
+            APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}
+            APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
-          timeout: '5m'
+          timeout: '10m' # TODO
           flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }} --max-instances=10 --concurrency=80'

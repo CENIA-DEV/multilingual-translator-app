@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
 import hashlib
 import uuid
 from datetime import timedelta
@@ -91,6 +92,8 @@ class TranslationPair(models.Model):
     validated = models.BooleanField(default=False)
     model_name = models.CharField(max_length=100, null=True)
     model_version = models.CharField(max_length=100, null=True)
+    is_uncertain = models.BooleanField(default=False, null=True)  # TODO: ask about this
+
     user = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="user"
     )
@@ -208,3 +211,211 @@ class Profile(models.Model):
 
     def __str__(self):
         return "Profile of " + str(self.user)
+
+
+class TextToSpeechAudio(models.Model):
+    text = models.TextField(max_length=5000)  # TODO: define this with team
+    language = models.ForeignKey("Lang", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tts_audios",
+    )
+
+    # user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
+
+    model_name = models.CharField(max_length=100, null=True)
+    model_version = models.CharField(max_length=100, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["language"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["model_name", "model_version"]),
+        ]
+
+
+class SpeechToTextAudio(models.Model):
+
+    text = models.TextField(max_length=5000)  # Original model transcription
+    language = models.ForeignKey("Lang", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    audio_data = models.TextField(null=True, blank=True)  # Store base64 string
+    audio_format = models.CharField(
+        max_length=10, null=True, blank=True
+    )  # e.g., 'wav', 'mp3', 'webm'
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="asr_audios",
+    )
+
+    model_name = models.CharField(max_length=100, null=True)
+    model_version = models.CharField(max_length=100, null=True)
+
+    validated_text = models.TextField(max_length=5000, null=True, blank=True)
+    validated = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["language"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["model_name", "model_version"]),
+            models.Index(fields=["validated"]),
+        ]
+
+    def get_audio_bytes(self):
+        """Decode base64 audio data back to bytes"""
+        if self.audio_data:
+            return base64.b64decode(self.audio_data)
+        return None
+
+
+class GeneralSuggestion(models.Model):
+    """
+    Model for general user suggestions/comments
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="general_suggestions",
+    )
+    comment = models.TextField(max_length=5000)
+
+    # Optional: Keep language context if user was translating
+    # src_lang = models.ForeignKey(
+    #    Lang,
+    #    related_name="suggestion_src_lang",
+    #    on_delete=models.SET_NULL,
+    #    null=True,
+    #    blank=True
+    # )
+    # dst_lang = models.ForeignKey(
+    #    Lang,
+    #    related_name="suggestion_dst_lang",
+    #    on_delete=models.SET_NULL,
+    #    null=True,
+    #    blank=True
+    # )
+
+    # Admin review fields
+    reviewed = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_suggestions",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["reviewed"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        user_email = self.user.email if self.user else "Anonymous"
+        return f"{user_email} - {self.created_at}"
+
+
+class CacheTTS(models.Model):
+    """
+    Cache for Text-to-Speech results to avoid redundant model calls.
+    Stores text and its corresponding audio in base64 format.
+    """
+
+    text = models.TextField(max_length=5000)
+    language = models.ForeignKey("Lang", on_delete=models.CASCADE)
+
+    # Store the generated audio in base64
+    audio_data = models.TextField()  # Base64 encoded audio
+    audio_format = models.CharField(max_length=10, default="wav")  # e.g., 'wav', 'mp3'
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["text", "language"]),
+        ]
+        # Ensure uniqueness for same text + language + model
+        unique_together = [["text", "language"]]
+
+    def get_audio_bytes(self):
+        """Decode base64 audio data back to bytes"""
+        if self.audio_data:
+            return base64.b64decode(self.audio_data)
+        return None
+
+
+class TranslationRequest(models.Model):
+    """
+    Simple table to track all translation requests.
+    Stores every translation that users request, regardless of feedback.
+    """
+
+    src_lang = models.ForeignKey(
+        Lang,
+        related_name="src_translation_requests",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+    dst_lang = models.ForeignKey(
+        Lang,
+        related_name="dst_translation_requests",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    src_text = models.TextField(max_length=10000)
+    dst_text = models.TextField(max_length=10000)
+
+    # Track which user made the request (null for anonymous)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="translation_requests",
+    )
+
+    # Model info
+    model_name = models.CharField(max_length=100, null=True)
+    model_version = models.CharField(max_length=100, null=True)
+
+    # Track if translation came from cache or model
+    from_cache = models.BooleanField(default=False)
+
+    client_request_id = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, db_index=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["src_lang", "dst_lang"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["from_cache"]),
+            models.Index(fields=["model_name", "model_version"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.src_lang.code} → {self.dst_lang.code} | {self.created_at}"

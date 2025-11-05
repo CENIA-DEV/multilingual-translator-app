@@ -10,6 +10,9 @@ on:
           - rap
           - arn
           - raw
+          - tts
+          - asr
+          - asr-backup  # ✅ New option for backup ASR
 
       model_path:
         description: 'Model path'
@@ -42,25 +45,54 @@ jobs:
         with:
           sparse-checkout: |
             Model/
+
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v0.4.0'
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
           version: '>= 416.0.0'
+
       - name: Download model
         working-directory: Model/
         run: |
           MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
           echo "Using model path: $MODEL_PATH"
-          gcloud storage cp -r $MODEL_PATH .
+          # Create the target directory
+          mkdir -p ${{ github.event.inputs.model_path }}
+          # Download recursively the model from GCS
+          gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
+          # List files to verify download
+          find ${{ github.event.inputs.model_path }} -type f | sort
+
+      - name: Set Dockerfile path
+        id: set-dockerfile
+        run: |
+          if [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "dockerfile=Dockerfile.audio" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+            echo "dockerfile=Dockerfile.asr" >> $GITHUB_OUTPUT
+          else
+            echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build Docker Image
         working-directory: Model/
         run: |
-          docker build -t model:${{ github.sha }} .
+          echo "Using dockerfile: ${{ steps.set-dockerfile.outputs.dockerfile }}"
+          # Pass the HF token as a build argument when building the ASR model
+          if [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+            docker build \
+              --build-arg HF_TOKEN=${{ secrets.HUGGING_FACE_TOKEN }} \
+              -t model:${{ github.sha }} \
+              -f ${{ steps.set-dockerfile.outputs.dockerfile }} .
+          else
+            docker build -t model:${{ github.sha }} -f ${{ steps.set-dockerfile.outputs.dockerfile }} .
+          fi
 
       - name: Configure Docker Client # aunthenticate to rep
         run: |-
