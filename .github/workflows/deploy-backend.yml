@@ -107,8 +107,8 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud'
+      - id: auth
+        name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
@@ -257,5 +257,5 @@ jobs:
             APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
-          timeout: '10m'
-          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }} --max-instances=10
+          timeout: '10m' # TODO
+          flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }} --max-instances=10 --concurrency=80'
