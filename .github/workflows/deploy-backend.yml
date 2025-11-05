@@ -180,13 +180,20 @@ jobs:
       - name: 'Create env file'
         working-directory: Backend/translatorapp_v2/
         run: |
-          echo "${{ env.ENV_FILE_BACK }}" > .env
+          cat > .env << 'EOF'
+          ${{ env.ENV_FILE_BACK }}
+          EOF
           echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
           echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
           echo "APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}" >> .env
           echo "APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}" >> .env
           echo "APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}" >> .env
           echo "APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}" >> .env
+
+          echo "=== Generated .env file (first 20 lines) ==="
+          head -n 20 .env
+          echo "=== Total lines in .env ==="
+          wc -l .env
 
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/
