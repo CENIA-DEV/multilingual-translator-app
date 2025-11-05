@@ -990,7 +990,7 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             logger.warning(f"Invalid ASR request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=["patch"], parser_classes=[JSONParser])
+    @action(detail=True, methods=["patch", "post"], parser_classes=[JSONParser])
     def validate_transcription(self, request, pk=None):
         """
         Update transcription with user's validated text.
