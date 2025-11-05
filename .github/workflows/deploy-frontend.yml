@@ -46,6 +46,14 @@ jobs:
         SERVICE_NAME_BACKEND: ${{ vars.SERVICE_NAME_BACKEND }}
         MAX_WORDS_TRANSLATION: ${{ github.event.inputs.max_words_translation }}
     steps:
+      - name: Set environment
+        id: set-environment
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment=PRODUCTION" >> $GITHUB_OUTPUT
+          else
+            echo "environment=STAGING" >> $GITHUB_OUTPUT
+          fi
       - name: Set variant from dispatch event or branch
         id: set-variant
         run: |
@@ -58,9 +66,9 @@ jobs:
       - name: Set GA Measurement ID based on variant
         id: set-ga-id
         run: |
-          if [ "${{ steps.set-variant.outputs.variant }}" = "rap"  && "${{ github.event.inputs.environment }}" = "PRODUCTION" ]; then
+          if [ "${{ steps.set-variant.outputs.variant }}" = "rap"  && "${{ steps.set-environment.outputs.environment }}" = "PRODUCTION" ]; then
             echo "ga_id=${{ secrets.GA_MEASUREMENT_ID_RAP }}" >> $GITHUB_OUTPUT
-          elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" && "${{ github.event.inputs.environment }}" = "PRODUCTION" ]; then
+          elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" && "${{ steps.set-environment.outputs.environment }}" = "PRODUCTION" ]; then
             echo "ga_id=${{ secrets.GA_MEASUREMENT_ID_ARN }}" >> $GITHUB_OUTPUT
           fi
       - name: Check out code
@@ -88,7 +96,7 @@ jobs:
           echo "NEXT_PUBLIC_ASR_REQUIRES_AUTH=${{ github.event.inputs.asr_requires_auth }}" >> .env.production
 
           # if not production, set the api url to the backend url so we dont use relative path
-          if [ "${{ github.event.inputs.environment }}" != "PRODUCTION" ]; then
+          if [ "${{ steps.set-environment.outputs.environment }}" != "PRODUCTION" ]; then
             SERVICE_NAME_BACKEND=${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}
             echo "SERVICE_NAME_BACKEND: ${SERVICE_NAME_BACKEND}"
             BACKEND_URL=$(gcloud run services describe $SERVICE_NAME_BACKEND --platform managed --region ${{ env.SERVICE_REGION }} --format 'value(status.url)')
