@@ -134,6 +134,17 @@ jobs:
 
           SERVICE_NAME_TTS_INFERENCE=${{ env.SERVICE_NAME_TTS_INFERENCE }}
           SERVICE_NAME_RAW_TTS_INFERENCE=${{ env.SERVICE_NAME_RAW_TTS_INFERENCE }}
+          # Fallbacks for TTS (missing only in PRODUCTION)
+          if [[ -z "$SERVICE_NAME_TTS_INFERENCE" ]]; then
+            if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
+              SERVICE_NAME_TTS_INFERENCE="tts-${{ steps.set-variant.outputs.variant }}"
+            else
+              SERVICE_NAME_TTS_INFERENCE="tts-${{ steps.set-variant.outputs.variant }}-staging"
+            fi
+          fi
+          if [[ -z "$SERVICE_NAME_RAW_TTS_INFERENCE" ]]; then
+            SERVICE_NAME_RAW_TTS_INFERENCE="$SERVICE_NAME_TTS_INFERENCE"
+          fi
           echo "Service Name TTS Inference: $SERVICE_NAME_TTS_INFERENCE"
           echo "Service Name Raw TTS Inference: $SERVICE_NAME_RAW_TTS_INFERENCE"
           TTS_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_TTS_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
@@ -141,9 +152,8 @@ jobs:
 
           SERVICE_NAME_ASR_INFERENCE=${{ env.SERVICE_NAME_ASR_INFERENCE }}
           SERVICE_NAME_RAW_ASR_INFERENCE=${{ env.SERVICE_NAME_RAW_ASR_INFERENCE }}
-
           if [[ -z "$SERVICE_NAME_ASR_INFERENCE" ]]; then
-            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
               SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}"
             else
               SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}-staging"
@@ -152,7 +162,6 @@ jobs:
           if [[ -z "$SERVICE_NAME_RAW_ASR_INFERENCE" ]]; then
             SERVICE_NAME_RAW_ASR_INFERENCE="$SERVICE_NAME_ASR_INFERENCE"
           fi
-
           echo "Service Name ASR Inference: $SERVICE_NAME_ASR_INFERENCE"
           echo "Service Name Raw ASR Inference: $SERVICE_NAME_RAW_ASR_INFERENCE"
           ASR_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_ASR_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
@@ -172,15 +181,6 @@ jobs:
             BACKEND_URL=$(gcloud run services describe "$SERVICE_NAME_BACKEND" --platform managed --region "${{ env.SERVICE_REGION }}" --format 'value(status.url)')
             FRONTEND_URL=$(gcloud run services describe "$SERVICE_NAME_FRONTEND" --platform managed --region "${{ env.SERVICE_REGION }}" --format 'value(status.url)')
           fi
-
-          echo "Inference URL: $INFERENCE_URL"
-          echo "Raw Inference URL: $RAW_INFERENCE_URL"
-          echo "Frontend URL: $FRONTEND_URL"
-          echo "Backend URL: $BACKEND_URL"
-          echo "TTS Inference URL: $TTS_INFERENCE_URL"
-          echo "Raw TTS Inference URL: $RAW_TTS_INFERENCE_URL"
-          echo "ASR Inference URL: $ASR_INFERENCE_URL"
-          echo "Raw ASR Inference URL: $RAW_ASR_INFERENCE_URL"
 
           echo "INFERENCE_URL=$INFERENCE_URL" >> $GITHUB_ENV
           echo "RAW_INFERENCE_URL=$RAW_INFERENCE_URL" >> $GITHUB_ENV
