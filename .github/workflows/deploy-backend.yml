@@ -111,6 +111,10 @@ jobs:
           echo "${{ env.ENV_FILE_BACK }}" > .env
           echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
           echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
+          echo "APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}" >> .env
+          echo "APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}" >> .env
+          echo "APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}" >> .env
 
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/
