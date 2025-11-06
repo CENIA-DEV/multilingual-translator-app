@@ -417,7 +417,6 @@ export default function Translator() {
   // TTS Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
     if (!isLoggedIn || TTSRestricted || !text?.trim()) return;
-    if (isLoadingAudio || isSpeaking) return;  // NEW guard
 
     setTtsError('');
     setIsSpeaking(true);
