@@ -157,6 +157,10 @@ export default function Translator() {
   // TTS (API-only): ES/EN/RAP
   const isTTSSideAllowed = (l) => isES(l) || isEN(l) || isRAP(l);
 
+  // ASR helpers (add these missing functions)
+  const isASRLang = (l) => isES(l) || isRAP(l); // ASR works for Spanish and Rapa Nui
+  const isASRSourceAllowed = (l) => isES(l); // Upload audio only available for Spanish source
+
   // --- dinamics flags ---
 
   // TTS buttons: only show if not restricted OR user is logged in
