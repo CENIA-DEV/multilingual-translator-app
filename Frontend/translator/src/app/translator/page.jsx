@@ -159,21 +159,15 @@ export default function Translator() {
 
   // --- dinamics flags ---
 
-  // TODO: BLOCK FOR USERS NOT AUTHENTICATED
-
-  //const TTS_ENABLED_SRC_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(srcLang); // speaker izquierda
-  //const TTS_ENABLED_DST_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
-  
-  const TTS_ENABLED_SRC_D = isLoggedIn && !TTSRestricted && isTTSSideAllowed(srcLang); // speaker izquierda
-  const TTS_ENABLED_DST_D = isLoggedIn && !TTSRestricted && isTTSSideAllowed(dstLang); // speaker derecha
+  // TTS buttons: only show if not restricted OR user is logged in
+  const TTS_ENABLED_SRC_D = !TTSRestricted && isTTSSideAllowed(srcLang);
+  const TTS_ENABLED_DST_D = !TTSRestricted && isTTSSideAllowed(dstLang);
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
-  // Add ASR dynamic flags
-  const isASRSourceAllowed = (l) => isES(l) || isEN(l) || isRAP(l);   // ES/EN/RAP accepted by ASR
-  const isASRLang          = (l) => isES(l) || isRAP(l);              // ES/RAP only (your rule)
-  const ASR_MIC_VISIBLE_D    = isLoggedIn && !ASRRestricted && (isASRLang(srcLang) || isASRLang(dstLang));
-  const ASR_UPLOAD_VISIBLE_D = isLoggedIn && !ASRRestricted && isASRSourceAllowed(srcLang);
+  // ASR buttons: only show if not restricted OR user is logged in
+  const ASR_MIC_VISIBLE_D    = !ASRRestricted && (isASRLang(srcLang) || isASRLang(dstLang));
+  const ASR_UPLOAD_VISIBLE_D = !ASRRestricted && isASRSourceAllowed(srcLang);
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
