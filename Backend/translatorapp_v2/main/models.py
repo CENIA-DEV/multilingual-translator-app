@@ -14,6 +14,7 @@
 # limitations under the License.
 import base64
 import hashlib
+import os
 import uuid
 from datetime import timedelta
 
@@ -21,7 +22,19 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.functions import Upper
 from django.utils import timezone
-from utils import get_asr_audio_upload_path
+
+
+def get_asr_audio_upload_path(instance, filename):
+    """
+    Generates a unique path for uploaded ASR audio files.
+    e.g., asr_audios/2025/11/13/some-uuid.wav
+    """
+    ext = filename.split(".")[-1]
+    unique_id = uuid.uuid4().hex
+    now = timezone.now()
+    return os.path.join(
+        "asr_audios", str(now.year), str(now.month), str(now.day), f"{unique_id}.{ext}"
+    )
 
 
 class PasswordResetToken(models.Model):
