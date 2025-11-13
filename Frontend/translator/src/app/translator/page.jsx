@@ -157,23 +157,24 @@ export default function Translator() {
   // TTS (API-only): ES/EN/RAP
   const isTTSSideAllowed = (l) => isES(l) || isEN(l) || isRAP(l);
 
+  // ASR helpers (add these missing functions)
+  const isASRLang = (l) => isES(l) || isRAP(l); // ASR works for Spanish and Rapa Nui
+  const isASRSourceAllowed = (l) => isES(l); // Upload audio only available for Spanish source
+
   // --- dinamics flags ---
 
-  // TODO: BLOCK FOR USERS NOT AUTHENTICATED
-
-  //const TTS_ENABLED_SRC_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(srcLang); // speaker izquierda
-  //const TTS_ENABLED_DST_D = !translationRestricted && TTS_ENABLED && isTTSSideAllowed(dstLang); // speaker derecha
-  
-  const TTS_ENABLED_SRC_D = isLoggedIn && !TTSRestricted && isTTSSideAllowed(srcLang); // speaker izquierda
-  const TTS_ENABLED_DST_D = isLoggedIn && !TTSRestricted && isTTSSideAllowed(dstLang); // speaker derecha
+  // TTS buttons: only show if not restricted OR user is logged in
+  // const TTS_ENABLED_SRC_D = !TTSRestricted && isTTSSideAllowed(srcLang);
+  // const TTS_ENABLED_DST_D = !TTSRestricted && isTTSSideAllowed(dstLang);
+  // Make visibility depend on being logged in to avoid dead clicks.
+  const TTS_ENABLED_SRC_D = isTTSSideAllowed(srcLang);
+  const TTS_ENABLED_DST_D = isTTSSideAllowed(dstLang);
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
-  // Add ASR dynamic flags
-  const isASRSourceAllowed = (l) => isES(l) || isEN(l) || isRAP(l);   // ES/EN/RAP accepted by ASR
-  const isASRLang          = (l) => isES(l) || isRAP(l);              // ES/RAP only (your rule)
-  const ASR_MIC_VISIBLE_D    = isLoggedIn && !ASRRestricted && (isASRLang(srcLang) || isASRLang(dstLang));
-  const ASR_UPLOAD_VISIBLE_D = isLoggedIn && !ASRRestricted && isASRSourceAllowed(srcLang);
+  // ASR buttons: show if language is supported
+  const ASR_MIC_VISIBLE_D = isASRLang(srcLang) || isASRLang(dstLang);
+  const ASR_UPLOAD_VISIBLE_D = isASRSourceAllowed(srcLang);
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -418,8 +419,15 @@ export default function Translator() {
   
   // TTS Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
-    if (!isLoggedIn || TTSRestricted || !text?.trim()) return;
-    if (isLoadingAudio || isSpeaking) return;  // NEW guard
+    // Early return only for empty text
+    if (!text?.trim()) return;
+
+    // If user cannot use TTS, show the same login dialog used by translation (and a toast)
+    if (TTSRestricted) {
+      setTranslationRestrictedDialogOpen(true);
+      toast("Debe iniciar sesión para usar la síntesis de voz", { duration: 4000 });
+      return;
+    }
 
     setTtsError('');
     setIsSpeaking(true);
@@ -779,17 +787,6 @@ export default function Translator() {
       const prevSrc = srcLang, prevDst = dstLang;
       setSrcLang(prevDst);
       setDstLang(prevSrc);
-    }
-    const hint = which === 'target' ? dstHint : srcHint;
-    if (!hint) return; // guard
-    setAsrStatus('transcribing');
-    handleTranscribeBlob(lastRecordingBlobRef.current, 'grabacion.webm', hint)
-      .catch(() => setAsrStatus('error'));
-  }
-
-  async function handleTranscribeBlob(blob, filename = 'audio.webm', overrideHint) {
-    const maxBytes = (Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB ?? 25)) * 1024 * 1024;
-    if (blob.size > maxBytes) {
       setAsrStatus('error');
       toast(`El archivo supera ${process.env.NEXT_PUBLIC_MAX_AUDIO_MB || 25} MB.`);
       return;
@@ -1540,7 +1537,7 @@ export default function Translator() {
 				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
 							
                 onClick={async () => {
-                  if (translationRestricted) {
+                  if (ASRRestricted) {
                     setTranslationRestrictedDialogOpen(true);
                     return;
                   }
