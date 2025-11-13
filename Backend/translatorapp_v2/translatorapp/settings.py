@@ -305,6 +305,9 @@ STORAGES = {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
         "OPTIONS": {
             "bucket_name": "platform-uploaded-audios",
+            "iam_sign_blob": True,
+            "querystring_auth": True
+            
         },
     },
     # For static files (CSS, JS, etc.) used by `collectstatic`
