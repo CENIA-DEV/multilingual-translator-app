@@ -304,7 +304,7 @@ STORAGES = {
     "default": {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
         "OPTIONS": {
-            "bucket_name": " platform-uploaded-audios",
+            "bucket_name": "platform-uploaded-audios",
         },
     },
     # For static files (CSS, JS, etc.) used by `collectstatic`
