@@ -25,8 +25,8 @@ sqlparse==0.5.1
 typing_extensions==4.12.2
 tzdata==2024.1
 requests==2.32.3
-#django-storages[google]
 resampy
 soundfile
 librosa
 ffmpeg-python
+django-storages[google]

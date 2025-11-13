@@ -246,7 +246,9 @@ class SpeechToTextAudio(models.Model):
     language = models.ForeignKey("Lang", on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    audio_data = models.TextField(null=True, blank=True)  # Store base64 string
+    audio_file = models.FileField(
+        upload_to="asr_audios/", null=True, blank=True
+    )  # Store file in GCS
     audio_format = models.CharField(
         max_length=10, null=True, blank=True
     )  # e.g., 'wav', 'mp3', 'webm'
@@ -275,9 +277,13 @@ class SpeechToTextAudio(models.Model):
         ]
 
     def get_audio_bytes(self):
-        """Decode base64 audio data back to bytes"""
-        if self.audio_data:
-            return base64.b64decode(self.audio_data)
+        """Read audio file content as bytes"""
+        if self.audio_file:
+            try:
+                self.audio_file.open("rb")
+                return self.audio_file.read()
+            finally:
+                self.audio_file.close()
         return None
 
 

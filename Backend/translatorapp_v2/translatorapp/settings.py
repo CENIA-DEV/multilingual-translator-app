@@ -171,7 +171,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
-    # "storages"
+    "storages",
 ]
 
 REST_FRAMEWORK = {
@@ -266,6 +266,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media")
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -292,8 +297,18 @@ TRANSLATION_REQUIRES_AUTH = (
     os.environ.get("TRANSLATION_REQUIRES_AUTH", "false").lower() == "true"
 )
 
-# TODO: Configure to store audios in GCP
-
-# DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
-# GS_BUCKET_NAME = ''
-# STATICFILES_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+# Custom storage configuration with django-storages
+# https://django-storages.readthedocs.io/en/latest/django.html
+STORAGES = {
+    # For user-uploaded media files (e.g., audios)
+    "default": {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        "OPTIONS": {
+            "bucket_name": " platform-uploaded-audios",
+        },
+    },
+    # For static files (CSS, JS, etc.) used by `collectstatic`
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
