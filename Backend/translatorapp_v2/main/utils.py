@@ -17,8 +17,10 @@ import hashlib
 import io
 import json
 import logging
+import os
 import re
 import unicodedata
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -650,3 +652,16 @@ def get_hashed_token(token):
     hash_object.update(token.encode("utf-8"))
     hashed_token = hash_object.hexdigest()
     return hashed_token
+
+
+def get_asr_audio_upload_path(instance, filename):
+    """
+    Generates a unique path for uploaded ASR audio files.
+    e.g., asr_audios/2025/11/13/some-uuid.wav
+    """
+    ext = filename.split(".")[-1]
+    unique_id = uuid.uuid4().hex
+    now = timezone.now()
+    return os.path.join(
+        "asr_audios", str(now.year), str(now.month), str(now.day), f"{unique_id}.{ext}"
+    )

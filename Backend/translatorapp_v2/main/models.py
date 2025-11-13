@@ -21,6 +21,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.functions import Upper
 from django.utils import timezone
+from utils import get_asr_audio_upload_path
 
 
 class PasswordResetToken(models.Model):
@@ -247,7 +248,7 @@ class SpeechToTextAudio(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     audio_file = models.FileField(
-        upload_to="asr_audios/", null=True, blank=True
+        upload_to=get_asr_audio_upload_path, null=True, blank=True
     )  # Store file in GCS
     audio_format = models.CharField(
         max_length=10, null=True, blank=True
