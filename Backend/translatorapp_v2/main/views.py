@@ -935,8 +935,11 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
             try:
                 lang_obj = Lang.objects.get(code=language_code)
+
+                # Read audio bytes for processing, then reset pointer
                 audio_bytes = audio_file.read()
-                audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+                audio_file.seek(0)
+
                 audio_format = (
                     audio_file.name.split(".")[-1].lower()
                     if hasattr(audio_file, "name")
@@ -951,7 +954,7 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 audio_obj = SpeechToTextAudio.objects.create(
                     text=transcribed_text,
                     language=lang_obj,
-                    audio_data=audio_base64,
+                    audio_file=audio_file,
                     audio_format=audio_format,
                     model_name=asr_result["model_name"],
                     model_version=asr_result["model_version"],
@@ -964,6 +967,9 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     "id": audio_obj.id,
                     "text": transcribed_text,
                     "language": language_code,
+                    "audio_url": (
+                        audio_obj.audio_file.url if audio_obj.audio_file else None
+                    ),
                     "audio_format": audio_format,
                     "model_name": asr_result["model_name"],
                     "model_version": asr_result["model_version"],
