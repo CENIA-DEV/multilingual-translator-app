@@ -232,6 +232,7 @@ jobs:
           service: '${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}'
           image: ${{ env.ARTIFACT_REGISTRY_URL }}
           env_vars: |-
+            GOOGLE_APPLICATION_CREDENTIALS_JSON='${{ secrets.GCP_CREDENTIALS }}'
             SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}
             PRODUCTION=${{ steps.set-environment.outputs.environment == 'PRODUCTION' && 'True' || 'False' }}
             TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
@@ -257,5 +258,5 @@ jobs:
             APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
-          timeout: '10m' # TODO
+          timeout: '10m'
           flags: '--set-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }} --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --port=${{ env.PORT }} --max-instances=10 --concurrency=80'

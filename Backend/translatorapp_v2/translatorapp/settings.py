@@ -12,11 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import os
 from urllib.parse import urlparse
 
 from django.utils.translation import gettext_lazy as _
 from dotenv import load_dotenv
+from google.oauth2 import service_account
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -297,6 +299,16 @@ TRANSLATION_REQUIRES_AUTH = (
     os.environ.get("TRANSLATION_REQUIRES_AUTH", "false").lower() == "true"
 )
 
+# Load Google service account credentials from injected JSON env var
+GS_CREDENTIALS = None
+if os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
+    try:
+        _creds = json.loads(os.environ["GOOGLE_APPLICATION_CREDENTIALS_JSON"])
+        GS_CREDENTIALS = service_account.Credentials.from_service_account_info(_creds)
+    except Exception as e:
+        # keep minimal, but print so deploy logs show the problem
+        print("Failed to load GOOGLE_APPLICATION_CREDENTIALS_JSON:", e)
+
 # Custom storage configuration with django-storages
 # https://django-storages.readthedocs.io/en/latest/django.html
 STORAGES = {
@@ -306,8 +318,8 @@ STORAGES = {
         "OPTIONS": {
             "bucket_name": "platform-uploaded-audios",
             "iam_sign_blob": True,
-            "querystring_auth": True
-            
+            "querystring_auth": True,
+            "credentials": GS_CREDENTIALS,
         },
     },
     # For static files (CSS, JS, etc.) used by `collectstatic`
