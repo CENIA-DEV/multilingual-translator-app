@@ -36,7 +36,7 @@ import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { API_ENDPOINTS, isTranslationRestricted,isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB } from '../constants';
+import { API_ENDPOINTS, isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -154,12 +154,12 @@ export default function Translator() {
   const isEN  = (l) => codeOf(l).startsWith('eng');
   const isRAP = (l) => codeOf(l).startsWith('rap');
 
-  // TTS (API-only): ES/EN/RAP
-  const isTTSSideAllowed = (l) => isES(l) || isEN(l) || isRAP(l);
+  // TTS (API-only): ES/EN/RAP - but only if TTS_ENABLED
+  const isTTSSideAllowed = (l) => TTS_ENABLED && (isES(l) || isEN(l) || isRAP(l));
 
-  // ASR helpers (add these missing functions)
-  const isASRLang = (l) => isES(l) || isRAP(l); // ASR works for Spanish and Rapa Nui
-  const isASRSourceAllowed = (l) => isES(l); // Upload audio only available for Spanish source
+  // ASR helpers - only if ASR_ENABLED
+  const isASRLang = (l) => ASR_ENABLED && (isES(l) || isRAP(l)); // ASR works for Spanish and Rapa Nui
+  const isASRSourceAllowed = (l) => ASR_ENABLED && isES(l); // Upload audio only available for Spanish source
 
   // --- dinamics flags ---
 
@@ -325,6 +325,12 @@ export default function Translator() {
 
   // Ensure manual click doesn’t collide with the auto-translate effect
   const handleTranslate = async () => {
+    // Check if translation is restricted FIRST
+    if (translationRestricted) {
+      setTranslationRestrictedDialogOpen(true);
+      return;
+    }
+    
     if (translateLockRef.current) return;     // prevent double-click
     translateLockRef.current = true;
 
@@ -709,7 +715,7 @@ export default function Translator() {
   useEffect(() => {
     // Don't auto-translate if translation is restricted and user is not authenticated
     if (translationRestricted) {
-      setTranslationRestrictedDialogOpen(true);
+      // Don't open dialog here - only show lock icon
       return;
     }
 
