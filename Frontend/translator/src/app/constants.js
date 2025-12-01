@@ -42,6 +42,10 @@ export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQ
 export const TTS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TTS_REQUIRES_AUTH === 'true';
 export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === 'true';
 
+// Feature availability by variant
+export const TTS_ENABLED = VARIANT_LANG === 'rap'; // Only enable TTS for Rapa Nui
+export const ASR_ENABLED = VARIANT_LANG === 'rap'; // Only enable ASR for Rapa Nui
+
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;
 
@@ -51,12 +55,11 @@ export const isTranslationRestricted = (currentUser) => {
 };
 
 export const isTTSRestricted = (currentUser) => {
-    return TTS_REQUIRES_AUTH && !currentUser;
-
+    return !TTS_ENABLED || (TTS_REQUIRES_AUTH && !currentUser);
 }
 
 export const isASRRestricted = (currentUser) => {
-    return ASR_REQUIRES_AUTH  && !currentUser;
+    return !ASR_ENABLED || (ASR_REQUIRES_AUTH && !currentUser);
   
 }
 
