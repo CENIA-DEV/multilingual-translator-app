@@ -325,6 +325,12 @@ export default function Translator() {
 
   // Ensure manual click doesn’t collide with the auto-translate effect
   const handleTranslate = async () => {
+    // Check if translation is restricted FIRST
+    if (translationRestricted) {
+      setTranslationRestrictedDialogOpen(true);
+      return;
+    }
+    
     if (translateLockRef.current) return;     // prevent double-click
     translateLockRef.current = true;
 
@@ -709,7 +715,7 @@ export default function Translator() {
   useEffect(() => {
     // Don't auto-translate if translation is restricted and user is not authenticated
     if (translationRestricted) {
-      setTranslationRestrictedDialogOpen(true);
+      // Don't open dialog here - only show lock icon
       return;
     }
 
