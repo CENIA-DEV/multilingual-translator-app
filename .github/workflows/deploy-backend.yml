@@ -132,40 +132,50 @@ jobs:
           INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
           RAW_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
 
-          SERVICE_NAME_TTS_INFERENCE=${{ env.SERVICE_NAME_TTS_INFERENCE }}
-          SERVICE_NAME_RAW_TTS_INFERENCE=${{ env.SERVICE_NAME_RAW_TTS_INFERENCE }}
-          # Fallbacks for TTS (missing only in PRODUCTION)
-          if [[ -z "$SERVICE_NAME_TTS_INFERENCE" ]]; then
-            if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
-              SERVICE_NAME_TTS_INFERENCE="tts-${{ steps.set-variant.outputs.variant }}"
-            else
-              SERVICE_NAME_TTS_INFERENCE="tts-${{ steps.set-variant.outputs.variant }}-staging"
+          # Only get TTS/ASR URLs for 'rap' variant
+          if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
+            SERVICE_NAME_TTS_INFERENCE=${{ env.SERVICE_NAME_TTS_INFERENCE }}
+            SERVICE_NAME_RAW_TTS_INFERENCE=${{ env.SERVICE_NAME_RAW_TTS_INFERENCE }}
+            # Fallbacks for TTS (missing only in PRODUCTION)
+            if [[ -z "$SERVICE_NAME_TTS_INFERENCE" ]]; then
+              if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
+                SERVICE_NAME_TTS_INFERENCE="tts-${{ steps.set-variant.outputs.variant }}"
+              else
+                SERVICE_NAME_TTS_INFERENCE="tts-${{ steps.set-variant.outputs.variant }}-staging"
+              fi
             fi
-          fi
-          if [[ -z "$SERVICE_NAME_RAW_TTS_INFERENCE" ]]; then
-            SERVICE_NAME_RAW_TTS_INFERENCE="$SERVICE_NAME_TTS_INFERENCE"
-          fi
-          echo "Service Name TTS Inference: $SERVICE_NAME_TTS_INFERENCE"
-          echo "Service Name Raw TTS Inference: $SERVICE_NAME_RAW_TTS_INFERENCE"
-          TTS_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_TTS_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
-          RAW_TTS_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_TTS_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+            if [[ -z "$SERVICE_NAME_RAW_TTS_INFERENCE" ]]; then
+              SERVICE_NAME_RAW_TTS_INFERENCE="$SERVICE_NAME_TTS_INFERENCE"
+            fi
+            echo "Service Name TTS Inference: $SERVICE_NAME_TTS_INFERENCE"
+            echo "Service Name Raw TTS Inference: $SERVICE_NAME_RAW_TTS_INFERENCE"
+            TTS_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_TTS_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+            RAW_TTS_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_TTS_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
 
-          SERVICE_NAME_ASR_INFERENCE=${{ env.SERVICE_NAME_ASR_INFERENCE }}
-          SERVICE_NAME_RAW_ASR_INFERENCE=${{ env.SERVICE_NAME_RAW_ASR_INFERENCE }}
-          if [[ -z "$SERVICE_NAME_ASR_INFERENCE" ]]; then
-            if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
-              SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}"
-            else
-              SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}-staging"
+            SERVICE_NAME_ASR_INFERENCE=${{ env.SERVICE_NAME_ASR_INFERENCE }}
+            SERVICE_NAME_RAW_ASR_INFERENCE=${{ env.SERVICE_NAME_RAW_ASR_INFERENCE }}
+            if [[ -z "$SERVICE_NAME_ASR_INFERENCE" ]]; then
+              if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
+                SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}"
+              else
+                SERVICE_NAME_ASR_INFERENCE="asr-${{ steps.set-variant.outputs.variant }}-staging"
+              fi
             fi
+            if [[ -z "$SERVICE_NAME_RAW_ASR_INFERENCE" ]]; then
+              SERVICE_NAME_RAW_ASR_INFERENCE="$SERVICE_NAME_ASR_INFERENCE"
+            fi
+            echo "Service Name ASR Inference: $SERVICE_NAME_ASR_INFERENCE"
+            echo "Service Name Raw ASR Inference: $SERVICE_NAME_RAW_ASR_INFERENCE"
+            ASR_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_ASR_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+            RAW_ASR_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_ASR_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
+          else
+            # For 'arn' variant, set placeholder URLs
+            echo "Skipping TTS/ASR service lookup for variant: ${{ steps.set-variant.outputs.variant }}"
+            TTS_INFERENCE_URL="https://placeholder-tts-url.com"
+            RAW_TTS_INFERENCE_URL="https://placeholder-tts-url.com"
+            ASR_INFERENCE_URL="https://placeholder-asr-url.com"
+            RAW_ASR_INFERENCE_URL="https://placeholder-asr-url.com"
           fi
-          if [[ -z "$SERVICE_NAME_RAW_ASR_INFERENCE" ]]; then
-            SERVICE_NAME_RAW_ASR_INFERENCE="$SERVICE_NAME_ASR_INFERENCE"
-          fi
-          echo "Service Name ASR Inference: $SERVICE_NAME_ASR_INFERENCE"
-          echo "Service Name Raw ASR Inference: $SERVICE_NAME_RAW_ASR_INFERENCE"
-          ASR_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_ASR_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
-          RAW_ASR_INFERENCE_URL=$(gcloud run services describe "$SERVICE_NAME_RAW_ASR_INFERENCE" --platform managed --region "${{ env.MODEL_REGION }}" --format 'value(status.url)')
 
           if [[ "${{ steps.set-environment.outputs.environment }}" == "PRODUCTION" ]]; then
             if [[ "${{ steps.set-variant.outputs.variant }}" == "rap" ]]; then
