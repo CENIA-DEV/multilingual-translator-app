@@ -46,7 +46,7 @@ import { AuthContext } from '../contexts';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { generateSpeech } from '../services/ttsService';
-import { generateText } from '../services/asrService';
+import { generateText, warmupASRModel } from '../services/asrService'; // ADD warmupASRModel
 
 export default function Translator() {
 
@@ -367,12 +367,19 @@ export default function Translator() {
     return text.slice(0, i);
   }
 
+  // MODIFY: handleSrcText to trigger warmup on first typing
   const handleSrcText = (text) => {
     console.log(text);
     console.log(text.trim().split(/\n+/).length);
     const textList = text.trim().split(/\s+/).filter(word => word.length > 0);
     const wordCount = textList.length;
     console.log(wordCount);
+    
+    // NEW: Trigger ASR warmup when user starts typing (if ASR is available)
+    if (text.length > 0 && (isASRLang(srcLang) || isASRLang(dstLang))) {
+      triggerASRWarmupIfNeeded();
+    }
+    
     // if the text is longer than the max words, limit the text to the max words
     // while preserving the structure (newlines)
     if (wordCount > MAX_WORDS_TRANSLATION){
@@ -858,8 +865,12 @@ export default function Translator() {
   async function transcribeForReview(blob, hint, filename = 'audio.webm') {
     setAsrStatus('transcribing');
     try {
-      // Direct call to ASR service (no auto-reset here)
+      // Direct call to ASR service
       const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+      
+      // NEW: Mark that we just used ASR (keep server warm)
+      updateASRActivity();
+      
       setReviewTranscript((data?.text || '').trim());
       setCurrentAsrId(data?.id || null); // NEW: Store ASR record ID
       setAsrStatus('reviewing');
@@ -1386,6 +1397,39 @@ export default function Translator() {
     }
   }
 
+  // Add refs to track warmup state (already exists)
+  const asrWarmupDoneRef = useRef(false);
+  const lastAsrActivityRef = useRef(0);
+  const WARMUP_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Helper to check if warmup is needed (already exists)
+  const shouldWarmupASR = () => {
+    const now = Date.now();
+    const timeSinceLastActivity = now - lastAsrActivityRef.current;
+    return !asrWarmupDoneRef.current || timeSinceLastActivity > WARMUP_COOLDOWN_MS;
+  };
+
+  // Helper to trigger warmup (already exists - unchanged)
+  const triggerASRWarmupIfNeeded = async () => {
+    if (!shouldWarmupASR()) {
+      console.debug('ASR warmup skipped - server still warm');
+      return;
+    }
+    
+    console.debug('Triggering ASR warmup...');
+    asrWarmupDoneRef.current = true;
+    lastAsrActivityRef.current = Date.now();
+    
+    const hintForWarmup = srcHint || dstHint || 'spa_Latn';
+    warmupASRModel(hintForWarmup).catch(() => {}); // Fire and forget
+  };
+
+  // Update lastAsrActivityRef after EVERY real ASR call (already exists)
+  const updateASRActivity = () => {
+    lastAsrActivityRef.current = Date.now();
+  };
+
+
   const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
   return (
@@ -1541,18 +1585,21 @@ export default function Translator() {
 			{ASR_MIC_VISIBLE_D && (
 			  <div
 				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
-							
-                onClick={async () => {
-                  if (ASRRestricted) {
-                    setTranslationRestrictedDialogOpen(true);
-                    return;
-                  }
-                  // Open modal in "ready" state (do NOT start recording yet)
-                  setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
-                  setReviewTranscript('');
-                  setShowRecordModal(true);
-                  setAsrStatus('ready'); // start screen
-                }}
+				onClick={async () => {
+				  if (ASRRestricted) {
+					setTranslationRestrictedDialogOpen(true);
+					return;
+				  }
+				  
+				  // Trigger warmup only if needed (smart check)
+				  triggerASRWarmupIfNeeded();
+				  
+				  // Open modal in "ready" state (do NOT start recording yet)
+				  setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
+				  setReviewTranscript('');
+				  setShowRecordModal(true);
+				  setAsrStatus('ready'); // start screen
+				}}
 				aria-label="Grabar audio"
 				title="Grabar audio"
 				disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
