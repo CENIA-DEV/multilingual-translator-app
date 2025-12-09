@@ -12,12 +12,14 @@ on:
           - raw
           - tts
           - asr
-          - asr-backup  # ✅ New option for backup ASR
+          - asr-backup
+          - asr-bf16
 
       model_path:
-        description: 'Model path'
-        required: true
+        description: 'Model path (for single models) or ignored for asr-bf16'
+        required: false
         type: string
+
 jobs:
   build-push-gcp:
     name: Build and Push Model to GCP
@@ -28,13 +30,8 @@ jobs:
         ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
         ARTIFACT_REGISTRY_NAME: model
         STORAGE_URI: ${{ vars.STORAGE_URI }}
-        # VPC_NAME: ${{ vars.VPC_NAME }}
-        # SUBNET_NAME: ${{ vars.SUBNET_NAME }}
-        # SERVICE_REGION: ${{ vars.SERVICE_REGION }}
+
     steps:
-      # Delete huge unnecessary tools folder
-      # Running oout of memory on the runner
-      # https://github.com/orgs/community/discussions/25678
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
@@ -57,24 +54,38 @@ jobs:
         with:
           version: '>= 416.0.0'
 
-      - name: Download model
+      - name: Download model(s)
         working-directory: Model/
         run: |
-          MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
-          echo "Using model path: $MODEL_PATH"
-          # Create the target directory
-          mkdir -p ${{ github.event.inputs.model_path }}
-          # Download recursively the model from GCS
-          gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
-          # List files to verify download
-          find ${{ github.event.inputs.model_path }} -type f | sort
+          if [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+            # Download both Whisper and MMS bfloat16 models
+            echo "Downloading Whisper bfloat16 model..."
+            WHISPER_PATH=${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16
+            mkdir -p asr-rap/whisper-bfloat16
+            gcloud storage cp -r $WHISPER_PATH/* asr-rap/whisper-bfloat16/
+
+            echo "Downloading MMS bfloat16 model..."
+            MMS_PATH=${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16
+            mkdir -p asr-rap/mms-1b-all-bfloat16
+            gcloud storage cp -r $MMS_PATH/* asr-rap/mms-1b-all-bfloat16/
+
+            echo "Downloaded models:"
+            find asr-rap -type f | sort
+          else
+            # Original single model download
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
+            find ${{ github.event.inputs.model_path }} -type f | sort
+          fi
 
       - name: Set Dockerfile path
         id: set-dockerfile
         run: |
           if [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
             echo "dockerfile=Dockerfile.audio" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+          elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" || "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
             echo "dockerfile=Dockerfile.asr" >> $GITHUB_OUTPUT
           else
             echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
@@ -84,8 +95,7 @@ jobs:
         working-directory: Model/
         run: |
           echo "Using dockerfile: ${{ steps.set-dockerfile.outputs.dockerfile }}"
-          # Pass the HF token as a build argument when building the ASR model
-          if [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+          if [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" || "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
             docker build \
               --build-arg HF_TOKEN=${{ secrets.HUGGING_FACE_TOKEN }} \
               -t model:${{ github.sha }} \
@@ -94,25 +104,20 @@ jobs:
             docker build -t model:${{ github.sha }} -f ${{ steps.set-dockerfile.outputs.dockerfile }} .
           fi
 
-      - name: Configure Docker Client # aunthenticate to rep
+      - name: Configure Docker Client
         run: |-
           gcloud auth configure-docker --quiet
           gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
 
       - name: Push Docker Image to Artifact Registry
         run: |-
-          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ github.event.inputs.model_path }}:${{ github.sha }}
+          if [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+            IMAGE_TAG="asr-rap-bf16"
+          else
+            IMAGE_TAG="${{ github.event.inputs.model_path }}"
+          fi
+
+          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${IMAGE_TAG}:${{ github.sha }}
           echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
           docker tag model:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
           docker push $ARTIFACT_REGISTRY_IMAGE_NAME
-
-      # TODO: Uncomment this when we glocud has support for gpu
-      #- name: Deploy to cloud run
-      #  uses: 'google-github-actions/deploy-cloudrun@v2'
-      #  with:
-      #    service: nllb-${{ steps.set-variant.outputs.variant }}
-      #    image: ${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-      #    project_id: '${{ env.PROJECT_ID }}'
-      #    region: '${{ env.SERVICE_REGION }}'
-      #    timeout: '5m'
-      #    flags:  --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --no-cpu-throttling --port=8015 --concurrency=4 --cpu=4 --memory=16Gi --max-instances=4 --gpu 1 --gpu-type=nvidia-l4
