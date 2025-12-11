@@ -54,11 +54,12 @@ jobs:
         with:
           version: '>= 416.0.0'
 
+
       - name: Download model(s)
         working-directory: Model/
         run: |
+          # HANDLE BFLOAT16 VARIANT
           if [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
-            # Download both Whisper and MMS bfloat16 models
             echo "Downloading Whisper bfloat16 model..."
             WHISPER_PATH=${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16
             mkdir -p asr-rap/whisper-bfloat16
@@ -69,16 +70,27 @@ jobs:
             mkdir -p asr-rap/mms-1b-all-bfloat16
             gcloud storage cp -r $MMS_PATH/* asr-rap/mms-1b-all-bfloat16/
 
-            echo "Downloaded models:"
-            find asr-rap -type f | sort
+          # HANDLE RAP/BACKUP VARIANT (Add this block)
+          elif [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+            echo "Downloading Standard Whisper model..."
+            mkdir -p asr-rap/whisper
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper/* asr-rap/whisper/
+
+            echo "Downloading Standard MMS model..."
+            mkdir -p asr-rap/mms-1b-all
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all/* asr-rap/mms-1b-all/
+          
+          # HANDLE SINGLE MODEL DOWNLOADS
           else
-            # Original single model download
             MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
             echo "Using model path: $MODEL_PATH"
             mkdir -p ${{ github.event.inputs.model_path }}
             gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
-            find ${{ github.event.inputs.model_path }} -type f | sort
           fi
+          
+          # Verify files exist before building
+          find asr-rap -type d
+
 
       - name: Set Dockerfile path
         id: set-dockerfile
