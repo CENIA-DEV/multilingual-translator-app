@@ -71,13 +71,25 @@ jobs:
 
           # HANDLE RAP & BACKUP VARIANT
           elif [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+            echo "=== Downloading ASR models for variant: ${{ github.event.inputs.variant }} ==="
+
             echo "Downloading Standard Whisper model..."
             mkdir -p asr-rap/whisper
             gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper/* asr-rap/whisper/
+            echo "Whisper download complete. Contents:"
+            ls -la asr-rap/whisper/
 
             echo "Downloading Standard MMS model..."
             mkdir -p asr-rap/mms-1b-all
             gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all/* asr-rap/mms-1b-all/
+            echo "MMS download complete. Contents:"
+            ls -la asr-rap/mms-1b-all/
+
+            echo "Downloading RAP model..."
+            mkdir -p asr-rap/rap
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
+            echo "RAP model download complete. Contents:"
+            ls -la asr-rap/rap/
 
           # HANDLE SINGLE MODEL DOWNLOADS
           else
@@ -87,29 +99,53 @@ jobs:
             gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
           fi
 
-          # Verify files exist before building
-          find asr-rap -type d
+          # Verify directory structure
+          echo "=== Final directory structure ==="
+          find . -type d -name "asr-rap" -o -name "whisper" -o -name "mms-1b-all" -o -name "rap"
 
       - name: Verify model files exist
         working-directory: Model/
         run: |
-          echo "=== Checking Whisper model files ==="
-          if [ ! -f "asr-rap/whisper/config.json" ]; then
-            echo "ERROR: Whisper config.json not found!"
-            echo "Directory contents:"
-            ls -R asr-rap/whisper/ || echo "Directory doesn't exist"
-            exit 1
-          fi
+          # Only verify if we're deploying rap or asr-backup variant
+          if [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+            echo "=== Checking Whisper model files ==="
+            if [ ! -f "asr-rap/whisper/config.json" ]; then
+              echo "ERROR: Whisper config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
 
-          echo "=== Checking MMS model files ==="
-          if [ ! -f "asr-rap/mms-1b-all/config.json" ]; then
-            echo "ERROR: MMS config.json not found!"
-            echo "Directory contents:"
-            ls -R asr-rap/mms-1b-all/ || echo "Directory doesn't exist"
-            exit 1
-          fi
+            echo "=== Checking MMS model files ==="
+            if [ ! -f "asr-rap/mms-1b-all/config.json" ]; then
+              echo "ERROR: MMS config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
 
-          echo "✅ All required model files present"
+            echo "✅ All required model files present"
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+            echo "=== Checking Whisper bfloat16 model files ==="
+            if [ ! -f "asr-rap/whisper-bfloat16/config.json" ]; then
+              echo "ERROR: Whisper bfloat16 config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
+
+            echo "=== Checking MMS bfloat16 model files ==="
+            if [ ! -f "asr-rap/mms-1b-all-bfloat16/config.json" ]; then
+              echo "ERROR: MMS bfloat16 config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
+
+            echo "✅ All required bfloat16 model files present"
+          else
+            echo "Skipping verification for variant: ${{ github.event.inputs.variant }}"
+          fi
 
       - name: Set Dockerfile path
         id: set-dockerfile
