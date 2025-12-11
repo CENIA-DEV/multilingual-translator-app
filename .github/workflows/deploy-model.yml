@@ -90,6 +90,27 @@ jobs:
           # Verify files exist before building
           find asr-rap -type d
 
+      - name: Verify model files exist
+        working-directory: Model/
+        run: |
+          echo "=== Checking Whisper model files ==="
+          if [ ! -f "asr-rap/whisper/config.json" ]; then
+            echo "ERROR: Whisper config.json not found!"
+            echo "Directory contents:"
+            ls -R asr-rap/whisper/ || echo "Directory doesn't exist"
+            exit 1
+          fi
+
+          echo "=== Checking MMS model files ==="
+          if [ ! -f "asr-rap/mms-1b-all/config.json" ]; then
+            echo "ERROR: MMS config.json not found!"
+            echo "Directory contents:"
+            ls -R asr-rap/mms-1b-all/ || echo "Directory doesn't exist"
+            exit 1
+          fi
+
+          echo "✅ All required model files present"
+
       - name: Set Dockerfile path
         id: set-dockerfile
         run: |
