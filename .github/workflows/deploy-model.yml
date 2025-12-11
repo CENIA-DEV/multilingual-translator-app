@@ -188,7 +188,9 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
             echo "dockerfile=Dockerfile.audio" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" || "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+            echo "dockerfile=Dockerfile.asr-bf16" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             echo "dockerfile=Dockerfile.asr" >> $GITHUB_OUTPUT
           else
             echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT

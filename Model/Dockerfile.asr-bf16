@@ -1,0 +1,48 @@
+# Use a Triton-ready base image with Python and CUDA support
+FROM nvcr.io/nvidia/tritonserver:24.10-py3-min
+
+# Accept HF token as build argument
+ARG HF_TOKEN
+ENV HUGGING_FACE_HUB_TOKEN=$HF_TOKEN
+
+# Install system dependencies required for audio processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    curl \
+    libsndfile1 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables first
+ENV PYTHONUNBUFFERED=0
+
+# Copy only the requirements file first to leverage Docker layer caching
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf ~/.cache/pip
+
+# Copy bfloat16 models (different paths!)
+COPY asr-rap/whisper-bfloat16/ /app/asr-rap/whisper-bfloat16/
+COPY asr-rap/mms-1b-all-bfloat16/ /app/asr-rap/mms-1b-all-bfloat16/
+
+# Set working directory for the application code
+WORKDIR /home/app/src
+COPY . .
+
+# Configure Hugging Face cache location
+ENV HF_HOME=/app/.cache/huggingface
+
+EXPOSE 8017
+
+# Use backup model type with bf16 flag and correct paths
+ENTRYPOINT ["python3", "server_asr.py"]
+CMD [ \
+    "--gpu", \
+    "--model-type=backup", \
+    "--model-base-path=/app/asr-rap/whisper-bfloat16", \
+    "--mms-base-path=/app/asr-rap/mms-1b-all-bfloat16", \
+    "--use-bf16" \
+]
