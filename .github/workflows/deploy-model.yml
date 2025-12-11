@@ -57,21 +57,41 @@ jobs:
       - name: Download model(s)
         working-directory: Model/
         run: |
+          echo "=== Deploying variant: ${{ github.event.inputs.variant }} ==="
+
           # HANDLE BFLOAT16 VARIANT
           if [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
-            echo "Downloading Whisper bfloat16 model..."
-            WHISPER_PATH=${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16
-            mkdir -p asr-rap/whisper-bfloat16
-            gcloud storage cp -r $WHISPER_PATH/* asr-rap/whisper-bfloat16/
+            echo "=== Downloading BFLOAT16 ASR models ==="
 
-            echo "Downloading MMS bfloat16 model..."
-            MMS_PATH=${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16
-            mkdir -p asr-rap/mms-1b-all-bfloat16
-            gcloud storage cp -r $MMS_PATH/* asr-rap/mms-1b-all-bfloat16/
+            echo "Checking if whisper-bfloat16 exists in GCS..."
+            if gcloud storage ls ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/ &>/dev/null; then
+              echo "Downloading Whisper bfloat16 model..."
+              mkdir -p asr-rap/whisper-bfloat16
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/* asr-rap/whisper-bfloat16/
+              echo "Whisper bfloat16 download complete. Contents:"
+              ls -la asr-rap/whisper-bfloat16/
+            else
+              echo "ERROR: whisper-bfloat16 directory not found in GCS!"
+              echo "Please upload bfloat16 models to: ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/"
+              exit 1
+            fi
+
+            echo "Checking if mms-1b-all-bfloat16 exists in GCS..."
+            if gcloud storage ls ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/ &>/dev/null; then
+              echo "Downloading MMS bfloat16 model..."
+              mkdir -p asr-rap/mms-1b-all-bfloat16
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/* asr-rap/mms-1b-all-bfloat16/
+              echo "MMS bfloat16 download complete. Contents:"
+              ls -la asr-rap/mms-1b-all-bfloat16/
+            else
+              echo "ERROR: mms-1b-all-bfloat16 directory not found in GCS!"
+              echo "Please upload bfloat16 models to: ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/"
+              exit 1
+            fi
 
           # HANDLE RAP & BACKUP VARIANT
           elif [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
-            echo "=== Downloading ASR models for variant: ${{ github.event.inputs.variant }} ==="
+            echo "=== Downloading STANDARD ASR models for variant: ${{ github.event.inputs.variant }} ==="
 
             echo "Downloading Standard Whisper model..."
             mkdir -p asr-rap/whisper
@@ -91,6 +111,22 @@ jobs:
             echo "RAP model download complete. Contents:"
             ls -la asr-rap/rap/
 
+          # HANDLE ASR VARIANT (hybrid without backup)
+          elif [[ "${{ github.event.inputs.variant }}" == "asr" ]]; then
+            echo "=== Downloading ASR models for hybrid variant ==="
+
+            echo "Downloading Standard Whisper model..."
+            mkdir -p asr-rap/whisper
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper/* asr-rap/whisper/
+
+            echo "Downloading Standard MMS model..."
+            mkdir -p asr-rap/mms-1b-all
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all/* asr-rap/mms-1b-all/
+
+            echo "Downloading RAP model..."
+            mkdir -p asr-rap/rap
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
+
           # HANDLE SINGLE MODEL DOWNLOADS
           else
             MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
@@ -101,7 +137,7 @@ jobs:
 
           # Verify directory structure
           echo "=== Final directory structure ==="
-          find . -type d -name "asr-rap" -o -name "whisper" -o -name "mms-1b-all" -o -name "rap"
+          find . -type d | grep -E "asr-rap|whisper|mms-1b-all|rap" | sort
 
       - name: Verify model files exist
         working-directory: Model/
