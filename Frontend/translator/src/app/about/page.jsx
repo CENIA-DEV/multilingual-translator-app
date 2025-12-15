@@ -122,11 +122,87 @@ export default function LandingPage() {
   
   // Testimonial carousel
   const testimonials = [
-    { name: "Jackeline Rapu", quote: "This tool speaks our true voices. It respects our nuances.", img: "/images/jackeline_testimonial.png" },
-    { name: "Mama Ana", quote: "Our community's heart and soul are in this translator.", img: "/images/jackeline_testimonial.png" },
-    { name: "Papa Hete", quote: "We validated every word, it's accurate and ours.", img: "/images/jackeline_testimonial.png" },
-    { name: "Tiare Paoa", quote: "Finally technology that understands our heritage.", img: "/images/jackeline_testimonial.png" },
+    { name: "Jackeline Rapu", quote: "This tool speaks our true voices. It respects our nuances.", img: "/images/testimonials/jackeline.png" },
+    { name: "Mama Ana", quote: "Our community's heart and soul are in this translator.", img: "/images/testimonials/jackeline.png" },
+    { name: "Papa Hete", quote: "We validated every word, it's accurate and ours.", img: "/images/testimonials/jackeline.png" },
+    { name: "Tiare Paoa", quote: "Finally technology that understands our heritage.", img: "/images/testimonials/jackeline.png" },
   ];
+  
+	
+  
+  const teamMembers = [
+	  // Academia Rapa Nui
+	  { name: "Jackeline Rapu Tuki", img: "/images/team/jackeline_rapu.png" },
+	  { name: "Carolina Tuki Pakarati", img: "/images/team/carolina_tuki.jpeg" },
+	  { name: "María Eugenia Tuki Pakarati", img: "/images/team/mariaeugenia_tuki.png" },
+	  { name: "Annette Rapu Zamora", img: "/images/team/annette_rapu.jpeg" },
+	  { name: "Juan Manutomatoma", img: "/images/team/juan_manutomatoma.png" },
+	  { name: "Nelly Manutomatoma", img: "/images/team/nelly_manutomatoma.png" },
+      { name: "Merina Manutomatoma", img: "/images/team/merina_manutomatoma.png" },
+      { name: "Viki Haoa Cardinali", img: "/images/team/viki_haoa.png" },
+      { name: "Rafael Tuki Tepano", img: "/images/team/rafael_tuki.png" },
+      { name: "Virginia Atan", img: "/images/team/virginia_atan.png" },
+      { name: "Christian Madariaga Paoa", img: "/images/team/christian_madariaga.png" },
+      { name: "Ariki Rapu Merino", img: "/images/team/ariki_rapu.png" },
+      { name: "Hitu Tuki Rapu", img: "/images/team/hitu_tuki.png" },
+      { name: "Tu'u Kura Tuki Aránguiz", img: "/images/team/tuukura_tuki.png" },
+      { name: "Mahai Soler Hotu", img: "/images/team/mahai_soler.png" },
+      { name: "Merahi Edmunds Hernández", img: "/images/team/merahi_edmunds.png" },
+      { name: "Dora Tuki Beri-beri", img: "/images/team/dora_tuki.png" },
+      { name: "Alberto Pacomio Hotus", img: "/images/team/alberto_pacomio.png" },
+      { name: "Johnny Tucki Hucke", img: "/images/team/johnny_tucki.png" },
+      { name: "Blanca Hucke Atam", img: "/images/team/blanca_hucke.png" },
+      { name: "David Teao", img: "/images/team/david_teao.png" },
+      { name: "Mario Tuki Hey", img: "/images/team/mario_tuki.png" },
+      { name: "Ana Iris Chavez Ika", img: "/images/team/anairis_chavez.png" },
+      { name: "Elena Tuki Hotus", img: "/images/team/elena_tuki.png" },
+	  { name: "Rachel Riroroko Calderón", img: "/images/team/rachel_riroroko.png" },
+	  
+	  // Instituto Galvarino
+	  //{ name: "Manuel Santander", img: "/images/team/manuel_santander.png" },
+	  //{ name: "Flor Caniupil", img: "/images/team/flor_caniupil.png" },
+	  //{ name: "Rosa Caniupil", img: "/images/team/rosa_caniupil.png" },
+  
+	  // Cenia
+	  { name: "Carlos Aspillaga", img: "/images/team/carlos.jpg" },
+	  { name: "Sebastián Ricke", img: "/images/team/sebastian.png" },
+	  { name: "Martín Pizarro", img: "/images/team/martin.jpg" },
+	  { name: "Guillermo Figueroa", img: "/images/team/guillermo.jpg" },
+	  { name: "Hugo Zeballos", img: "/images/team/hugo.jpg" },
+	  { name: "Canela Orellana", img: "/images/team/canela.jpg" },
+	  { name: "Estefanía Pakarati", img: "/images/team/estefania.jpg" },
+	  { name: "Agustín Ghent", img: "/images/team/agustin.png" },
+	  { name: "César Rivera", img: "/images/team/cesar.png" },
+	  //{ name: "Guillaume Chapuis", img: "/images/team/guillaume.png" },
+	  
+	  // EAA UC
+	  { name: "Jaime Coquelet", img: "/images/team/jaime.png" },
+	  { name: "Loreto Ulloa", img: "/images/team/loreto.png" },
+	  { name: "Francisca del Valle", img: "/images/team/francisca.jpg" },
+	  { name: "Tomás Pesce", img: "/images/team/tomas.png" },
+	  
+  ];
+  
+  const validationPartners = [
+	  { name: "Municipalidad de Rapa Nui", img: "/images/municipalidad.png" },
+	  { name: "CONADI", img: "/images/conadi.png" },
+	  { name: "Educación Intercultural", img: "/images/educacion_intercultural.png" },
+	  { name: "Hospital Hanga Roa", img: "/images/Hospital_Hanga_Roa.png" },
+	  { name: "UCAI", img: "/images/ucai.png" },
+	  { name: "Hōnui", img: "/images/honui.png" },
+	  { name: "Colegio Lorenzo Baeza Vega", img: "/images/colegio_lorenzo.png" },
+	  { name: "Liceo Aldea Educativa", img: "/images/liceo_aldea.png" },
+	  { name: "Mana", img: "/images/mana.png" }
+  ];
+  
+  const specialThanks = [
+	  ["Fátima Hotus Hey", "Cristian Vasquez", "Josefina Irribarra", "Daniela Contreras", "Constanza Cruz"],
+	  ["Pia Cassone", "Irma Palominos", "Marcos Lores", "Javiera Acevedo", "Waldo Gutiérrez"],
+	  ["Álvaro Soto", "Gianyser González", "Romina Hidalgo", "Andrés Carvallo"]
+	  //Participantes Txawun de validación
+  ];
+  
+  
   
   const nextSlide = () => {
     setSlideDirection('next');
@@ -177,10 +253,10 @@ export default function LandingPage() {
 			<div className="flex items-center gap-6">
 				{/* Dark Text Menu */}
 				<nav className="hidden lg:flex flex-row gap-6">
-					<a href="#about" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Proyecto</a>
+					<a href="#team" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Equipo</a>
+					<a href="#cocreation" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">El Proceso</a>
+					<a href="#about" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Objetivo</a>
 					<a href="#focus" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Enfoque</a>
-					<a href="#owners" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Equipo</a>
-					<a href="#colaborators" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Colaboradores</a>
 					<a href="#contact" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Contacto</a>
 				</nav>
 
@@ -234,17 +310,17 @@ export default function LandingPage() {
 						  
 						  {/* NEW: Navigation Menu */}
 						  <nav className="hidden lg:flex flex-row gap-6 mb-1">
+							<a href="#team" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
+							  Equipo
+							</a>
+							<a href="#cocreation" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
+							  El Proceso
+							</a>
 							<a href="#about" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
-							  Proyecto
+							  Objetivo
 							</a>
 							<a href="#focus" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
 							  Enfoque
-							</a>
-							<a href="#owners" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
-							  Equipo
-							</a>
-							<a href="#colaborators" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
-							  Colaboradores
 							</a>
 							<a href="#contact" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
 							  Contacto
@@ -420,8 +496,239 @@ export default function LandingPage() {
 
           </div>
 	    </div>
-        
-        <section id="about" className="w-full py-12 px-5 md:py-24 lg:py-32 flex items-center justify-center">
+		
+		{/* --- Collaborative Effort --- */}
+        <section className="w-full py-10 bg-white flex flex-col items-center justify-center gap-6">
+            <h2 className="text-2xl font-bold text-black tracking-tight">Un Esfuerzo Colaborativo</h2>
+            <div className="flex items-center gap-5">
+                 {/* Academy Logo (Colored or Dark) */}
+                 <div className="h-20 w-20 relative">
+                     <Image src="/images/academia_bg.png" alt="Academia" fill className="object-contain" />
+                 </div>
+                 
+                 {/* VOCES Logo (Black text version) */}
+                 <div className="h-10 w-32 relative brightness-0">
+                     <Image src="/images/voces_bg.png" alt="Voces" fill className="object-contain" />
+                 </div>
+            </div>
+        </section>
+		
+		{/* --- TEAM, VALIDATION & SPECIAL THANKS SECTION --- */}
+        <section id="team" className="w-full py-16 bg-[#F2E8D5] flex flex-col items-center">
+            
+            {/* 1. TEAM HEADER */}
+            <div className="flex items-center gap-4 mb-2 justify-center w-full">
+                <div className="hidden md:block relative h-8 w-32 md:w-48 opacity-60">
+                     <Image src="/images/pattern_line.png" alt="pattern" fill className="object-contain scale-x-[-1]" />
+                </div>
+                <h2 className="text-4xl md:text-5xl font-extrabold text-[#5C3A21] uppercase tracking-wide">EQUIPO</h2>
+                <div className="hidden md:block relative h-8 w-32 md:w-48 opacity-60">
+                     <Image src="/images/pattern_line.png" alt="pattern" fill className="object-contain" />
+                </div>
+            </div>
+
+            {/* Subheader: Equipo de Desarrollo */}
+            <div className="flex items-center w-full max-w-7xl gap-6 mb-8 px-12 md:px-32">
+                <div className="h-[2px] bg-[#A07E5E] flex-grow rounded-full"></div>
+                <h3 className="text-lg md:text-xl font-bold text-[#5C3A21] uppercase tracking-widest text-center whitespace-nowrap">
+                    EQUIPO DE DESARROLLO
+                </h3>
+                <div className="h-[2px] bg-[#A07E5E] flex-grow rounded-full"></div>
+            </div>
+
+            {/* Team Grid */}
+            <div className="container mx-auto px-12 md:px-32 mb-16">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-y-6 gap-x-6 justify-items-center">
+                    {teamMembers.map((member, index) => (
+                        <div key={index} className="flex flex-col items-center gap-2 group">
+                            <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-[#e6d8c0] shadow-md transition-transform transform group-hover:scale-105 bg-gray-200">
+                                <Image 
+                                    src={member.img} 
+                                    alt={member.name} 
+                                    fill 
+                                    className="object-cover"
+                                />
+                            </div>
+                            <p className="text-xs md:text-sm font-bold text-[#4a3b2a] text-center leading-tight max-w-[120px]">
+                                {member.name}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* 2. VALIDATION PARTICIPANTS HEADER */}
+            <div className="flex items-center w-full max-w-7xl gap-6 mb-8 px-12 md:px-32">
+                <div className="h-[2px] bg-[#A07E5E] flex-grow rounded-full"></div>
+                <h3 className="text-lg md:text-xl font-bold text-[#5C3A21] uppercase tracking-widest text-center whitespace-nowrap">
+                    PARTICIPANTES VALIDACIÓN
+                </h3>
+                <div className="h-[2px] bg-[#A07E5E] flex-grow rounded-full"></div>
+            </div>
+
+            {/* Validation Grid */}
+            <div className="container mx-auto px-12 md:px-32 mb-16">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-y-8 gap-x-8 justify-items-center items-start">
+                    {validationPartners.map((partner, index) => (
+                        <div key={index} className="flex flex-col items-center gap-3 w-full max-w-[140px]">
+                            <div className="relative h-20 w-full hover:scale-105 transition-transform duration-300">
+                                <Image 
+                                    src={partner.img} 
+                                    alt={partner.name} 
+                                    fill 
+                                    className="object-contain"
+                                />
+                            </div>
+                            <span className="text-xs font-semibold text-[#5C3A21] text-center leading-tight">
+                                {partner.name}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* 3. SPECIAL THANKS HEADER */}
+            <div className="flex items-center w-full max-w-7xl gap-6 mb-8 px-12 md:px-32">
+                <div className="h-[2px] bg-[#A07E5E] flex-grow rounded-full"></div>
+                <h3 className="text-lg md:text-xl font-bold text-[#5C3A21] uppercase tracking-widest text-center whitespace-nowrap">
+                    AGRADECIMIENTOS ESPECIALES
+                </h3>
+                <div className="h-[2px] bg-[#A07E5E] flex-grow rounded-full"></div>
+            </div>
+
+            {/* Special Thanks List */}
+            <div className="container mx-auto px-4 md:px-32">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                    {specialThanks.map((column, colIndex) => (
+                        <div key={colIndex} className="flex flex-col gap-1">
+                            {column.map((name, nameIndex) => (
+                                <p key={nameIndex} className="text-[#5C3A21] text-lg font-medium leading-relaxed">
+                                    {name}
+                                </p>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+
+        {/* --- NEW SECTION: PROCESO DE CO-CREACIÓN --- */}
+        <section id="co-creation" className="w-full py-16 bg-white flex flex-col items-center">
+             {/* Main Title with Patterns */}
+            <div className="flex items-center gap-4 mb-12 justify-center w-full px-4">
+                <div className="hidden md:block relative h-12 w-32 md:w-64 opacity-80">
+                     <Image src="/images/pattern_line.png" alt="pattern" fill className="object-contain scale-x-[-1]" />
+                </div>
+                <h2 className="text-3xl md:text-5xl font-extrabold text-[#4a4a4a] uppercase tracking-tight text-center">
+                    PROCESO DE CO-CREACIÓN
+                </h2>
+                <div className="hidden md:block relative h-12 w-32 md:w-64 opacity-80">
+                     <Image src="/images/pattern_line.png" alt="pattern" fill className="object-contain" />
+                </div>
+            </div>
+
+            {/* Timeline Diagram */}
+            {/* Using an image for the complex timeline diagram as per the 'depicted image' request */}
+            <div className="container mx-auto px-4 md:px-12 w-full flex justify-center">
+                <div className="relative w-full max-w-6xl aspect-[2/1] md:aspect-[3/1]">
+                    <Image 
+                        src="/images/co_creation_timeline.png" 
+                        alt="Proceso de Co-Creación Timeline" 
+                        fill 
+                        className="object-contain"
+                    />
+                </div>
+            </div>
+        </section>
+		
+		{/* --- NEW SECTION: COMMUNITY JOURNEY & PARTICIPATION --- */}
+        <section id="community-participation" className="w-full py-16 bg-[#E3F2FD] flex flex-col items-center">
+            <div className="container mx-auto px-6 md:px-16">
+                
+                {/* Header Text */}
+                <div className="text-center mb-10 max-w-5xl mx-auto">
+                    <h2 className="text-3xl md:text-4xl font-extrabold text-[#1a202c] mb-6 tracking-tight">
+                        Our Co-Creation Journey & Community Participation
+                    </h2>
+                    <p className="text-[#2d3748] text-lg md:text-xl leading-relaxed">
+                        Our participation design strategies create reconstruction frameworks from delineating urban oxidation
+                        needed for dependent transmission. By establishing clear engagement frameworks we ensure that every
+                        community member's voice is heard, respected, and incorporated into the final outcome.
+                    </p>
+                </div>
+
+                {/* Photo Grid (Bento / Masonry Style) */}
+                <div className="flex flex-col gap-4 w-full">
+                    
+                    {/* Row 1: Split Left (Large) and Right (2 Stacked) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-auto md:h-[500px]">
+                        
+                        {/* Left Main Image */}
+                        <div className="md:col-span-2 relative h-64 md:h-full rounded-3xl overflow-hidden shadow-lg border-4 border-white">
+                            <Image 
+                                src="/images/community_journey_1.png" 
+                                alt="Community Workshop Table" 
+                                fill 
+                                className="object-cover hover:scale-105 transition-transform duration-700 ease-in-out"
+                            />
+                        </div>
+                        
+                        {/* Right Stack */}
+                        <div className="flex flex-col gap-4 h-full">
+                            <div className="relative flex-1 h-64 md:h-full rounded-3xl overflow-hidden shadow-lg border-4 border-white">
+                                <Image 
+                                    src="/images/community_journey_2.png" 
+                                    alt="Small Group Discussion" 
+                                    fill 
+                                    className="object-cover hover:scale-105 transition-transform duration-700 ease-in-out"
+                                />
+                            </div>
+                            <div className="relative flex-1 h-64 md:h-full rounded-3xl overflow-hidden shadow-lg border-4 border-white">
+                                <Image 
+                                    src="/images/community_journey_3.png" 
+                                    alt="Intimate Circle" 
+                                    fill 
+                                    className="object-cover hover:scale-105 transition-transform duration-700 ease-in-out"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 2: Full Width Panorama */}
+                    <div className="relative w-full h-64 md:h-[450px] rounded-3xl overflow-hidden shadow-lg border-4 border-white">
+                        <Image 
+                            src="/images/community_journey_4.png" 
+                            alt="Large Community Assembly" 
+                            fill 
+                            className="object-cover hover:scale-105 transition-transform duration-700 ease-in-out"
+                        />
+                    </div>
+
+                    {/* Row 3: Two Columns */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-64 md:h-[350px]">
+                        <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-lg border-4 border-white">
+                            <Image 
+                                src="/images/community_journey_5.png" 
+                                alt="Workshop Presentation" 
+                                fill 
+                                className="object-cover hover:scale-105 transition-transform duration-700 ease-in-out"
+                            />
+                        </div>
+                        <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-lg border-4 border-white">
+                             <Image 
+                                src="/images/community_journey_6.png" 
+                                alt="Classroom Engagement" 
+                                fill 
+                                className="object-cover hover:scale-105 transition-transform duration-700 ease-in-out"
+                            />
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+		
+		<section id="about" className="w-full py-12 px-5 md:py-24 lg:py-32 flex items-center justify-center">
           <div className="flex flex-col container px-4 md:px-6">
             <h2 className="text-4xl tracking-tighter sm:text-4xl md:text-4xl text-center mb-8 ">{text.AboutProject.Title[language]}</h2>
             
@@ -435,8 +742,8 @@ export default function LandingPage() {
       
           </div>
         </section>
-        {/* <section id="research" className="w-full py-24 bg-cover bg-center bg-fixed flex items-center justify-center" style={{backgroundImage: 'url(https://hebbkx1anhila5yf.public.blob.vercel-storage.com/moais-NTbFMHVNoFi9vQ7UshERuq1q0ijOt4.jpg)'}}> */}
-        <section 
+		
+		<section 
             id="focus" 
             className="w-full py-24 bg-cover bg-center bg-fixed flex items-center justify-center" 
             style={{backgroundImage: `url(/images/${VARIANT_LANG}-blue.png)`}}>
@@ -469,372 +776,144 @@ export default function LandingPage() {
           </div>
           </div>
         </section>
-        <section id="owners" className="w-full py-12 md:py-12 lg:py-12 flex items-center justify-center">
-          <div className="container px-4 md:px-6">
-		    {VARIANT_LANG === 'rap' && (
-            <h3 className="text-4xl tracking-tighter sm:text-4xl md:text-4xl text-center mb-8 ">{text.Owners.Title[language]}</h3>
-        )}
-        
-        <div className="w-full grid place-items-center text-center">
-          <div className="space-y-2">
-            <h2 className="text-center text-xl">{text.Owners.Academy[language]}</h2>
-            <div 
-              className="h-32 relative max-[850px]:h-20">
-              <Image
-                src={`/images/${VARIANT_LANG}-language-academy.png`}
-                alt="Academia de Lengua logo"
-                fill
-                priority={false}
-                className="object-contain"
-              />
-            </div>
-          </div>
-        </div>
-        
-        {VARIANT_LANG === 'rap' && (
-            <h3 className="text-4xl tracking-tighter sm:text-4xl md:text-4xl text-center my-8">{text.Owners.Subtitle[language]}</h3>
-        )}
-            <div className="grid gap-10 grid-cols-2 max-[850px]:grid-cols-1">
-              <div className="space-y-4 ">
-                <h2 className="text-center text-xl">Estudios Aplicados Antropología UC </h2>
-                <div 
-                  className="h-32 relative max-[850px]:h-20">
-                  <Image
-                    src="/images/eaauc.png"
-                    alt="EAAUC logo"
-                    fill
-                    priority={false}
-                    className="object-contain"
-                  />
-                </div>
-              </div>
-              <div className="space-y-4 ">
-                <h3 className="text-center text-xl">Centro Nacional de Inteligencia Artificial</h3>
-                <div className="h-32 relative max-[850px]:h-20">
-                  <Image
-                    src="/images/cenia.png"
-                    alt="Cenia logo"
-                    fill
-                    priority={false}
-                    className="object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section id="colaborators" className="w-full py-12 md:py-12 lg:py-12 bg-default/5 flex items-center justify-center">
-          <div className="container px-6 md:px-6">
-            <h3 className="text-4xl font-bold text-center mb-8 text-defult">{text.Collaborators.Title[language]}</h3>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            {VARIANT_LANG === 'rap' ? (
-              <>
-              <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">{text.Institutions.Title[language]}</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  <li>Municipalidad de Rapa Nui</li>
-                  <li>Hōnui</li>
-                  <li>Fondo de Cultura y Educación CONADI Rapa Nui</li>
-                  <li>Pontificia Universidad Católica de Chile </li>
-                </ul>
-      
-              </div>
-
-              <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">{text.Institutions.Directory.Title[language]}</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  <li>Jackeline Rapu Tuki</li>
-                  <li>Carolina Tuki Pakarati</li>
-                  <li>María Eugenia Tuki Pakarati</li>
-                  <li>Annette Rapu Zamora</li>
-                  <li>Juan Manutomatoma</li>
-                  <li>Nelly Manutomatoma</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">{text.Institutions.Translators.Title[language]}</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  <li>Jackeline Rapu Tuki</li>
-                  <li>Merina Manutomatoma</li>
-                  <li>Viki Haoa Cardinali</li>
-                  <li>Rafael Tuki Tepano</li>
-                  <li>Virginia Atan</li>
-                  <li>Christian Madariaga Paoa</li>
-                  <li>Ariki Rapu Merino</li>
-                  <li>Hitu Tuki Rapu</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">{text.Institutions.Transcribers.Title[language]}</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  <li>Tu'u Kura Tuki Aránguiz</li>
-                  <li>Mahai Soler Hotu</li>
-                  <li>Merahi Edmunds Hernández</li>
-                </ul>
-              </div>
-              <div>
-                
-                <h4 className="text-xl font-semibold mb-4 text-defult">{text.Institutions.Reviewers.Title[language]}</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  <li>Dora Tuki Beri-beri</li>
-                  <li>Alberto Pacomio Hotus</li>
-                  <li>Johnny Tucki Hucke</li>
-                  <li>Blanca Hucke Atam</li>
-                  <li>David Teao</li>
-                  <li>Mario Tuki Hey</li>
-                  <li>Ana Iris Chavez Ika</li>
-                  <li>Elena Tuki Hotus</li>
-                  <li>Juan Manutomatoma</li>
-                </ul>
-              </div>
-              </>
-              ) : (
-                <>
-                <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu</h4>
-                  <ul className="list-disc list-inside text-gray-700">
-                    <li>Manuel Santander</li>
-                    <li>Flor Caniupil</li>
-                    <li>Rosa Caniupil</li>
-                  </ul>
-                </div>
-                </>
-              )}
-              <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">Centro Nacional de Inteligencia Artificial</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  <li>Carlos Aspillaga</li>
-                  <li>Sebastián Ricke</li>
-                  <li>César Rivera</li>
-                  <li>Martín Pizarro</li>
-                  <li>Guillermo Figueroa</li>
-                  <li>Hugo Zeballos</li>
-                  <li>Canela Orellana</li>
-                  <li>Estefanía Pakarati</li>
-                  <li>Andrés Carvallo</li>
-                  <li>Álvaro Soto</li>
-                  <li>Agustín Ghent</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">Estudios Aplicados Antropología UC</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  <li>Jaime Coquelet</li>
-                  <li>Loreto Ulloa</li>
-                  <li>Francisca del Valle</li>
-				  <li>Tomás Pesce</li>
-				  <li>Belen Villena</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xl font-semibold mb-4 text-defult">{text.ThanksTo.Title[language]}</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  {VARIANT_LANG === 'rap' ? (
-                    <li>Fátima Hotus Hey</li> 
-                  ) :
-                  (
-                    <li>Participantes Txawun de validación</li> 
-                  )}
-                  <li>Cristian Vasquez</li>
-                  <li>Josefina Irribarra</li>
-                  <li>Daniela Contreras</li>
-                  <li>Constanza Cruz</li>
-                  <li>Gianyser González</li>
-                  <li>Pia Cassone</li>
-                  <li>Irma Palominos</li>
-                </ul>
-              </div>
+		
+		{/* --- FINAL SECTION: CONTACT & FOOTER --- */}
+        <section id="contact" className="w-full pt-16 pb-12 bg-[#F2E8D5] flex flex-col items-center relative">
             
+            {/* 1. Header: CONTACTO */}
+            <div className="flex items-center w-full max-w-lg gap-4 mb-10 px-6">
+                <div className="h-[1px] bg-[#8B6E4E] flex-grow"></div>
+                <h2 className="text-3xl md:text-4xl font-extrabold text-[#1a1a1a] uppercase tracking-tighter">
+                    CONTACTO
+                </h2>
+                <div className="h-[1px] bg-[#8B6E4E] flex-grow"></div>
             </div>
-          </div>
-        </section>
 
-        <section id='financers' className="w-full py-12 md:py-12 lg:py-12 flex items-center justify-center">
-          <div className="container px-4 md:px-6">
-            <h3 className="text-4xl font-bold text-center mb-8 text-defult">{text.Financing.Title[language]}</h3>
-            <div className="grid gap-10 grid-cols-[repeat(auto-fit,minmax(200px,1fr))] max-[850px]:grid-cols-2">
-                <div className="space-y-4 ">
-                  
-                  <h3 className="text-center"> ISOC </h3>
-                  <div className="h-32 relative">
-                    <Image
-                      src="/images/isoc.png"
-                      alt="ISOC logo"
-                      fill
-                      priority={false}
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-4 ">
-                  
-                  <h3 className="text-center">ANID</h3>
-                  <div className="h-32 relative">
-                    <Image
-                      src="/images/anid.png"
-                      alt="ANID logo"
-                      fill
-                      priority={false}
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
-                {VARIANT_LANG === 'rap' ? (
-                <>
-                <div className="space-y-4 ">
-                  
-                  <h3 className="text-center">Conadi</h3>
-                  <div className="h-32 relative">
-                    <Image
-                      src="/images/conadi.png"
-                      alt="Conadi logo"
-                      fill
-                      priority={false}
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4 ">
-                  
-                  <h3 className="text-center">{text.Financing.Municipality[language]}</h3>
-                  <div className="h-32 relative">
-                    <Image
-                      src="/images/municipalidad.png"
-                      alt="Municipalidad logo"
-                      fill
-                      priority={false}
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
-                </>
-                ) : (
-                  <></>
-                )}
-            </div>
-          </div>
-        </section>
-        <section id="contact" className="w-full py-12 md:py-24 lg:py-32 bg-default/5 flex items-center justify-center">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              {/* <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">{text.Contact.Title[language]}</h2>
-                <p className="max-w-[600px] text-gray-600 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-                  {text.Contact.Subtitle[language]}
-                </p>
-              </div> */}
-              
-              <Dialog
-                  open={isParticipateModalOpen}
-                  onOpenChange={setIsParticipateModalOpen}
-                >
-                  <DialogTrigger asChild>
-                  <Button type="submit" className="bg-gradient-to-r from-defaultHover to-default hover:from-[#0a7cde] hover:to-[#0a4cde] text-white font-semibold py-3 px-8 w-70 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
-                    {text.Contact.Button[language]}
-                  </Button>
-                  </DialogTrigger>
-                  <DialogContent className="w-1/2 max-[850px]:w-[90%] max-[850px]:h-fit gap-y-4">
-                    <DialogHeader>
-                      <DialogTitle>Contáctanos</DialogTitle>
-                      <DialogDescription>
-                        Llena los siguientes campos para contactarnos.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4 w-full">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="firstName" className="text-right">
-                          Nombre
-                        </Label>
-                        <Input
-                          id="firstName"
-                          value={newParticipate.first_name}
-                          onChange={(e) =>
+            {/* 2. Inline Form */}
+            <div className="w-full max-w-md px-6 flex flex-col gap-5 z-10">
+                
+                {/* Name Input */}
+                <div className="relative group">
+                    <Input
+                        type="text"
+                        placeholder="Nombre"
+                        value={newParticipate.first_name}
+                        onChange={(e) =>
                             setNewParticipate({
                               ...newParticipate,
                               first_name: e.target.value,
                             })
-                          }
-                          className="col-span-3 focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                        <Label htmlFor="lastName" className="text-right">
-                          Apellido
-                        </Label>
-                        <Input
-                          id="lastName"
-                          value={newParticipate.last_name}
-                          onChange={(e) =>
-                            setNewParticipate({
-                              ...newParticipate,
-                              last_name: e.target.value,
-                            })
-                          }
-                          className="col-span-3 focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                        <Label htmlFor="email" className="text-right">
-                          Correo
-                        </Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={newParticipate.email}
-                          onChange={(e) =>
+                        }
+                        className="w-full h-12 rounded-full border-2 border-[#93C5FD] bg-white px-6 text-gray-700 placeholder:text-gray-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] focus-visible:ring-0 focus-visible:border-[#3B82F6] transition-all"
+                    />
+                </div>
+
+                {/* Email Input */}
+                <div className="relative group">
+                    <Input
+                        type="email"
+                        placeholder="Correo"
+                        value={newParticipate.email}
+                        onChange={(e) =>
                             setNewParticipate({
                               ...newParticipate,
                               email: e.target.value,
                             })
-                          }
-                          className="col-span-3 focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                        <Label htmlFor="organization" className="text-right">
-                          Organización
-                        </Label>
-                        <Input
-                          id="organization"
-                          required={false}
-                          type="text"
-                          placeholder="Opcional"
-                          value={newParticipate.organization}
-                          onChange={(e) =>
-                            setNewParticipate({
-                              ...newParticipate,
-                              organization: e.target.value,
-                            })
-                          }
-                          className="col-span-3 focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                        <Label htmlFor="reason" className="text-right">
-                          Mensaje
-                        </Label>
-                        <Textarea 
-                          className="col-span-3 h-40 rounded-md hover:border-default hover:rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0" 
-                          id="reason" 
-                          name="reason" 
-                          value={newParticipate.reason}
-                          onChange={(e) =>
+                        }
+                        className="w-full h-12 rounded-full border-2 border-[#93C5FD] bg-white px-6 text-gray-700 placeholder:text-gray-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] focus-visible:ring-0 focus-visible:border-[#3B82F6] transition-all"
+                    />
+                </div>
+
+                {/* Message Input */}
+                <div className="relative group">
+                    <Textarea
+                        placeholder="Mensaje"
+                        value={newParticipate.reason}
+                        onChange={(e) =>
                             setNewParticipate({
                               ...newParticipate,
                               reason: e.target.value,
                             })
-                          }
-              
-              
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                    <Button type="submit" onClick={(handleSubmitForm)} className="bg-gradient-to-r from-default to-[#0a7cde] hover:from-[#0a7cde] hover:to-[#0a4cde] text-white font-semibold py-3 px-8 w-70 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
-                      {isLoading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : "Enviar"}
+                        }
+                        className="w-full h-40 rounded-3xl border-2 border-[#93C5FD] bg-white px-6 py-4 text-gray-700 placeholder:text-gray-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] focus-visible:ring-0 focus-visible:border-[#3B82F6] resize-none transition-all"
+                    />
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-center mt-2">
+                    <Button 
+                        onClick={handleSubmitForm} 
+                        disabled={isLoading}
+                        className="bg-[#0070C0] hover:bg-[#005a9e] text-white font-bold text-lg py-6 px-16 rounded-full shadow-lg transition-transform transform hover:scale-105"
+                    >
+                        {isLoading ? <FontAwesomeIcon icon={faSpinner} className="h-5 w-5 animate-spin" /> : "ENVIAR"}
                     </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                </div>
             </div>
-          </div>
-        </section>
+
+            {/* 3. Decorative Divider Pattern */}
+            <div className="w-full h-16 relative mt-16 mb-8 opacity-80">
+                {/* Assuming a rapa nui pattern strip image exists. Reusing pattern_line or a specific footer pattern */}
+                <Image 
+                    src="/images/pattern_line.png" // Replace with specific footer pattern if available
+                    alt="Decorative Pattern" 
+                    fill 
+                    className="object-cover md:object-contain"
+                />
+            </div>
+
+            {/* 4. Financing Footer */}
+            <div className="flex flex-col items-center gap-8 pb-16 w-full">
+                <p className="text-[#1a1a1a] font-bold text-xl uppercase tracking-wide">
+                    Financiado con el apoyo de:
+                </p>
+                
+                <div className="flex flex-wrap justify-center items-end gap-x-12 gap-y-10 px-6 w-full max-w-6xl">
+                    
+                    {/* Lacuna Fund */}
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="relative h-20 w-48 hover:scale-105 transition-transform duration-300">
+                            <Image src="/images/lacuna.png" alt="Lacuna Fund" fill className="object-contain" />
+                        </div>
+                        <span className="text-[#4a4a4a] font-semibold text-sm">Lacuna Fund</span>
+                    </div>
+
+                    {/* ANID */}
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="relative h-24 w-24 hover:scale-105 transition-transform duration-300">
+                            <Image src="/images/anid.png" alt="ANID" fill className="object-contain" />
+                        </div>
+                        <span className="text-[#4a4a4a] font-semibold text-sm">ANID (IT24I0155)</span>
+                    </div>
+
+                    {/* Internet Society */}
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="relative h-20 w-48 hover:scale-105 transition-transform duration-300">
+                            <Image src="/images/isoc.png" alt="Internet Society" fill className="object-contain" />
+                        </div>
+                        <span className="text-[#4a4a4a] font-semibold text-sm">Internet Society</span>
+                    </div>
+
+                    {/* CONADI */}
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="relative h-20 w-40 hover:scale-105 transition-transform duration-300">
+                            <Image src="/images/conadi.png" alt="CONADI" fill className="object-contain" />
+                        </div>
+                        <span className="text-[#4a4a4a] font-semibold text-sm">CONADI</span>
+                    </div>
+
+                    {/* Hare Tāvana */}
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="relative h-24 w-24 hover:scale-105 transition-transform duration-300">
+                            <Image src="/images/municipalidad.png" alt="Hare Tāvana" fill className="object-contain" />
+                        </div>
+                        <span className="text-[#4a4a4a] font-semibold text-sm">Hare Tāvana</span>
+                    </div>
+
+                </div>
+            </div>
+        </section>		
+		
         <Toaster />
       </main>
     </div>
