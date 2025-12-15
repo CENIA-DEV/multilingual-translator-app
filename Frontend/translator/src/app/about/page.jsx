@@ -18,7 +18,7 @@ import { useRef, useEffect, useState } from 'react'
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { faBookOpen, faLockOpen, faUsers, faSpinner, faChevronDown } from '@fortawesome/free-solid-svg-icons'
+import { faBookOpen, faLockOpen, faUsers, faSpinner, faChevronDown, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import api from "../api"
 import Image from 'next/image'
@@ -33,29 +33,42 @@ import { VARIANT_LANG } from "../constants"
 import { useAnalytics } from '@/hooks/useAnalytics';
 
 export default function LandingPage() {
-  const parallaxRef = useRef(null)
-  const [language, setLanguage] = useState(`spa-${VARIANT_LANG}`)
-  const [isLoading, setIsLoading] = useState(false)
-  const { toast } = useToast()
-  const [isParticipateModalOpen, setIsParticipateModalOpen] = useState(false)
+  const parallaxRef = useRef(null);
+  const [language, setLanguage] = useState(`spa-${VARIANT_LANG}`);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [slideDirection, setSlideDirection] = useState('next'); // 'next' or 'prev'
+  const [showStickyHeader, setShowStickyHeader] = useState(false);
+  const { toast } = useToast();
+  const [isParticipateModalOpen, setIsParticipateModalOpen] = useState(false);
   const [newParticipate, setNewParticipate] = useState({
     email: "",
     reason: "",
     organization: "",
     first_name: "",
     last_name: ""
-  })
+  });
   const { trackEvent } = useAnalytics();
+  
   useEffect(() => {
     const handleScroll = () => {
       const scrolled = window.scrollY
+      
+      // parallax logic
       if (parallaxRef.current) {
         parallaxRef.current.style.transform = `translateY(${scrolled * 0.5}px)`
+      }
+
+      // Toggle sticky header when scrolling down
+      // 600px is roughly when the initial top header disappears
+      if (scrolled > 600) {
+        setShowStickyHeader(true);
+      } else {
+        setShowStickyHeader(false);
       }
     }
 
     window.addEventListener('scroll', handleScroll)
-
     return () => {
       window.removeEventListener('scroll', handleScroll)
     }
@@ -102,70 +115,311 @@ export default function LandingPage() {
   }
 
   const trackClick = (eventName) => {
-    trackEvent(eventName, 
-      {
+    trackEvent(eventName, {
         page: 'about'
-      }
-    );
+    });
   }
+  
+  // Testimonial carousel
+  const testimonials = [
+    { name: "Jackeline Rapu", quote: "This tool speaks our true voices. It respects our nuances.", img: "/images/jackeline_testimonial.png" },
+    { name: "Mama Ana", quote: "Our community's heart and soul are in this translator.", img: "/images/jackeline_testimonial.png" },
+    { name: "Papa Hete", quote: "We validated every word, it's accurate and ours.", img: "/images/jackeline_testimonial.png" },
+    { name: "Tiare Paoa", quote: "Finally technology that understands our heritage.", img: "/images/jackeline_testimonial.png" },
+  ];
+  
+  const nextSlide = () => {
+    setSlideDirection('next');
+    setCurrentSlide((prev) => (prev + 1) % testimonials.length);
+  };
+
+  const prevSlide = () => {
+    setSlideDirection('prev');
+    setCurrentSlide((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+  };
+  
+  // Logic to get an array of 3 items starting from currentSlide (Circular)
+  const getVisibleTestimonials = () => {
+    const visible = [];
+    for (let i = 0; i < 3; i++) {
+      const index = (currentSlide + i) % testimonials.length;
+      visible.push(testimonials[index]);
+    }
+    return visible;
+  };
+  
+  const visibleTestimonials = getVisibleTestimonials();
 
   return (
     <div className="flex flex-col min-h-screen min-w-full bg-gray-100 items-center">
-      <main className="flex flex-col min-w-full h-100 w-100">
-      
-      <div className="relative h-screen overflow-hidden"> 
-     
-      <div ref={parallaxRef} className="absolute inset-0">
-        <Image
-            src={`/images/landing-${VARIANT_LANG}.png`}
-            alt="Landing background"
-            fill
-            className="object-cover grayscale-100"
-            priority
-          />
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="absolute top-4 right-4 flex flex-row gap-4">
-          <Label className="text-white items-center flex gap-2">Selecciona tu idioma</Label>
-          <Select onValueChange={handleLanguageChange} defaultValue={language}>
-            
-          <SelectTrigger className="w-[120px] bg-gray border-solid border-1 hover:border-2 hover:border-default focus:ring-2 focus:ring-default  border-default text-white">
+	  <main className="flex flex-col min-w-full h-100 w-100">
+	  
+	    {/* --- STICKY HEADER --- */}
+		<div 
+		  className={`fixed top-0 left-0 w-full z-[100] transition-all duration-500 transform ${
+			showStickyHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+		  } bg-white/95 backdrop-blur-md shadow-md py-3 px-6 md:px-12 flex justify-between items-center`}
+		>
+			{/* Left: Small Logo */}
+			<div 
+				className="cursor-pointer h-10 w-10 relative"
+				onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+			>
+				 <Image 
+					src="/images/academia_bg.png" 
+					alt="Logo" 
+					fill 
+					className="object-contain"
+				 />
+			</div>
 
-            <SelectValue placeholder="Language" />
-          </SelectTrigger>
-          {VARIANT_LANG === 'rap' ? (
-          <SelectContent>
-            <SelectItem value="spa-rap">Español</SelectItem>
-            <SelectItem value="rap">Rapa Nui</SelectItem>
-            <SelectItem value="eng-rap">English</SelectItem>
-            </SelectContent>
-            ) : (
-              <SelectContent>
-                <SelectItem value="spa-arn">Español</SelectItem>
-                <SelectItem value="eng-arn">English</SelectItem>
-              </SelectContent>
-            )}
-          </Select>
-        </div>
-            <div className="text-center text-white p-8 rounded-lg">
-              <h1 className="text-6xl font-bold mb-4 max-[850px]:text-5xl">{text.Title[language]}</h1>
-              <p className="mb-8 max-w-2xl mx-auto text-xl">
-                {text.Subtitle[language]}
-              </p>
-              <div className="flex gap-4 max-[850px]:flex-col items-center justify-center">
-                <Link href="/translator" onClick={() => trackClick('try_translator_button_click')} className="inline-block bg-gradient-to-r from-default to-[#0a7cde] hover:from-[#0a7cde] hover:to-[#0a4cde] text-white font-semibold py-3 px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
-                  {text.TryTranslator[language]}
-                </Link>
-                <Link href="#about" onClick={() => trackClick('about_project_button_click')} className="inline-block border-white bg-white text-default backdrop-blur-md font-semibold py-3 hover:bg-[#0a7cde] hover:to-[#0a4cde] hover:text-white px-8 w-80 h-15 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg">
-                  {text.JoinProject[language]}
-                </Link>
-              </div>
-            </div>
+			{/* Center/Right: Menu & Lang & CTA */}
+			<div className="flex items-center gap-6">
+				{/* Dark Text Menu */}
+				<nav className="hidden lg:flex flex-row gap-6">
+					<a href="#about" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Proyecto</a>
+					<a href="#focus" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Enfoque</a>
+					<a href="#owners" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Equipo</a>
+					<a href="#colaborators" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Colaboradores</a>
+					<a href="#contact" className="text-gray-700 font-medium hover:text-[#FFA500] transition-colors">Contacto</a>
+				</nav>
+
+				<Link 
+					href="/translator" 
+					onClick={() => trackClick('try_translator_sticky_button_click')}
+				>
+					<button className="bg-[#FFA500] hover:bg-[#FFB700] text-black font-bold py-2 px-5 rounded-full shadow-md transition-transform transform hover:scale-105 border border-[#E59400] text-sm">
+						Usar el Traductor
+					</button>
+				</Link>
+			</div>
+		</div>
+	
+		<div className="relative min-h-screen w-full overflow-hidden flex flex-col justify-between">
+		  
+		  {/* Background Image */}
+		  <div ref={parallaxRef} className="absolute inset-0 z-0">
+			 <Image
+				  src={`/images/landing-${VARIANT_LANG}.png`}
+				  alt="Landing background"
+				  fill
+				  className="object-cover"
+				  priority
+			  />
+		  </div>
+		  <div className="absolute inset-0 z-0 mix-blend-multiply bg-[rgb(31,202,253)]/70"></div>
+		  <div className="absolute inset-0 bg-gradient-to-b from-blue-800/50 to-blue-900/90 z-0"></div>
+		
+		  {/* Content Container */}
+		  <div className="relative z-10 w-full min-h-screen flex flex-col justify-between">
+    
+			  {/* TOP SECTION: Header, Title, Logos (Needs Padding) */}
+			  <div className="flex flex-col flex-grow justify-between px-6 pt-6 md:px-12 md:pt-12">
+				
+				  {/* Top Bar: Logo Left, Language Right */}
+				  <div className="flex justify-between items-start w-full">
+					  {/* Top Left Logo (Umaŋa Hatu Re'o) */}
+					  <div className="w-20 md:w-28 aspect-square relative">
+						  <Image 
+							  src="/images/academia_bg.png" 
+							  alt="Umaŋa Hatu Re'o Logo" 
+							  width={200} 
+							  height={200}
+							  className="object-contain drop-shadow-[0_0_40px_rgba(255,255,255,1.0)]"
+						  />
+				      </div>
+
+					  {/* Top Right Section: Menu + Language Selector */}
+					  <div className="flex flex-col items-end gap-3 z-50">
+						  
+						  {/* NEW: Navigation Menu */}
+						  <nav className="hidden lg:flex flex-row gap-6 mb-1">
+							<a href="#about" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
+							  Proyecto
+							</a>
+							<a href="#focus" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
+							  Enfoque
+							</a>
+							<a href="#owners" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
+							  Equipo
+							</a>
+							<a href="#colaborators" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
+							  Colaboradores
+							</a>
+							<a href="#contact" className="text-white text-base font-medium hover:text-[#FFA500] transition-colors drop-shadow-md">
+							  Contacto
+							</a>
+						  </nav>
+
+						  {/* Existing Language Selector Row */}
+						  <div className="flex flex-row items-center gap-4">
+							<Label className="text-white items-center flex gap-2 drop-shadow-md">Selecciona tu idioma</Label>
+							<Select onValueChange={handleLanguageChange} defaultValue={language}>
+								<SelectTrigger className="w-[120px] bg-transparent border border-white text-white focus:ring-0 focus:ring-offset-0">
+									<SelectValue placeholder="Language" />
+								</SelectTrigger>
+								{VARIANT_LANG === 'rap' ? (
+									<SelectContent>
+										<SelectItem value="spa-rap">Español</SelectItem>
+										<SelectItem value="rap">Rapa Nui</SelectItem>
+										<SelectItem value="eng-rap">English</SelectItem>
+									</SelectContent>
+								) : (
+									<SelectContent>
+										<SelectItem value="spa-arn">Español</SelectItem>
+										<SelectItem value="eng-arn">English</SelectItem>
+									</SelectContent>
+								)}
+							</Select>
+						  </div>
+					  </div>
+				  </div>
+
+				  {/* Center Content: Title & CTA */}
+				  <div className="text-center text-white max-w-4xl mx-auto flex flex-col items-center gap-6">
+					<h1 className="text-4xl md:text-[2.75rem] leading-none font-bold tracking-tight drop-shadow-md">
+						{text.Title[language]}
+					</h1>
+					<p className="text-xl md:text-2xl font-light max-w-2xl mx-auto opacity-95">
+						{text.Subtitle[language]}
+					</p>
+					
+					{/* Yellow Action Button */}
+					<Link 
+						href="/translator" 
+						onClick={() => trackClick('try_translator_button_click')} 
+						className="mt-4 relative group"
+					>
+						<div className="absolute inset-0 bg-amber-600 rounded-full blur opacity-50 group-hover:opacity-75 transition-opacity"></div>
+						<button className="relative bg-[#FFA500] hover:bg-[#FFB700] text-black font-extrabold text-lg py-3 px-8 rounded-full shadow-[0_4px_14px_0_rgba(0,0,0,0.3)] transition-transform transform group-hover:scale-105 border-2 border-[#E59400]">
+							Usar el Traductor
+						</button>
+					</Link>
+				  </div>
+				  
+				  {/* --- 1. LOGOS SECTION --- */}
+				  <div className="w-full flex flex-col md:flex-row justify-between items-end gap-6 mt-auto mb-[20px]">
+					<div className="flex gap-9 items-center opacity-90">
+						 <div className="h-10 md:h-12 relative w-32 brightness-0 invert">
+							<Image src="/images/cenia_bg.png" alt="Cenia" fill className="object-contain object-left" />
+						 </div>
+						 <div className="h-16 md:h-18 relative w-32 brightness-0 invert">
+							<Image src="/images/eaa_bg.png" alt="EAA UC" fill className="object-contain object-left" />
+						 </div>
+					</div>
+					
+					<div className="h-10 md:h-12 relative w-32 opacity-90 brightness-0 invert">
+						<Image src="/images/voces_bg.png" alt="Voces" fill className="object-contain object-right" />
+					</div>
+				  </div>
+			  </div>
+
+              {/* --- 2. TESTIMONIAL CAROUSEL --- */}
+			  <div className="w-full bg-[#F2E8D5] py-7 shadow-2xl z-20"> 
+				<div className="container mx-auto px-10 md:px-10">
+					
+					{/* Carousel Row */}
+					<div className="flex items-center justify-between relative">
+						
+						{/* Left Arrow */}
+						<button 
+							onClick={prevSlide}
+							className="text-[#A07E5E] hover:text-[#5C3A21] transition-all active:scale-95 p-8"
+							aria-label="Previous testimonial"
+						>
+							<FontAwesomeIcon icon={faChevronLeft} className="h-6 w-6 md:h-8 md:w-8" />
+						</button>
+
+						{/* Cards Container */}
+						<div className="flex-1 overflow-hidden w-full flex justify-center">
+							<div 
+								key={currentSlide}
+								className={`flex flex-row justify-center items-center w-full gap-4 md:gap-12 animate-in fade-in duration-500 ${
+									slideDirection === 'next' ? 'slide-in-from-right-12' : 'slide-in-from-left-12'
+								}`}
+							>
+								{visibleTestimonials.map((person, idx) => (
+									<div 
+										key={`${person.name}-${idx}`} 
+										className={`flex flex-row items-center gap-3 flex-1 max-w-lg ${idx !== 1 ? 'hidden lg:flex' : 'flex'}`}
+									>
+										{/* Person Image */}
+										<div className="relative w-28 h-28 md:w-28 md:h-28 flex-shrink-0">
+											<Image 
+												src={person.img} 
+												alt={person.name} 
+												fill 
+												className="rounded-full object-cover shadow-md border-2 border-[#DCCbb0]"
+											/>
+										</div>
+
+										{/* Text Content */}
+										<div className="flex flex-col w-full gap-1">
+											
+											{/* Top Pattern */}
+											<div className="w-full h-5 relative">
+												<Image 
+												src="/images/pattern_line.png" 
+												alt="pattern" 
+												fill 
+												className="object-contain object-left"
+												/>
+											</div>
+
+											{/* Quote */}
+											<div className="py-0.5">
+												<p className="text-gray-900 font-serif font-bold text-xs md:text-sm leading-tight">
+													"{person.quote}"
+												</p>
+												<span className="font-extrabold text-gray-800 text-[10px] md:text-[11px] block uppercase tracking-wide mt-1">
+													- {person.name}
+												</span>
+											</div>
+
+											{/* Bottom Pattern */}
+											<div className="w-full h-5 relative">
+												<Image 
+												src="/images/pattern_line.png" 
+												alt="pattern" 
+												fill 
+												className="object-contain object-left"
+												/>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* Right Arrow */}
+						<button 
+							onClick={nextSlide}
+							className="text-[#A07E5E] hover:text-[#5C3A21] transition-all active:scale-95 p-8"
+							aria-label="Next testimonial"
+						>
+							<FontAwesomeIcon icon={faChevronRight} className="h-6 w-6 md:h-8 md:w-8" />
+						</button>
+					</div>
+
+					{/* Pagination Dots */}
+					<div className="flex justify-center gap-2 mt-2">
+						{testimonials.map((_, index) => (
+							<button
+								key={index}
+								onClick={() => setCurrentSlide(index)}
+								className={`h-1.5 w-1.5 rounded-full transition-all ${
+									currentSlide === index ? 'bg-[#5C3A21] w-3' : 'bg-[#C4A484]'
+								}`}
+								aria-label={`Go to slide ${index + 1}`}
+							/>
+						))}
+					</div>
+
+				</div>
+			  </div>
+
           </div>
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white animate-bounce">
-              <FontAwesomeIcon icon={faChevronDown} />
-          </div>
-        </div>
+	    </div>
         
         <section id="about" className="w-full py-12 px-5 md:py-24 lg:py-32 flex items-center justify-center">
           <div className="flex flex-col container px-4 md:px-6">

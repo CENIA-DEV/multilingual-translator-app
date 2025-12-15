@@ -13,7 +13,7 @@
 // limitations under the License.
 export const text = {
   'Title': {
-    "spa-rap": "Revitalicemos nuestro idioma rapa nui con IA",
+    "spa-rap": "Mākini huri vānaŋa - Traductor rapa nui",
     "rap": "Ki haka pūai i te re'o rapa nui hai IA",
     "eng-rap": "Revitalizing our Rapa Nui language with AI",
     "eng-arn": "Supporting the revitalization of the Mapuzungun language with AI",
@@ -21,7 +21,7 @@ export const text = {
   },
 
   'Subtitle': {
-    "spa-rap": "Aportemos al proceso de salvaguardia del rapa nui a través de la creación de modelos de traducción automática",
+    "spa-rap": "Creado y validado por nuestro pueblo rapa nui para revitalizar nuestra lengua",
     "rap": "Hā'ū'ū i te hāpa'o iŋa o te re'o rapa nui a roto i te mākini huri vānaŋa",
     "eng-rap": "Let's contribute to the process of safeguarding the Rapa Nui language through the creation of translation models",
     "spa-arn": "Proyecto que desarrolla modelos de traducción automática mapuzungun-español con inteligencia artificial",
