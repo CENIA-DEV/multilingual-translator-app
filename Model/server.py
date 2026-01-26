@@ -33,11 +33,12 @@ class _InferFuncWrapper:
         outputs.
 
         Args:
-            prompts: Batch of strings with the user prompts
-            init_images: Batch of initial image to run the diffusion
+            texts: Texts divided by new lines to translate
+            source_lang: Source language code
+            target_lang: Target language code
 
         Returns
-            image: Batch of generated images
+            translation: Batch of translated texts
         """
         texts, source_lang, target_lang = inputs.values()
         # For now, we only support batch size 1

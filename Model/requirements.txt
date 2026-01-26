@@ -6,3 +6,5 @@ sentencepiece==0.2.0
 accelerate==1.1.1
 google-cloud-storage==2.18.2
 python-dotenv==1.0.1
+uvicorn==0.34.2
+fastapi==0.115.12

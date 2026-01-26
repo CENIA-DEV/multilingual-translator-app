@@ -19,4 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt \
 WORKDIR /home/app/src
 COPY . .
 
-ENTRYPOINT ["python3", "server.py"]
+RUN chmod +x entrypoint.sh
+
+# Expose only API port
+EXPOSE 8080
+
+ENTRYPOINT ["./entrypoint.sh"]
