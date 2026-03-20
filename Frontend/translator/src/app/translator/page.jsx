@@ -27,7 +27,16 @@ import {
   faStop,
   faSpinner,
   faMicrophone,
-  faPlus,
+  faFileArrowUp,
+  faMagnifyingGlassPlus,
+  faMagnifyingGlassMinus,
+  faRotateRight,
+  faCrop,
+  faArrowRotateLeft,
+  faTrash,
+  faCamera,
+  faCopy,
+  faChevronDown,
   faPaperPlane, 
   faXmark,
   faComment
@@ -124,6 +133,21 @@ export default function Translator() {
   
   // Record modal
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [documentDragActive, setDocumentDragActive] = useState(false);
+  const [documentFile, setDocumentFile] = useState(null);
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState('');
+  const [documentZoom, setDocumentZoom] = useState(1);
+  const [documentRotation, setDocumentRotation] = useState(0);
+  const [documentCropMode, setDocumentCropMode] = useState(false);
+  const [documentHistory, setDocumentHistory] = useState([]);
+  const [documentModel, setDocumentModel] = useState('gemini-1.5');
+  const [documentAdvancedOpen, setDocumentAdvancedOpen] = useState(false);
+  const [documentResultText, setDocumentResultText] = useState('');
+  const [documentIsRunning, setDocumentIsRunning] = useState(false);
+  const [documentProcessingFiles, setDocumentProcessingFiles] = useState(false);
+  const [documentTargetLanguages, setDocumentTargetLanguages] = useState([]);
+  const docInputRef = useRef(null);
   const waveCanvasRef = useRef(null);
   const waveRAFRef = useRef(null);
   const waveAnalyserRef = useRef(null);
@@ -1105,9 +1129,8 @@ export default function Translator() {
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       setAsrStatus('recording');
-      recordingStartedAtRef.current = performance.now(); // NEW: Log start time
+      recordingStartedAtRef.current = performance.now();
 	  
-      // --- NEW: Start timer ---
       setRecordingSeconds(0);
       if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
       recordingIntervalRef.current = setInterval(() => {
@@ -1296,6 +1319,112 @@ export default function Translator() {
     setSrcText('');
     setDstText('');
     setShowSrcTextMessage(false);
+  };
+
+  const DOCUMENT_LANGUAGE_OPTIONS = [
+    { code: 'eng', label: 'English' },
+    { code: 'spa', label: 'Spanish' },
+    { code: 'fra', label: 'French' },
+    { code: 'deu', label: 'German' },
+    { code: 'auto', label: 'Auto Detect' },
+  ];
+
+  const pushDocumentHistory = () => {
+    setDocumentHistory((prev) => [...prev, { zoom: documentZoom, rotation: documentRotation }]);
+  };
+
+  const resetDocumentState = () => {
+    if (documentPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(documentPreviewUrl);
+    setDocumentDragActive(false);
+    setDocumentFile(null);
+    setDocumentPreviewUrl('');
+    setDocumentZoom(1);
+    setDocumentRotation(0);
+    setDocumentCropMode(false);
+    setDocumentHistory([]);
+    setDocumentModel('gemini-1.5');
+    setDocumentAdvancedOpen(false);
+    setDocumentResultText('');
+    setDocumentIsRunning(false);
+    setDocumentProcessingFiles(false);
+    setDocumentTargetLanguages([]);
+    if (docInputRef.current) docInputRef.current.value = '';
+  };
+
+  const isSupportedDocument = (file) => {
+    const supportedMime = ['application/pdf', 'image/jpeg', 'image/png'];
+    const name = (file?.name || '').toLowerCase();
+    return supportedMime.includes(file?.type) || /\.(pdf|jpe?g|png)$/i.test(name);
+  };
+
+  const handleDocumentPicked = async (file) => {
+    if (!file) return;
+    if (!isSupportedDocument(file)) {
+      toast('Formato no soportado', {
+        description: 'Sube un archivo PDF, JPG, JPEG o PNG.',
+      });
+      return;
+    }
+
+    setDocumentProcessingFiles(true);
+    if (documentPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(documentPreviewUrl);
+
+    const previewUrl = URL.createObjectURL(file);
+    setDocumentFile(file);
+    setDocumentPreviewUrl(previewUrl);
+    setDocumentZoom(1);
+    setDocumentRotation(0);
+    setDocumentCropMode(false);
+    setDocumentHistory([]);
+    setDocumentResultText('');
+    setDocumentProcessingFiles(false);
+
+    toast('Documento cargado', {
+      description: file.name,
+    });
+  };
+
+  const openDocumentUploadModal = () => {
+    if (translationRestricted) {
+      setTranslationRestrictedDialogOpen(true);
+      return;
+    }
+    setShowDocumentModal(true);
+  };
+
+  const runDocumentOCR = async () => {
+    if (!documentFile) {
+      toast('No hay documento', { description: 'Sube un documento antes de ejecutar OCR.' });
+      return;
+    }
+    setDocumentIsRunning(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setDocumentResultText('No text extracted yet.');
+    setDocumentIsRunning(false);
+  };
+
+  const handleDocumentUndo = () => {
+    if (documentHistory.length === 0) return;
+    const prev = documentHistory[documentHistory.length - 1];
+    setDocumentHistory((h) => h.slice(0, -1));
+    setDocumentZoom(prev.zoom);
+    setDocumentRotation(prev.rotation);
+    setDocumentCropMode(false);
+  };
+
+  const toggleDocumentLang = (code) => {
+    setDocumentTargetLanguages((prev) =>
+      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
+    );
+  };
+
+  const copyDocumentText = async () => {
+    try {
+      await navigator.clipboard.writeText(documentResultText || '');
+      toast('Texto copiado');
+    } catch {
+      toast('No se pudo copiar el texto');
+    }
   };
 
   async function startWaveformVisualization(stream) {
@@ -1495,86 +1624,17 @@ export default function Translator() {
 
           {/* LEFT: keep Upload*/}
           <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
-            {/* Upload button */}
+            {/* Document upload button */}
             {ASR_UPLOAD_VISIBLE_D && (
-              <label
-                className="max-[850px]:hidden w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition cursor-pointer"
-                title="Subir audio"
-                aria-label="Subir audio"
+              <button
+                type="button"
+                className="max-[850px]:hidden box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110"
+                title="Subir documento"
+                aria-label="Subir documento"
+                onClick={openDocumentUploadModal}
               >
-                <input
-                  type="file"
-                  accept="audio/*"
-                  hidden
-                  onChange={async (e) => {
-                    if (translationRestricted) {
-                      setTranslationRestrictedDialogOpen(true);
-                      e.currentTarget.value = "";
-                      return;
-                    }
-                    const files = e.currentTarget.files;
-                    if (!files || files.length === 0) return;
-                    const file = files[0];
-                    e.currentTarget.value = ""; // Reset file input
-
-                    // --- RE-ADD MIME TYPE VALIDATION ---
-                    const okTypes = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a'];
-                    if (file.type && !okTypes.includes(file.type)) {
-                      toast('Formato no soportado.', {
-                        description: `El formato '${file.type}' no es compatible. Intente con webm, ogg, mp3, o wav.`,
-                      });
-                      return;
-                    }
-                    // --- END RE-ADD ---
-
-                    // --- DURATION VALIDATION START ---
-                    const audioURL = URL.createObjectURL(file);
-                    const tempAudio = document.createElement('audio');
-                    tempAudio.preload = 'metadata';
-
-                    const cleanup = () => {
-                      URL.revokeObjectURL(audioURL);
-                      tempAudio.removeEventListener('loadedmetadata', onMetadataLoaded);
-                      tempAudio.removeEventListener('error', onError);
-                    };
-
-                    const onMetadataLoaded = () => {
-                      const duration = tempAudio.duration;
-                      cleanup();
-                      
-                      if (duration > 30) {
-                        toast('El audio no debe superar los 30 segundos.', {
-                          description: `Duración detectada: ${Math.round(duration)}s`,
-                        });
-                        setAsrStatus('idle'); // Reset status
-                        return;
-                      }
-                      
-                      // If duration is valid, proceed to transcribe
-                      setAsrStatus('uploading');
-                      handleTranscribeBlob(file, file.name || 'audio.subido').catch(err => {
-                        console.error(err);
-                        setAsrStatus('error');
-                        toast('No se pudo procesar el archivo.');
-                      });
-                    };
-
-                    const onError = () => {
-                      cleanup();
-                      toast('Error al leer el archivo de audio.', {
-                        description: 'El archivo podría estar dañado o en un formato no soportado.',
-                      });
-                      setAsrStatus('idle');
-                    };
-
-                    tempAudio.addEventListener('loadedmetadata', onMetadataLoaded);
-                    tempAudio.addEventListener('error', onError);
-                    tempAudio.src = audioURL;
-                    // --- DURATION VALIDATION END ---
-                  }}
-                />
-                <FontAwesomeIcon icon={faPlus} className="fa-lg" color="#0a8cde" />
-              </label>
+                <FontAwesomeIcon icon={faFileArrowUp} className="text-[1.3em]" color="#0a8cde" />
+              </button>
             )}
           </div>
 
@@ -1718,6 +1778,94 @@ export default function Translator() {
         suggestionId={null}
         isSuggestionOnly={isSuggestionOnlyMode}
       />
+
+      <Dialog
+        open={showDocumentModal}
+        onOpenChange={(open) => {
+          if (!open) resetDocumentState();
+          setShowDocumentModal(open);
+        }}
+      >
+        <DialogContent className="w-[min(1100px,96vw)] max-w-none p-0 overflow-hidden bg-white border border-slate-200">
+          <div className="px-5 pt-5 pb-2 text-[#0f172a]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-semibold text-[#0a8cde]">Extraccion de documento</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-500 mt-1">Sube un PDF o imagen para preparar extraccion OCR.</p>
+          </div>
+
+          <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div
+              className={`rounded-3xl border-2 border-dashed min-h-[420px] flex flex-col items-center justify-center text-center px-8 bg-white transition ${
+                documentDragActive ? 'border-[#0a8cde] bg-[#eef7ff]' : 'border-[#bfdbfe]'
+              }`}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setDocumentDragActive(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDocumentDragActive(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setDocumentDragActive(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDocumentDragActive(false);
+                const file = e.dataTransfer?.files?.[0];
+                handleDocumentPicked(file);
+              }}
+            >
+              <FontAwesomeIcon icon={faFileArrowUp} className="text-5xl text-[#0a8cde] mb-5" />
+              <p className="text-3xl text-slate-800 font-semibold">Drop a file to extract text</p>
+              <p className="text-slate-500 mt-2">Supports PDF, JPEG, and PNG files</p>
+              <input
+                ref={docInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                hidden
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  handleDocumentPicked(file);
+                  e.currentTarget.value = '';
+                }}
+              />
+              <button
+                type="button"
+                className="mt-6 rounded-full bg-[#0a8cde] px-6 py-2 text-white font-semibold hover:bg-[#067ac1] transition"
+                onClick={() => docInputRef.current?.click()}
+              >
+                Choose File
+              </button>
+            </div>
+
+            <div className="rounded-3xl overflow-hidden bg-white border border-slate-200 min-h-[420px]">
+              <div className="h-16 px-5 border-b border-[#dbeafe] flex items-center justify-between bg-[#f4faff] text-[#0a8cde]">
+                <span className="font-semibold">OCR Results</span>
+                {documentFile && (
+                  <span className="text-xs text-slate-500 truncate max-w-[220px]">{documentFile.name}</span>
+                )}
+              </div>
+              <div className="h-[calc(100%-4rem)] p-6 flex items-center justify-center text-center">
+                {!documentFile ? (
+                  <p className="text-slate-400 text-2xl">Upload a document to see OCR results</p>
+                ) : (
+                  <div className="w-full text-left">
+                    <p className="text-[#0a8cde] font-semibold text-lg">File ready for OCR</p>
+                    <p className="text-slate-600 mt-2">Name: {documentFile.name}</p>
+                    <p className="text-slate-600 mt-1">Size: {(documentFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-slate-600 mt-4">
+                      Esta vista ya esta preparada. Si quieres, en el siguiente paso conecto este modal al endpoint OCR para llenar este panel con texto real.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 	  
       <Dialog
         open={showRecordModal}
