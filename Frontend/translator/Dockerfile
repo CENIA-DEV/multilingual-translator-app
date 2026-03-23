@@ -13,25 +13,30 @@
 # limitations under the License.
 
 # Use the official Node 20.10 image
+
 FROM node:20.10-alpine
 
-# Set the working directory to /app
 WORKDIR /app
 
-# Copy the package.json and package-lock.json files
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    pkgconfig \
+    pixman-dev \
+    cairo-dev \
+    pango-dev \
+    libjpeg-turbo-dev \
+    giflib-dev
+
 COPY package*.json ./
 
-# Install the dependencies
 RUN npm install
 
-# Copy the rest of the files
 COPY . .
 
-# Expose the port 3000
 EXPOSE 3000
 
-# Build the optimized version of the web app
 RUN npm run build
 
-# Run the optimized version
-CMD ["npm", "run","start"]
+CMD ["npm", "run", "start"]
