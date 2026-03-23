@@ -22,8 +22,9 @@ module.exports = {
     removeConsole: process.env.NODE_ENV === "production",
   },
   webpack: (config, { isServer }) => {
-    // Prevent Webpack from trying to bundle the 'canvas' binary on the client side
+    // 1. Tell Webpack to ignore 'canvas' entirely when building the client-side bundle
     if (!isServer) {
+      config.resolve.alias.canvas = false;
       config.resolve.fallback = {
         ...config.resolve.fallback,
         canvas: false,
@@ -32,11 +33,11 @@ module.exports = {
       };
     }
 
-    // This rule ensures that if Webpack encounters a .node file, 
-    // it doesn't try to parse it as JavaScript.
+    // 2. Use Webpack 5's built-in asset system for .node binary files
+    // This replaces 'raw-loader' so you don't have to install anything new.
     config.module.rules.push({
       test: /\.node$/,
-      use: 'raw-loader',
+      type: 'asset/resource',
     });
 
     return config;
