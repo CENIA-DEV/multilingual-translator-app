@@ -14,6 +14,7 @@
 # limitations under the License.
 import base64
 import logging
+import re
 from functools import reduce
 from operator import or_
 
@@ -22,7 +23,7 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
@@ -44,6 +45,7 @@ from .models import (
     TextToSpeechAudio,
     TranslationPair,
     TranslationRequest,
+    Word,
 )
 from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
 from .serializers import TranslationRequestSerializer  # Add this import
@@ -60,6 +62,7 @@ from .serializers import (
     TextToSpeechSerializer,
     TranslationPairSerializer,
     UserSerializer,
+    WordSerializer,
 )
 from .utils import find_cached_tts_normalized  # added
 from .utils import (
@@ -1088,3 +1091,31 @@ class TranslationRequestViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(user__id=user_id)
 
         return queryset.order_by("-created_at")
+
+
+class WordViewSet(viewsets.ModelViewSet):
+    queryset = Word.objects.all().prefetch_related("definitions")
+    serializer_class = WordSerializer
+
+    @action(detail=False, methods=["post"])
+    def analyze_sentence(self, request):
+        sentence = request.data.get("sentence", "")
+
+        if not sentence:
+            return Response(
+                {"error": "Please provide a 'sentence' in the request body."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        clean_words = re.findall(r"\b\w+\b", sentence.lower())
+
+        found_words = self.get_queryset().filter(text__in=clean_words)
+
+        serializer = self.get_serializer(found_words, many=True)
+        return Response(
+            {
+                "analyzed_sentence": sentence,
+                "matches_found": found_words.count(),
+                "results": serializer.data,
+            }
+        )

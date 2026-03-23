@@ -23,6 +23,7 @@ from rest_framework.validators import UniqueValidator
 
 from .models import (
     CacheTTS,
+    Definition,
     Dialect,
     GeneralSuggestion,
     InvitationToken,
@@ -35,6 +36,7 @@ from .models import (
     TextToSpeechAudio,
     TranslationPair,
     TranslationRequest,
+    Word,
 )
 
 
@@ -616,3 +618,25 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["created_at"]
+
+
+class DefinitionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Definition
+        fields = ["meaning", "part_of_speech"]
+
+
+class WordSerializer(serializers.ModelSerializer):
+    definitions = DefinitionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Word
+        fields = ["text", "definitions"]
+
+    def create(self, validated_data):
+        definitions_data = validated_data.pop("definitions", [])
+        word = Word.objects.create(**validated_data)
+        for definition_data in definitions_data:
+            Definition.objects.create(word=word, **definition_data)
+
+        return word

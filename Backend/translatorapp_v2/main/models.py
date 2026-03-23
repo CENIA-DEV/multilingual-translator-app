@@ -432,3 +432,21 @@ class TranslationRequest(models.Model):
 
     def __str__(self):
         return f"{self.src_lang.code} → {self.dst_lang.code} | {self.created_at}"
+
+
+class Word(models.Model):
+    text = models.CharField(max_length=100, unique=True, db_index=True)
+
+    def __str__(self):
+        return self.text
+
+
+class Definition(models.Model):
+    word = models.ForeignKey(Word, related_name="definitions", on_delete=models.CASCADE)
+    meaning = models.TextField()
+    part_of_speech = models.CharField(
+        max_length=50, blank=True, null=True
+    )  # e.g., 'noun', 'verb'
+
+    def __str__(self):
+        return f"{self.word.text}: {self.meaning[:20]}..."

@@ -25,6 +25,7 @@ from .views import (
     TranslateViewSet,
     TranslationRequestViewSet,
     UserViewSet,
+    WordViewSet,
 )
 
 router = DefaultRouter()
@@ -42,5 +43,6 @@ router.register(r"speech-to-text", SpeechToTextViewSet, basename="speech-to-text
 router.register(
     r"translation-requests", TranslationRequestViewSet, basename="translation-request"
 )
+router.register(r"words", WordViewSet)
 
 urlpatterns = router.urls
