@@ -31,12 +31,12 @@ import {
   faMagnifyingGlassPlus,
   faMagnifyingGlassMinus,
   faRotateRight,
-  faCrop,
   faArrowRotateLeft,
-  faTrash,
+  faCrop,
   faCamera,
-  faCopy,
   faChevronDown,
+  faChevronLeft,
+  faChevronRight,
   faPaperPlane, 
   faXmark,
   faComment
@@ -56,6 +56,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { generateSpeech } from '../services/ttsService';
 import { generateText, warmupASRModel } from '../services/asrService'; // ADD warmupASRModel
+import * as pdfjsStatic from 'pdfjs-dist/build/pdf';
+import 'pdfjs-dist/build/pdf.worker.entry';
 
 export default function Translator() {
 
@@ -136,18 +138,27 @@ export default function Translator() {
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [documentDragActive, setDocumentDragActive] = useState(false);
   const [documentFile, setDocumentFile] = useState(null);
+  const [documentPages, setDocumentPages] = useState([]);
+  const [documentPageIndex, setDocumentPageIndex] = useState(0);
   const [documentPreviewUrl, setDocumentPreviewUrl] = useState('');
   const [documentZoom, setDocumentZoom] = useState(1);
   const [documentRotation, setDocumentRotation] = useState(0);
   const [documentCropMode, setDocumentCropMode] = useState(false);
-  const [documentHistory, setDocumentHistory] = useState([]);
-  const [documentModel, setDocumentModel] = useState('gemini-1.5');
-  const [documentAdvancedOpen, setDocumentAdvancedOpen] = useState(false);
-  const [documentResultText, setDocumentResultText] = useState('');
+  const [documentCropSelection, setDocumentCropSelection] = useState(null);
+  const [documentCropDragging, setDocumentCropDragging] = useState(false);
+  const [documentCropStart, setDocumentCropStart] = useState(null);
+  const [documentPan, setDocumentPan] = useState({ x: 0, y: 0 });
+  const [documentPanDragging, setDocumentPanDragging] = useState(false);
+  const [documentPageHistory, setDocumentPageHistory] = useState({});
+  const [documentOcrByPage, setDocumentOcrByPage] = useState({});
   const [documentIsRunning, setDocumentIsRunning] = useState(false);
   const [documentProcessingFiles, setDocumentProcessingFiles] = useState(false);
   const [documentTargetLanguages, setDocumentTargetLanguages] = useState([]);
+  const pdfjsRef = useRef(null);
   const docInputRef = useRef(null);
+  const documentViewportRef = useRef(null);
+  const documentImageRef = useRef(null);
+  const documentPanStartRef = useRef(null);
   const waveCanvasRef = useRef(null);
   const waveRAFRef = useRef(null);
   const waveAnalyserRef = useRef(null);
@@ -1329,22 +1340,24 @@ export default function Translator() {
     { code: 'auto', label: 'Auto Detect' },
   ];
 
-  const pushDocumentHistory = () => {
-    setDocumentHistory((prev) => [...prev, { zoom: documentZoom, rotation: documentRotation }]);
-  };
-
   const resetDocumentState = () => {
     if (documentPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(documentPreviewUrl);
     setDocumentDragActive(false);
     setDocumentFile(null);
     setDocumentPreviewUrl('');
+    setDocumentPages([]);
+    setDocumentPageIndex(0);
     setDocumentZoom(1);
     setDocumentRotation(0);
     setDocumentCropMode(false);
-    setDocumentHistory([]);
-    setDocumentModel('gemini-1.5');
-    setDocumentAdvancedOpen(false);
-    setDocumentResultText('');
+    setDocumentCropSelection(null);
+    setDocumentCropDragging(false);
+    setDocumentCropStart(null);
+    setDocumentPan({ x: 0, y: 0 });
+    setDocumentPanDragging(false);
+    documentPanStartRef.current = null;
+    setDocumentPageHistory({});
+    setDocumentOcrByPage({});
     setDocumentIsRunning(false);
     setDocumentProcessingFiles(false);
     setDocumentTargetLanguages([]);
@@ -1355,6 +1368,325 @@ export default function Translator() {
     const supportedMime = ['application/pdf', 'image/jpeg', 'image/png'];
     const name = (file?.name || '').toLowerCase();
     return supportedMime.includes(file?.type) || /\.(pdf|jpe?g|png)$/i.test(name);
+  };
+
+  const isPdfDocument = (file) => {
+    if (!file) return false;
+    return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  };
+
+  const currentDocumentPageUrl = documentPages[documentPageIndex] || documentPreviewUrl;
+  const currentDocumentResultText = documentOcrByPage[documentPageIndex] || '';
+  const isPdfObjectFallback = !!documentFile && isPdfDocument(documentFile) && documentPages.length === 0 && !!documentPreviewUrl;
+
+  const clampDocumentPageIndex = (nextIndex) => {
+    if (!documentPages.length) return 0;
+    return Math.max(0, Math.min(nextIndex, documentPages.length - 1));
+  };
+
+  const goToDocumentPage = (nextIndex) => {
+    const safeIndex = clampDocumentPageIndex(nextIndex);
+    setDocumentPageIndex(safeIndex);
+    setDocumentCropSelection(null);
+    setDocumentCropMode(false);
+    setDocumentRotation(0);
+    setDocumentPan({ x: 0, y: 0 });
+    setDocumentPanDragging(false);
+    documentPanStartRef.current = null;
+    const nextUrl = documentPages[safeIndex];
+    if (nextUrl) setDocumentPreviewUrl(nextUrl);
+  };
+
+  const handleDocumentZoomIn = () => {
+    setDocumentZoom((z) => Math.min(3, Number((z + 0.2).toFixed(2))));
+  };
+
+  const handleDocumentZoomOut = () => {
+    setDocumentZoom((z) => Math.max(0.5, Number((z - 0.2).toFixed(2))));
+  };
+
+  const pushDocumentHistoryForCurrentPage = (sourceUrl) => {
+    if (!sourceUrl) return;
+    setDocumentPageHistory((prev) => ({
+      ...prev,
+      [documentPageIndex]: [...(prev[documentPageIndex] || []), sourceUrl],
+    }));
+  };
+
+  const handleDocumentRotate = async () => {
+    const srcUrl = documentPages[documentPageIndex] || documentPreviewUrl;
+    if (!srcUrl) return;
+
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = srcUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.height;
+      canvas.height = img.width;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+      const rotatedUrl = canvas.toDataURL('image/png');
+      pushDocumentHistoryForCurrentPage(srcUrl);
+      const updatedPages = [...documentPages];
+      if (updatedPages.length) {
+        updatedPages[documentPageIndex] = rotatedUrl;
+        setDocumentPages(updatedPages);
+      } else {
+        setDocumentPages([rotatedUrl]);
+        setDocumentPageIndex(0);
+      }
+      setDocumentPreviewUrl(rotatedUrl);
+      setDocumentRotation(0);
+      setDocumentCropSelection(null);
+      setDocumentCropMode(false);
+      setDocumentPan({ x: 0, y: 0 });
+      setDocumentPanDragging(false);
+      documentPanStartRef.current = null;
+    } catch (error) {
+      console.error('Document rotate failed', error);
+      toast('No se pudo rotar la pagina.');
+    }
+  };
+
+  const handleDocumentClear = () => {
+    if (documentPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(documentPreviewUrl);
+    setDocumentFile(null);
+    setDocumentPreviewUrl('');
+    setDocumentPages([]);
+    setDocumentPageIndex(0);
+    setDocumentZoom(1);
+    setDocumentRotation(0);
+    setDocumentCropSelection(null);
+    setDocumentCropDragging(false);
+    setDocumentCropStart(null);
+    setDocumentPan({ x: 0, y: 0 });
+    setDocumentPanDragging(false);
+    documentPanStartRef.current = null;
+    setDocumentPageHistory({});
+    setDocumentOcrByPage({});
+  };
+
+  const handleDocumentUndoCurrentPage = () => {
+    const history = documentPageHistory[documentPageIndex] || [];
+    if (!history.length) return;
+
+    const previousUrl = history[history.length - 1];
+    setDocumentPageHistory((prev) => ({
+      ...prev,
+      [documentPageIndex]: (prev[documentPageIndex] || []).slice(0, -1),
+    }));
+
+    setDocumentPages((prevPages) => {
+      if (!prevPages.length) return prevPages;
+      const updatedPages = [...prevPages];
+      updatedPages[documentPageIndex] = previousUrl;
+      return updatedPages;
+    });
+
+    setDocumentPreviewUrl(previousUrl);
+    setDocumentCropMode(false);
+    setDocumentCropSelection(null);
+    setDocumentCropDragging(false);
+    setDocumentCropStart(null);
+    setDocumentPan({ x: 0, y: 0 });
+    setDocumentPanDragging(false);
+    documentPanStartRef.current = null;
+  };
+
+  const applyDocumentSelectionCrop = async () => {
+    const imgEl = documentImageRef.current;
+    const viewportEl = documentViewportRef.current;
+    const selection = documentCropSelection;
+    if (!imgEl || !viewportEl || !selection) return;
+
+    try {
+      const imgRect = imgEl.getBoundingClientRect();
+      const viewportRect = viewportEl.getBoundingClientRect();
+      const leftInViewport = imgRect.left - viewportRect.left;
+      const topInViewport = imgRect.top - viewportRect.top;
+
+      const sxView = Math.max(0, selection.x - leftInViewport);
+      const syView = Math.max(0, selection.y - topInViewport);
+      const exView = Math.min(imgRect.width, selection.x + selection.w - leftInViewport);
+      const eyView = Math.min(imgRect.height, selection.y + selection.h - topInViewport);
+      const widthView = exView - sxView;
+      const heightView = eyView - syView;
+
+      if (widthView < 4 || heightView < 4) {
+        toast('Seleccion de recorte demasiado pequena.');
+        return;
+      }
+
+      const scaleX = imgEl.naturalWidth / imgRect.width;
+      const scaleY = imgEl.naturalHeight / imgRect.height;
+      const sx = Math.floor(sxView * scaleX);
+      const sy = Math.floor(syView * scaleY);
+      const sWidth = Math.floor(widthView * scaleX);
+      const sHeight = Math.floor(heightView * scaleY);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, sWidth);
+      canvas.height = Math.max(1, sHeight);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(imgEl, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+      const croppedUrl = canvas.toDataURL('image/png');
+      const srcUrl = documentPages[documentPageIndex] || documentPreviewUrl;
+      pushDocumentHistoryForCurrentPage(srcUrl);
+
+      const updatedPages = [...documentPages];
+      if (updatedPages.length) {
+        updatedPages[documentPageIndex] = croppedUrl;
+        setDocumentPages(updatedPages);
+      } else {
+        setDocumentPages([croppedUrl]);
+        setDocumentPageIndex(0);
+      }
+      setDocumentPreviewUrl(croppedUrl);
+      setDocumentCropMode(false);
+      setDocumentCropSelection(null);
+      setDocumentCropDragging(false);
+      setDocumentCropStart(null);
+      setDocumentPan({ x: 0, y: 0 });
+      setDocumentPanDragging(false);
+      documentPanStartRef.current = null;
+    } catch (error) {
+      console.error('Document crop failed', error);
+      toast('No se pudo recortar la pagina.');
+    }
+  };
+
+  const handleDocumentCropMouseDown = (event) => {
+    if (!documentCropMode || isPdfObjectFallback) return;
+    const viewportEl = documentViewportRef.current;
+    if (!viewportEl) return;
+    const rect = viewportEl.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    setDocumentCropStart({ x, y });
+    setDocumentCropSelection({ x, y, w: 0, h: 0 });
+    setDocumentCropDragging(true);
+  };
+
+  const handleDocumentCropMouseMove = (event) => {
+    if (!documentCropMode || !documentCropDragging || !documentCropStart) return;
+    const viewportEl = documentViewportRef.current;
+    if (!viewportEl) return;
+    const rect = viewportEl.getBoundingClientRect();
+    const currentX = event.clientX - rect.left;
+    const currentY = event.clientY - rect.top;
+    const width = currentX - documentCropStart.x;
+    const height = currentY - documentCropStart.y;
+
+    setDocumentCropSelection({
+      x: width >= 0 ? documentCropStart.x : currentX,
+      y: height >= 0 ? documentCropStart.y : currentY,
+      w: Math.abs(width),
+      h: Math.abs(height),
+    });
+  };
+
+  const handleDocumentCropMouseUp = async () => {
+    if (!documentCropMode) return;
+    if (!documentCropDragging) return;
+    setDocumentCropDragging(false);
+    if (!documentCropSelection || documentCropSelection.w < 8 || documentCropSelection.h < 8) {
+      setDocumentCropSelection(null);
+      return;
+    }
+    await applyDocumentSelectionCrop();
+  };
+
+  const handleDocumentPanMouseDown = (event) => {
+    if (documentCropMode || isPdfObjectFallback || !currentDocumentPageUrl) return;
+    event.preventDefault();
+    documentPanStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      originX: documentPan.x,
+      originY: documentPan.y,
+    };
+    setDocumentPanDragging(true);
+  };
+
+  const handleDocumentPanMouseMove = (event) => {
+    if (!documentPanDragging || !documentPanStartRef.current) return;
+    const start = documentPanStartRef.current;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    setDocumentPan({ x: start.originX + dx, y: start.originY + dy });
+  };
+
+  const handleDocumentPanMouseUp = () => {
+    if (!documentPanDragging) return;
+    setDocumentPanDragging(false);
+    documentPanStartRef.current = null;
+  };
+
+  const handleDocumentViewportMouseDown = (event) => {
+    if (documentCropMode) {
+      handleDocumentCropMouseDown(event);
+      return;
+    }
+    handleDocumentPanMouseDown(event);
+  };
+
+  const handleDocumentViewportMouseMove = (event) => {
+    if (documentCropMode) {
+      handleDocumentCropMouseMove(event);
+      return;
+    }
+    handleDocumentPanMouseMove(event);
+  };
+
+  const handleDocumentViewportMouseUp = async () => {
+    if (documentCropMode) {
+      await handleDocumentCropMouseUp();
+      return;
+    }
+    handleDocumentPanMouseUp();
+  };
+
+  const getPdfJs = async () => {
+    if (pdfjsRef.current) return pdfjsRef.current;
+    const pdfjsLib = pdfjsStatic?.getDocument ? pdfjsStatic : pdfjsStatic?.default;
+    if (!pdfjsLib?.getDocument) {
+      throw new Error('PDF.js static build could not be loaded.');
+    }
+
+    pdfjsRef.current = pdfjsLib;
+    return pdfjsLib;
+  };
+
+  const loadPdfDocument = async (pdfjsLib, arrayBuffer) => {
+    const data = new Uint8Array(arrayBuffer);
+    const attempts = [
+      { disableWorker: false },
+      { disableWorker: true },
+    ];
+
+    let lastError = null;
+    for (const options of attempts) {
+      try {
+        return await pdfjsLib.getDocument({ data, ...options }).promise;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error('PDF document could not be parsed.');
   };
 
   const handleDocumentPicked = async (file) => {
@@ -1368,20 +1700,93 @@ export default function Translator() {
 
     setDocumentProcessingFiles(true);
     if (documentPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(documentPreviewUrl);
-
-    const previewUrl = URL.createObjectURL(file);
+    
     setDocumentFile(file);
-    setDocumentPreviewUrl(previewUrl);
     setDocumentZoom(1);
     setDocumentRotation(0);
     setDocumentCropMode(false);
-    setDocumentHistory([]);
-    setDocumentResultText('');
+    setDocumentCropSelection(null);
+    setDocumentCropDragging(false);
+    setDocumentCropStart(null);
+    setDocumentPan({ x: 0, y: 0 });
+    setDocumentPanDragging(false);
+    documentPanStartRef.current = null;
+    setDocumentPageHistory({});
+    setDocumentOcrByPage({});
+    setDocumentPages([]);
+    setDocumentPageIndex(0);
+    
+    let previewReady = false;
+    try {
+      if (isPdfDocument(file)) {
+        const pdfjsLib = await getPdfJs();
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await loadPdfDocument(pdfjsLib, arrayBuffer);
+        const pageImages = [];
+        const maxPages = Math.min(pdf.numPages, 10); // Extract up to 10 pages for preview
+        
+        for (let i = 1; i <= maxPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          
+          if (context) {
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            pageImages.push(canvas.toDataURL('image/png'));
+          }
+        }
+        
+        if (pageImages.length > 0) {
+          setDocumentPages(pageImages);
+          setDocumentPageIndex(0);
+          setDocumentPreviewUrl(pageImages[0]);
+          previewReady = true;
+        } else {
+          setDocumentPages([]);
+          setDocumentPageIndex(0);
+          setDocumentPreviewUrl('');
+          previewReady = false;
+          toast('No se pudo generar vista previa editable del PDF.', {
+            description: 'Intenta con otro PDF o vuelve a exportarlo como PDF estándar.',
+          });
+        }
+      } else {
+        const previewUrl = URL.createObjectURL(file);
+        setDocumentPreviewUrl(previewUrl);
+        setDocumentPageIndex(0);
+        setDocumentPages([previewUrl]);
+        previewReady = true;
+      }
+    } catch (e) {
+      console.error("Error processing document:", e);
+      if (isPdfDocument(file)) {
+        setDocumentPreviewUrl('');
+        setDocumentPageIndex(0);
+        setDocumentPages([]);
+        previewReady = false;
+        toast('PDF no compatible con editor.', {
+          description: 'No se pudo rasterizar este archivo para recortar/rotar. Prueba otro PDF.',
+        });
+      } else {
+        // Fallback for images only.
+        const previewUrl = URL.createObjectURL(file);
+        setDocumentPreviewUrl(previewUrl);
+        setDocumentPageIndex(0);
+        setDocumentPages([previewUrl]);
+        previewReady = true;
+      }
+    }
+    
     setDocumentProcessingFiles(false);
 
-    toast('Documento cargado', {
-      description: file.name,
-    });
+    if (previewReady) {
+      toast('Documento cargado', {
+        description: file.name,
+      });
+    }
   };
 
   const openDocumentUploadModal = () => {
@@ -1399,32 +1804,17 @@ export default function Translator() {
     }
     setDocumentIsRunning(true);
     await new Promise((resolve) => setTimeout(resolve, 800));
-    setDocumentResultText('No text extracted yet.');
+    setDocumentOcrByPage((prev) => ({
+      ...prev,
+      [documentPageIndex]: `No se encontró texto en página ${documentPageIndex + 1}.`,
+    }));
     setDocumentIsRunning(false);
-  };
-
-  const handleDocumentUndo = () => {
-    if (documentHistory.length === 0) return;
-    const prev = documentHistory[documentHistory.length - 1];
-    setDocumentHistory((h) => h.slice(0, -1));
-    setDocumentZoom(prev.zoom);
-    setDocumentRotation(prev.rotation);
-    setDocumentCropMode(false);
   };
 
   const toggleDocumentLang = (code) => {
     setDocumentTargetLanguages((prev) =>
       prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
     );
-  };
-
-  const copyDocumentText = async () => {
-    try {
-      await navigator.clipboard.writeText(documentResultText || '');
-      toast('Texto copiado');
-    } catch {
-      toast('No se pudo copiar el texto');
-    }
   };
 
   async function startWaveformVisualization(stream) {
@@ -1791,13 +2181,13 @@ export default function Translator() {
             <DialogHeader>
               <DialogTitle className="text-2xl font-semibold text-[#0a8cde]">Extraccion de documento</DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-slate-500 mt-1">Sube un PDF o imagen para preparar extraccion OCR.</p>
+            <p className="text-sm text-slate-500 mt-1">Sube un PDF o imagen para extraer su contenido.</p>
           </div>
 
-          <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-[1.05fr_1fr] gap-4">
             <div
-              className={`rounded-3xl border-2 border-dashed min-h-[420px] flex flex-col items-center justify-center text-center px-8 bg-white transition ${
-                documentDragActive ? 'border-[#0a8cde] bg-[#eef7ff]' : 'border-[#bfdbfe]'
+              className={`rounded-3xl border-2 border-dashed min-h-[420px] bg-[#f8fbff] transition relative overflow-hidden ${
+                documentDragActive ? 'border-[#0a8cde] bg-[#eef7ff]' : 'border-[#cfe6f8]'
               }`}
               onDragEnter={(e) => {
                 e.preventDefault();
@@ -1818,48 +2208,245 @@ export default function Translator() {
                 handleDocumentPicked(file);
               }}
             >
-              <FontAwesomeIcon icon={faFileArrowUp} className="text-5xl text-[#0a8cde] mb-5" />
-              <p className="text-3xl text-slate-800 font-semibold">Drop a file to extract text</p>
-              <p className="text-slate-500 mt-2">Supports PDF, JPEG, and PNG files</p>
-              <input
-                ref={docInputRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                hidden
-                onChange={(e) => {
-                  const file = e.currentTarget.files?.[0];
-                  handleDocumentPicked(file);
-                  e.currentTarget.value = '';
-                }}
-              />
-              <button
-                type="button"
-                className="mt-6 rounded-full bg-[#0a8cde] px-6 py-2 text-white font-semibold hover:bg-[#067ac1] transition"
-                onClick={() => docInputRef.current?.click()}
-              >
-                Choose File
-              </button>
+              {!documentFile ? (
+                <div className="min-h-[420px] h-full flex flex-col items-center justify-center text-center px-8 bg-white/95">
+                  <FontAwesomeIcon icon={faFileArrowUp} className="text-5xl text-[#0a8cde] mb-5" />
+                  <p className="text-3xl text-slate-800 font-semibold">Sube un archivo</p>
+                  <p className="text-slate-500 mt-2">Solamente archivos PDF, JPEG ó PNG</p>
+                  <input
+                    ref={docInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.currentTarget.files?.[0];
+                      handleDocumentPicked(file);
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="mt-6 rounded-full bg-[#0a8cde] px-6 py-2 text-white font-semibold hover:bg-[#067ac1] transition"
+                    onClick={() => docInputRef.current?.click()}
+                  >
+                    Seleccionar archivo
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full h-full p-3 sm:p-4 flex flex-col gap-3">
+                  <div className="rounded-2xl bg-[#eaf5ff] min-h-[360px] relative overflow-hidden border border-[#cfe6f8]">
+                    <div className="absolute left-3 top-3 bottom-3 w-11 rounded-2xl bg-[#0a8cde] border border-[#66b8e8] z-10 flex flex-col items-center py-3 gap-3">
+                      <button
+                        type="button"
+                        title="Acercar"
+                        aria-label="Acercar"
+                        className={`w-7 h-7 rounded-full text-white/90 hover:bg-white/15 ${isPdfObjectFallback ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        onClick={handleDocumentZoomIn}
+                        disabled={isPdfObjectFallback}
+                      >
+                        <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Alejar"
+                        aria-label="Alejar"
+                        className={`w-7 h-7 rounded-full text-white/90 hover:bg-white/15 ${isPdfObjectFallback ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        onClick={handleDocumentZoomOut}
+                        disabled={isPdfObjectFallback}
+                      >
+                        <FontAwesomeIcon icon={faMagnifyingGlassMinus} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Rotar"
+                        aria-label="Rotar"
+                        className={`w-7 h-7 rounded-full text-white/90 hover:bg-white/15 ${isPdfObjectFallback ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        onClick={handleDocumentRotate}
+                        disabled={isPdfObjectFallback}
+                      >
+                        <FontAwesomeIcon icon={faRotateRight} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Deshacer"
+                        aria-label="Deshacer"
+                        className={`w-7 h-7 rounded-full text-white/90 hover:bg-white/15 ${isPdfObjectFallback || !(documentPageHistory[documentPageIndex]?.length) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        onClick={handleDocumentUndoCurrentPage}
+                        disabled={isPdfObjectFallback || !(documentPageHistory[documentPageIndex]?.length)}
+                      >
+                        <FontAwesomeIcon icon={faArrowRotateLeft} />
+                      </button>
+                      <button
+                        type="button"
+                        title={documentCropMode ? 'Aplicar recorte' : 'Recortar'}
+                        aria-label={documentCropMode ? 'Aplicar recorte' : 'Recortar'}
+                        className={`w-7 h-7 rounded-full text-white/90 hover:bg-white/15 ${documentCropMode ? 'bg-white/20' : ''} ${isPdfObjectFallback ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        onClick={() => {
+                          setDocumentCropMode((prev) => !prev);
+                          setDocumentCropSelection(null);
+                          setDocumentCropDragging(false);
+                          setDocumentCropStart(null);
+                        }}
+                        disabled={isPdfObjectFallback}
+                      >
+                        <FontAwesomeIcon icon={faCrop} />
+                      </button>
+                    </div>
+
+                    <div className="absolute top-3 right-3 z-10 rounded-full bg-[#045f98] text-white/90 text-xs px-3 py-1">
+                      {documentPages.length ? `${documentPageIndex + 1} / ${documentPages.length}` : '0 / 0'}
+                    </div>
+
+                    <div className="h-full w-full p-4 pl-16 flex items-center justify-center">
+                      {!currentDocumentPageUrl ? (
+                        <div className="text-white/80 text-center px-4">
+                          {documentProcessingFiles ? 'Cargando...' : 'No se pudo generar vista previa editable para este archivo.'}
+                        </div>
+                      ) : isPdfObjectFallback ? (
+                        <div className="w-full h-[460px] rounded-lg overflow-hidden shadow-[0_14px_36px_rgba(10,17,51,0.35)] bg-[#f1f5f9] flex items-center justify-center text-slate-600 px-4 text-center">
+                          PDF cargado sin páginas editables. Sube un PDF estándar para activar recorte y rotación.
+                        </div>
+                      ) : (
+                        <div
+                          ref={documentViewportRef}
+                          className="relative max-h-[460px] w-full flex items-center justify-center select-none"
+                          onMouseDown={handleDocumentViewportMouseDown}
+                          onMouseMove={handleDocumentViewportMouseMove}
+                          onMouseUp={handleDocumentViewportMouseUp}
+                          onMouseLeave={handleDocumentViewportMouseUp}
+                          style={{
+                            cursor: documentCropMode
+                              ? 'crosshair'
+                              : (currentDocumentPageUrl && !isPdfObjectFallback
+                                  ? (documentPanDragging ? 'grabbing' : 'grab')
+                                  : 'default'),
+                          }}
+                        >
+                          <img
+                            ref={documentImageRef}
+                            src={currentDocumentPageUrl}
+                            alt={`Vista previa página ${documentPageIndex + 1}`}
+                            style={{
+                              transform: `translate(${documentPan.x}px, ${documentPan.y}px) scale(${documentZoom}) rotate(${documentRotation}deg)`,
+                              transformOrigin: 'center center',
+                              transition: 'transform 0.2s',
+                              maxHeight: '460px',
+                              maxWidth: '100%',
+                              objectFit: 'contain'
+                            }}
+                            className="pointer-events-none rounded-sm shadow-[0_14px_36px_rgba(10,17,51,0.35)]"
+                          />
+                          {documentCropMode && documentCropSelection && (
+                            <div
+                              className="absolute border-2 border-dashed border-[#facc15] bg-[#facc1522] rounded-sm pointer-events-none"
+                              style={{
+                                left: `${documentCropSelection.x}px`,
+                                top: `${documentCropSelection.y}px`,
+                                width: `${documentCropSelection.w}px`,
+                                height: `${documentCropSelection.h}px`,
+                              }}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {documentPages.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          className="absolute left-14 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[#056fb0] text-white hover:bg-[#045f98]"
+                          onClick={() => goToDocumentPage(documentPageIndex - 1)}
+                          disabled={documentPageIndex === 0}
+                          aria-label="Página anterior"
+                          title="Página anterior"
+                        >
+                          <FontAwesomeIcon icon={faChevronLeft} />
+                        </button>
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[#056fb0] text-white hover:bg-[#045f98]"
+                          onClick={() => goToDocumentPage(documentPageIndex + 1)}
+                          disabled={documentPageIndex === documentPages.length - 1}
+                          aria-label="Página siguiente"
+                          title="Página siguiente"
+                        >
+                          <FontAwesomeIcon icon={faChevronRight} />
+                        </button>
+                      </>
+                    )}
+
+                  </div>
+
+                  {documentPages.length > 0 && (
+                    <>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          className="rounded-md border border-[#b7d8f4] bg-white px-3 py-1 text-xs font-medium text-[#0a8cde] transition hover:bg-[#f5fbff]"
+                          onClick={handleDocumentClear}
+                          title="Escanear otro documento"
+                          aria-label="Escanear otro documento"
+                        >
+                          Escanear otro documento
+                        </button>
+                      </div>
+
+                      <div className="rounded-2xl bg-[#eaf5ff] border border-[#cfe6f8] px-3 py-2 overflow-x-auto">
+                      <div className="flex items-center gap-2 min-w-max">
+                        {documentPages.map((pageUrl, index) => (
+                          <button
+                            key={`${pageUrl.slice(0, 24)}-${index}`}
+                            type="button"
+                            onClick={() => goToDocumentPage(index)}
+                            className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
+                              index === documentPageIndex ? 'border-white shadow-[0_0_0_2px_#056fb0]' : 'border-transparent opacity-75 hover:opacity-100'
+                            }`}
+                            title={`Página ${index + 1}`}
+                            aria-label={`Página ${index + 1}`}
+                          >
+                            <img src={pageUrl} alt={`Miniatura ${index + 1}`} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                      </div>
+
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="rounded-3xl overflow-hidden bg-white border border-slate-200 min-h-[420px]">
-              <div className="h-16 px-5 border-b border-[#dbeafe] flex items-center justify-between bg-[#f4faff] text-[#0a8cde]">
-                <span className="font-semibold">OCR Results</span>
-                {documentFile && (
-                  <span className="text-xs text-slate-500 truncate max-w-[220px]">{documentFile.name}</span>
-                )}
+              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 bg-[#f8fafc]">
+                <p className="text-sm font-semibold text-slate-700">
+                  Escaner Pagina {documentPages.length ? documentPageIndex + 1 : 0}
+                </p>
+                <Button
+                  className="bg-[#0a8cde] text-white hover:bg-[#0a8cde]"
+                  onClick={runDocumentOCR}
+                  disabled={!documentFile || documentIsRunning || documentProcessingFiles}
+                >
+                  {documentIsRunning ? 'Escaneando...' : 'Escanear documento'}
+                </Button>
               </div>
-              <div className="h-[calc(100%-4rem)] p-6 flex items-center justify-center text-center">
+
+              <div className="h-[calc(100%-4rem)] p-6">
                 {!documentFile ? (
-                  <p className="text-slate-400 text-2xl">Upload a document to see OCR results</p>
-                ) : (
-                  <div className="w-full text-left">
-                    <p className="text-[#0a8cde] font-semibold text-lg">File ready for OCR</p>
-                    <p className="text-slate-600 mt-2">Name: {documentFile.name}</p>
-                    <p className="text-slate-600 mt-1">Size: {(documentFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                    <p className="text-slate-600 mt-4">
-                      Esta vista ya esta preparada. Si quieres, en el siguiente paso conecto este modal al endpoint OCR para llenar este panel con texto real.
-                    </p>
+                  <div className="h-full flex items-center justify-center text-center">
+                    <p className="text-slate-400 text-2xl">Sube un documento para ver resultados</p>
                   </div>
+                ) : (
+                  <textarea
+                    className="w-full h-full bg-transparent p-0 text-slate-700 text-sm resize-none border-0 focus:outline-none"
+                    value={currentDocumentResultText || 'Todavía no se extrae el texto de ésta página'}
+                    onChange={(e) =>
+                      setDocumentOcrByPage((prev) => ({
+                        ...prev,
+                        [documentPageIndex]: e.target.value,
+                      }))
+                    }
+                  />
                 )}
               </div>
             </div>
