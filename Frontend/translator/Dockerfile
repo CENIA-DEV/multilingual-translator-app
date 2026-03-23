@@ -14,23 +14,27 @@
 
 # Use the official Node 20.10 image
 
-FROM node:20.10-alpine
+FROM node:20.10-slim
 
+# Set the working directory
 WORKDIR /app
 
-RUN apk add --no-cache \
+# Install the system libraries canvas needs to run
+# Debian uses 'apt-get' instead of 'apk'
+RUN apt-get update && apt-get install -y \
     python3 \
-    make \
-    g++ \
-    pkgconfig \
-    pixman-dev \
-    cairo-dev \
-    pango-dev \
-    libjpeg-turbo-dev \
-    giflib-dev
+    build-essential \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 
+# This should now either download a pre-built binary 
+# or compile successfully using the Debian compiler
 RUN npm install
 
 COPY . .
