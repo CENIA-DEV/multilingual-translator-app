@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     TRANSLATION: 'api/translate/',
     TEXT_TO_SPEECH: 'api/text-to-speech/',
     SPEECH_TO_TEXT: 'api/speech-to-text/',
+    WORDS: 'api/words/',
     INVITATIONS: 'api/invitations/',
     USERS: 'api/users/',
     REQUESTS: 'api/requests/',

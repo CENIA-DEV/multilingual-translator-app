@@ -119,6 +119,10 @@ export default function Translator() {
 
   const [loadingState, setLoadingState] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
+  const [srcWordDefinitions, setSrcWordDefinitions] = useState({});
+  const [dstWordDefinitions, setDstWordDefinitions] = useState({});
+  const srcWordReqRef = useRef(0);
+  const dstWordReqRef = useRef(0);
 
   const [showDevModal, setShowDevModal] = useState(true);
   
@@ -154,6 +158,54 @@ export default function Translator() {
   const isEN  = (l) => codeOf(l).startsWith('eng');
   const isRAP = (l) => codeOf(l).startsWith('rap');
 
+  const normalizeWordKey = (word = '') => {
+    return word
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .replace(/[^\p{L}\p{N}_]+/gu, '')
+      .toLowerCase();
+  };
+
+  const buildWordDefinitionMap = (results = []) => {
+    const map = {};
+
+    for (const row of results) {
+      const key = normalizeWordKey(row?.text || '');
+      const definitions = Array.isArray(row?.definitions)
+        ? row.definitions.filter((d) => d?.meaning)
+        : [];
+
+      if (key && definitions.length) {
+        map[key] = definitions;
+      }
+    }
+
+    return map;
+  };
+
+  const analyzeSentenceWords = async ({ sentence, requestRef, setState }) => {
+    if (!sentence?.trim()) {
+      setState({});
+      return;
+    }
+
+    const requestId = ++requestRef.current;
+
+    try {
+      const res = await api.post(`${API_ENDPOINTS.WORDS}analyze_sentence/`, {
+        sentence,
+      });
+
+      if (requestId !== requestRef.current) return;
+
+      setState(buildWordDefinitionMap(res?.data?.results || []));
+    } catch (error) {
+      if (requestId !== requestRef.current) return;
+      setState({});
+      console.debug('Word analysis unavailable:', error?.response?.status || error?.message);
+    }
+  };
+
   // TTS (API-only): ES/EN/RAP - but only if TTS_ENABLED
   const isTTSSideAllowed = (l) => TTS_ENABLED && (isES(l) || isEN(l) || isRAP(l));
 
@@ -175,6 +227,42 @@ export default function Translator() {
   // ASR buttons: show if language is supported
   const ASR_MIC_VISIBLE_D = isASRLang(srcLang) || isASRLang(dstLang);
   const ASR_UPLOAD_VISIBLE_D = isASRSourceAllowed(srcLang);
+
+  useEffect(() => {
+    if (!isRAP(srcLang) || !srcText?.trim()) {
+      srcWordReqRef.current += 1;
+      setSrcWordDefinitions({});
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      analyzeSentenceWords({
+        sentence: srcText,
+        requestRef: srcWordReqRef,
+        setState: setSrcWordDefinitions,
+      });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [srcLang, srcText]);
+
+  useEffect(() => {
+    if (!isRAP(dstLang) || !dstText?.trim()) {
+      dstWordReqRef.current += 1;
+      setDstWordDefinitions({});
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      analyzeSentenceWords({
+        sentence: dstText,
+        requestRef: dstWordReqRef,
+        setState: setDstWordDefinitions,
+      });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [dstLang, dstText]);
 
   const getLangs = async (code, script, dialect) => {
     let params = {};
@@ -1490,7 +1578,9 @@ export default function Translator() {
             isLoadingAudio={isLoadingAudio}
             onSpeak={() => handleSpeak({ text: srcText, lang: srcLang?.code })}
             onStop={stopSpeaking}
-			onClearTexts={handleClearTexts}
+            showWordDefinitions={isRAP(srcLang)}
+            wordDefinitions={srcWordDefinitions}
+      			onClearTexts={handleClearTexts}
           />
 
           {/* LEFT: keep Upload*/}
@@ -1665,6 +1755,8 @@ export default function Translator() {
             isLoadingAudio={isLoadingAudio}
             onSpeak={() => handleSpeak({ text: dstText, lang: dstLang?.code })}
             onStop={stopSpeaking}
+            showWordDefinitions={isRAP(dstLang)}
+            wordDefinitions={dstWordDefinitions}
           />
         </div>
         

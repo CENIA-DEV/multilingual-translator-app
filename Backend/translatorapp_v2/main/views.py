@@ -1097,7 +1097,7 @@ class WordViewSet(viewsets.ModelViewSet):
     queryset = Word.objects.all().prefetch_related("definitions")
     serializer_class = WordSerializer
 
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def analyze_sentence(self, request):
         sentence = request.data.get("sentence", "")
 
@@ -1107,9 +1107,30 @@ class WordViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        clean_words = re.findall(r"\b\w+\b", sentence.lower())
+        # Keep unicode words and make matching tolerant to leading apostrophes
+        # used in Rapa Nui orthography: Iorana, 'Iorana, ’Iorana.
+        tokens = re.findall(r"[^\W_]+(?:['’][^\W_]+)*", sentence.lower(), re.UNICODE)
+        candidates = set()
 
-        found_words = self.get_queryset().filter(text__in=clean_words)
+        for token in tokens:
+            base = token.strip("'’")
+            if not base:
+                continue
+            candidates.add(base)
+            candidates.add("'" + base)
+            candidates.add("’" + base)
+
+        if not candidates:
+            return Response(
+                {
+                    "analyzed_sentence": sentence,
+                    "matches_found": 0,
+                    "results": [],
+                }
+            )
+
+        query = reduce(or_, [Q(text__iexact=word) for word in candidates])
+        found_words = self.get_queryset().filter(query)
 
         serializer = self.get_serializer(found_words, many=True)
         return Response(
