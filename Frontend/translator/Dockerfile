@@ -13,25 +13,34 @@
 # limitations under the License.
 
 # Use the official Node 20.10 image
-FROM node:20.10-alpine
 
-# Set the working directory to /app
+FROM node:20.10-slim
+
+# Set the working directory
 WORKDIR /app
 
-# Copy the package.json and package-lock.json files
+# Install the system libraries canvas needs to run
+# Debian uses 'apt-get' instead of 'apk'
+RUN apt-get update && apt-get install -y \
+    python3 \
+    build-essential \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 
-# Install the dependencies
+# This should now either download a pre-built binary 
+# or compile successfully using the Debian compiler
 RUN npm install
 
-# Copy the rest of the files
 COPY . .
 
-# Expose the port 3000
 EXPOSE 3000
 
-# Build the optimized version of the web app
 RUN npm run build
 
-# Run the optimized version
-CMD ["npm", "run","start"]
+CMD ["npm", "run", "start"]
