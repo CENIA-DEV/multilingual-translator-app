@@ -34,9 +34,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
-import api from '../api';
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { API_ENDPOINTS, isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED } from '../constants';
+import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,8 +44,10 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 import { AuthContext } from '../contexts';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { generateSpeech } from '../services/ttsService';
-import { generateText, warmupASRModel } from '../services/asrService'; // ADD warmupASRModel
+import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { useWaveform } from '../../hooks/useWaveform';
+import { generateText, warmupASRModel, validateTranscriptionApi } from '../services/asrService';
+import { getLanguages, translateText, submitPositiveFeedback } from '../services/translationService';
 
 export default function Translator() {
 
@@ -71,17 +72,7 @@ export default function Translator() {
     "dialect": null
   });
   
-  // TTS state variables
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [ttsError, setTtsError] = useState('');
-  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-  const audioRef = useRef(null);
-  const currentAudioUrlRef = useRef(null);
-  const audioContextRef = useRef(null); // This ref will be our single source of truth
-
-  // Add audio cache reference and cache size constant
-  const audioCache = useRef(new Map());
-  const MAX_AUDIO_CACHE_SIZE = 5; // Limit to 5 audio clips
+  const { isSpeaking, ttsError, isLoadingAudio, handleSpeak: handleSpeakBase, stopSpeaking: stopSpeakingBase, getAudioContext } = useAudioPlayer();
 
   // ASR state & refs (must be declared before useEffect that uses them)
   const [isRecording, setIsRecording] = useState(false);
@@ -124,11 +115,13 @@ export default function Translator() {
   
   // Record modal
   const [showRecordModal, setShowRecordModal] = useState(false);
-  const waveCanvasRef = useRef(null);
-  const waveRAFRef = useRef(null);
-  const waveAnalyserRef = useRef(null);
-  const waveSourceRef = useRef(null);
-  const pulseRef = useRef(null);
+  const {
+    waveCanvasRef,
+    pulseRef,
+    startWaveformVisualization,
+    stopWaveformVisualization,
+    waveAnalyserRef
+  } = useWaveform(getAudioContext);
   const asrAbortRef = useRef(null);
 
   const router = useRouter()
@@ -177,25 +170,10 @@ export default function Translator() {
   const ASR_UPLOAD_VISIBLE_D = isASRSourceAllowed(srcLang);
 
   const getLangs = async (code, script, dialect) => {
-    let params = {};
-
-    if (code !== null) {
-      params.code = code;
-    }
-    if (script !== null) {
-        params.script = script;
-    }
-    if (dialect !== null) {
-      params.dialect = dialect;
-    }
     try {
-      const res = await api.get(API_ENDPOINTS.LANGUAGES,
-        {
-          params: params
-        }
-      );
-      console.log(res.data);
-      return res.data;
+      const data = await getLanguages(code, script, dialect);
+      console.log(data);
+      return data;
     } catch (error) {
       console.log('Error getting languages');
     }
@@ -264,16 +242,13 @@ export default function Translator() {
   const handlePositiveFeedback = async () => {
     if (dstText.length != 0 && !loadingState){
       try {
-        await api.post(
-          API_ENDPOINTS.SUGGESTIONS+'accept_translation/',
-          {
-            src_text: srcText,
-            dst_text: dstText,
-            src_lang: srcLang,
-            dst_lang: dstLang,
-            model_name: modelData.modelName,
-            model_version: modelData.modelVersion
-          },
+        await submitPositiveFeedback(
+          srcText,
+          dstText,
+          srcLang,
+          dstLang,
+          modelData.modelName,
+          modelData.modelVersion
         );
 
         toast("Sugerencia enviada con éxito",{
@@ -430,140 +405,18 @@ export default function Translator() {
     setShowRecordModal(false);
   };
   
-  // TTS Functions
+  // TTS Wrapper Functions
   async function handleSpeak({ text, lang = 'es-ES' }) {
-    // Early return only for empty text
-    if (!text?.trim()) return;
-
-    // If user cannot use TTS, show the same login dialog used by translation (and a toast)
     if (TTSRestricted) {
       setTranslationRestrictedDialogOpen(true);
       toast("Debe iniciar sesión para usar la síntesis de voz", { duration: 4000 });
       return;
     }
-
-    setTtsError('');
-    setIsSpeaking(true);
-    
-    // Create cache key based on text and language
-    const cacheKey = `${lang}_${text}`;
-    
-    // Clean up any previous playback
-    if (audioRef.current) {
-      try {
-        audioRef.current.stop();
-      } catch (err) {
-        console.log("Audio already stopped");
-      }
-      audioRef.current = null;
-    }
-    
-    if (currentAudioUrlRef.current) {
-      URL.revokeObjectURL(currentAudioUrlRef.current);
-      currentAudioUrlRef.current = null;
-    }
-
-    // Check if we have this audio in cache
-    if (audioCache.current.has(cacheKey)) {
-      console.log("Using cached audio");
-      const cachedData = audioCache.current.get(cacheKey);
-      playAudioFromBuffer(cachedData);
-      return;
-    }
-
-    // If not in cache, generate new audio
-    setIsLoadingAudio(true);
-    
-    try {
-      const response = await generateSpeech(text, lang);
-      setIsLoadingAudio(false);
-      
-      // Cache the waveform data
-      audioCache.current.set(cacheKey, response.waveform);
-      
-      // Limit cache size to prevent memory issues (keep last 5 items)
-      if (audioCache.current.size > MAX_AUDIO_CACHE_SIZE) {
-        const oldestKey = audioCache.current.keys().next().value;
-        audioCache.current.delete(oldestKey);
-      }
-      
-      // Play the audio
-      playAudioFromBuffer(response.waveform);
-    } catch (err) {
-      setIsLoadingAudio(false);
-      console.error('TTS error:', err);
-      setTtsError(err?.message || 'Error al sintetizar');
-      setIsSpeaking(false);
-    }
+    await handleSpeakBase({ text, lang });
   }
-  
-  // This function ensures we have a single, running AudioContext.
-  const getAudioContext = async () => {
-    if (!audioContextRef.current) {
-      // Create it if it doesn't exist
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    // Always try to resume it, as it can be suspended by the browser.
-    // This is safe to call even if it's already running.
-    if (audioContextRef.current.state === 'suspended') {
-      await audioContextRef.current.resume();
-    }
-    return audioContextRef.current;
-  };
 
-  // Helper function to play audio from buffer data
-  async function playAudioFromBuffer(waveformData) {
-    try {
-      const audioContext = await getAudioContext();
-      if (!audioContext) {
-        console.error("Could not get a running AudioContext.");
-        setIsSpeaking(false);
-        return;
-      }
-
-      const sampleRate = 16000; // Hardcoded from backend knowledge
-      
-      // Create buffer from float data
-      const audioBuffer = audioContext.createBuffer(1, waveformData.length, sampleRate);
-      const channelData = audioBuffer.getChannelData(0);
-      
-      // Copy data to buffer
-      for (let i = 0; i < waveformData.length; i++) {
-        channelData[i] = waveformData[i];
-      }
-      
-      // Play the audio
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioContext.destination);
-      
-      // Track state and handle cleanup
-      source.onended = () => setIsSpeaking(false);
-      audioRef.current = source;
-      source.start(0);
-    } catch (err) {
-      console.error('Error playing audio:', err);
-      setIsSpeaking(false);
-    }
-  }
-  
   function stopSpeaking() {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    if (audioRef.current) {
-      try {
-        audioRef.current.stop();
-      } catch (err) {
-        // AudioBufferSourceNode may have already stopped/ended
-        console.log("Audio already stopped");
-      }
-      audioRef.current = null;
-    }
-    if (currentAudioUrlRef.current) {
-      URL.revokeObjectURL(currentAudioUrlRef.current);
-      currentAudioUrlRef.current = null;
-    }
-    setIsSpeaking(false);
-    // Ensure any lingering media streams are stopped
+    stopSpeakingBase();
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
@@ -584,20 +437,16 @@ export default function Translator() {
       const requestId = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
       reqIdRef.current = requestId;
 
-      const res = await api.post(
-        API_ENDPOINTS.TRANSLATION,
-        {
-          src_text: srcText,
-          src_lang: srcLang,
-          dst_lang: dstLang,
-          request_id: requestId,        // body-only idempotency key
-        }
-        // REMOVED: headers: { 'X-Idempotency-Key': requestId }
+      const data = await translateText(
+        srcText,
+        srcLang,
+        dstLang,
+        requestId
       );
 
       clearTimeout(timeoutId);
-      setDstText(res.data.dst_text);
-      setModelData({ modelName: res.data.model_name, modelVersion: res.data.model_version });
+      setDstText(data.dst_text);
+      setModelData({ modelName: data.model_name, modelVersion: data.model_version });
       const endTime = performance.now();
       trackEvent('translation_success', { translation_time_ms: endTime - startTime, page: 'translator' });
     } catch (error) {
@@ -698,23 +547,12 @@ export default function Translator() {
     forceUpdate(x => x + 1);
   };
 
-  // Clean up audio resources on unmount
+  // Clean up media stream on unmount
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        try {
-          audioRef.current.stop();
-        } catch (err) {
-          // AudioBufferSourceNode may have already stopped
-        }
-      }
-      if (currentAudioUrlRef.current) URL.revokeObjectURL(currentAudioUrlRef.current);
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
-      }
-      // Also clean up any active media stream on unmount
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
       }
     };
   }, []);
@@ -891,12 +729,9 @@ export default function Translator() {
     
     setIsSubmittingValidation(true);
     try {
-      const response = await api.post(  //CHANGED: patch → post
-        `${API_ENDPOINTS.SPEECH_TO_TEXT}${asrId}/validate_transcription/`,
-        { text: editedText.trim() }
-      );
+      const data = await validateTranscriptionApi(asrId, editedText.trim());
       
-      console.log('Validation successful:', response.data);
+      console.log('Validation successful:', data);
       trackEvent('asr_transcription_validated', {
         asr_id: asrId,
         was_edited: editedText !== reviewTranscript,
@@ -1275,14 +1110,7 @@ export default function Translator() {
     }
   }
   
-  function stopWaveformVisualization() {
-	  try { if (waveRAFRef.current) cancelAnimationFrame(waveRAFRef.current); } catch {}
-	  waveRAFRef.current = null;
-	  try { waveSourceRef.current && waveSourceRef.current.disconnect(); } catch {}
-	  try { waveAnalyserRef.current && waveAnalyserRef.current.disconnect && waveAnalyserRef.current.disconnect(); } catch {}
-	  waveSourceRef.current = null;
-	  waveAnalyserRef.current = null;
-  }
+
   
   function stopMicTracksNow() {
       const s = mediaStreamRef.current;
@@ -1298,104 +1126,8 @@ export default function Translator() {
     setShowSrcTextMessage(false);
   };
 
-  async function startWaveformVisualization(stream) {
-    try {
-      const ctx = await getAudioContext();
-      if (ctx.state === 'suspended') await ctx.resume();
-  
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.85;
-  
-      const timeData = new Uint8Array(analyser.fftSize);
-      const freqData = new Uint8Array(analyser.frequencyBinCount);
-  
-      waveSourceRef.current = source;
-      waveAnalyserRef.current = analyser;
-      source.connect(analyser);
-  
-      const canvas = waveCanvasRef.current;
-      if (!canvas) return;
-      const g = canvas.getContext('2d');
-  
-      function resize() {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width  = Math.max(1, Math.floor(rect.width * dpr));
-        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-        g.setTransform(1, 0, 0, 1, 0, 0);
-        g.scale(dpr, dpr);
-      }
-      resize();
-      const ro = new ResizeObserver(resize);
-      ro.observe(canvas);
-  
-      const draw = () => {
-        waveRAFRef.current = requestAnimationFrame(draw);
-        analyser.getByteTimeDomainData(timeData);
-        analyser.getByteFrequencyData(freqData);
-  
-        const { width, height } = canvas.getBoundingClientRect();
-        g.clearRect(0, 0, width, height);
-        g.fillStyle = '#fff';
-        g.fillRect(0, 0, width, height);
-  
-        // midline
-        g.strokeStyle = '#e5e7eb';
-        g.lineWidth = 1;
-        const mid = height / 2;
-        g.beginPath();
-        g.moveTo(0, mid);
-        g.lineTo(width, mid);
-        g.stroke();
-  
-        // waveform
-        g.strokeStyle = '#0a8cde';
-        g.lineWidth = 2;
-        g.beginPath();
-        for (let i = 0; i < timeData.length; i++) {
-          const x = (i / (timeData.length - 1)) * width;
-          const y = mid + ((timeData[i] - 128) / 128) * (height * 0.42);
-          if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-        }
-        g.stroke();
-  
-        // VU bars (bottom)
-        const bars = 16;
-        const step = Math.floor(freqData.length / bars);
-        const barW = Math.max(6, width / (bars * 1.5));
-        for (let b = 0; b < bars; b++) {
-          const slice = freqData.subarray(b * step, (b + 1) * step);
-          let avg = 0;
-          for (let j = 0; j < slice.length; j++) avg += slice[j];
-          avg /= slice.length || 1;
-          const barH = (avg / 255) * (height * 0.35);
-          const x = 10 + b * (barW + 6);
-          const y = height - 10 - barH;
-          g.fillStyle = '#0a8cde';
-          g.fillRect(x, y, barW, barH);
-        }
-  
-        // RMS pulse
-        let sum = 0;
-        for (let i = 0; i < timeData.length; i++) {
-          const v = (timeData[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / timeData.length);
-        if (pulseRef.current) {
-          const s = 1 + Math.min(1.4, rms * 2.2);
-          pulseRef.current.style.transform = `scale(${s})`;
-          pulseRef.current.style.boxShadow = `0 0 ${8 + rms * 36}px rgba(10,140,222,0.65)`;
-          pulseRef.current.style.opacity = `${0.6 + Math.min(0.4, rms * 0.8)}`;
-        }
-      };
-      draw();
-    } catch (e) {
-      console.debug('Visualizer error', e);
-    }
-  }
+
+
 
   // Add refs to track warmup state (already exists)
   const asrWarmupDoneRef = useRef(false);
