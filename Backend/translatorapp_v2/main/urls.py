@@ -18,6 +18,7 @@ from .views import TextToSpeechViewSet  # Add this import
 from .views import (
     InvitationViewSet,
     LanguageViewSet,
+    OCRViewSet,
     PasswordResetViewSet,
     RequestViewSet,
     SpeechToTextViewSet,
@@ -35,6 +36,7 @@ router.register(r"requests", RequestViewSet, basename="request")
 router.register(r"password_reset", PasswordResetViewSet, basename="password_reset")
 router.register(r"translate", TranslateViewSet, basename="translate")
 router.register(r"languages", LanguageViewSet, basename="language")
+router.register(r"ocr", OCRViewSet, basename="ocr")
 router.register(
     r"text-to-speech", TextToSpeechViewSet, basename="text-to-speech"
 )  # TODO: Investigate what basename is about
