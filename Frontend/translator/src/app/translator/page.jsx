@@ -46,7 +46,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { useWaveform } from '../../hooks/useWaveform';
-import { generateText, warmupASRModel, validateTranscriptionApi } from '../services/asrService';
+import { validateTranscriptionApi } from '../services/asrService';
+import { useASR } from '../../hooks/useASR';
 import { getLanguages, translateText, submitPositiveFeedback } from '../services/translationService';
 
 export default function Translator() {
@@ -74,32 +75,20 @@ export default function Translator() {
   
   const { isSpeaking, ttsError, isLoadingAudio, handleSpeak: handleSpeakBase, stopSpeaking: stopSpeakingBase, getAudioContext } = useAudioPlayer();
 
-  // ASR state & refs (must be declared before useEffect that uses them)
-  const [isRecording, setIsRecording] = useState(false);
-  const [asrStatus, setAsrStatus] = useState('idle');
-  
-  const [transcribeChoice, setTranscribeChoice] = useState('source'); // which side to transcribe in the modal ("source" | "target")
-  const [reviewTranscript, setReviewTranscript] = useState('');
-  const [currentAsrId, setCurrentAsrId] = useState(null);
+  const { trackEvent } = useAnalytics();
 
   
-  const mediaRecorderRef = useRef(null);
-  const mediaStreamRef = useRef(null);
-  const prevStopAtRef = useRef(0);          // cooldown between sessions
-  const recorderBusyRef = useRef(false);    // prevent double starts
-  const COOLDOWN_MS = 700;                  // NEW: conservative cooldown after stop/transcribe
-  const chunksRef = useRef([]);
-  const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
-  const lastRecordingUrl = useRef(null);
-  const lastRecordingBlobRef = useRef(null);
-  const reviewAudioRef = useRef(null); // NEW: control the <audio> element
-  const [_, forceUpdate] = useState(0); // Helper to force re-render for URL changes
-  const dropFirstChunkRef = useRef(false);  
-  const recordingTimeoutRef = useRef(null); // Add near other refs
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const recordingStartedAtRef = useRef(0); // NEW: Track start time
-  const recordingIntervalRef = useRef(null);
-  const stopSafeguardRef = useRef(null);    // NEW: force-reset if onstop never fires
+  const {
+    isRecording, asrStatus, recordingSeconds, reviewTranscript, transcribeChoice, currentAsrId,
+    setTranscribeChoice, setReviewTranscript, setCurrentAsrId, setAsrStatus,
+    mediaRecorderRef, mediaStreamRef, prevStopAtRef, recorderBusyRef, chunksRef,
+    lastRecordingUrl, lastRecordingBlobRef, reviewAudioRef, dropFirstChunkRef,
+    recordingTimeoutRef, recordingStartedAtRef, recordingIntervalRef, stopSafeguardRef, asrAbortRef,
+    asrWarmupDoneRef, lastAsrActivityRef,
+    startRecording, stopRecording, cancelTranscription, resetAudioState, handleTranscribeBlob,
+    transcribeForReview, triggerASRWarmupIfNeeded, getPreferredMime, waitForTrackUnmute,
+    waitForInputEnergy, safeUnloadReviewAudio, stopMicTracksNow, getBlobDuration
+  } = useASR({ getAudioContext, trackEvent });
 
   const [langModalMode, setLangModalMode] = useState(false);
   const [modalBtnSide, setModalBtnSide] = useState('');
@@ -110,6 +99,7 @@ export default function Translator() {
 
   const [loadingState, setLoadingState] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
+  const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
 
   const [showDevModal, setShowDevModal] = useState(true);
   
@@ -122,13 +112,11 @@ export default function Translator() {
     stopWaveformVisualization,
     waveAnalyserRef
   } = useWaveform(getAudioContext);
-  const asrAbortRef = useRef(null);
 
   const router = useRouter()
 
   const [isMobile, setIsMobile] = useState(false);
 
-  const { trackEvent } = useAnalytics();
   const currentUser = useContext(AuthContext);
   const isLoggedIn = !!currentUser;
 
@@ -462,101 +450,6 @@ export default function Translator() {
     }
   }
 
-  // Robust duration getter with timeout + fallback to WebAudio decode
-  async function getBlobDuration(blob, timeoutMs = 2000) {
-    // 1) Try HTMLAudio metadata quickly
-    const durationFromTag = () =>
-      new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(blob);
-        const audio = document.createElement('audio');
-        let done = false;
-
-        const cleanup = () => {
-          if (!done) {
-            done = true;
-            audio.removeEventListener('loadedmetadata', onLoaded);
-            audio.removeEventListener('error', onError);
-            URL.revokeObjectURL(url);
-          }
-        };
-        const onLoaded = () => { const d = audio.duration; cleanup(); resolve(Number.isFinite(d) ? d : null); };
-        const onError = () => { cleanup(); reject(new Error('metadata error')); };
-
-        const t = setTimeout(() => { cleanup(); reject(new Error('metadata timeout')); }, timeoutMs);
-        audio.addEventListener('loadedmetadata', () => { clearTimeout(t); onLoaded(); });
-        audio.addEventListener('error', () => { clearTimeout(t); onError(); });
-        audio.preload = 'metadata';
-        audio.src = url;
-      });
-
-    try {
-      const d = await durationFromTag();
-      if (d != null) return d;
-    } catch (_) {
-      // fallthrough
-    }
-
-    // 2) Fallback: decode with WebAudio (more reliable, heavier)
-    try {
-      const ctx = await getAudioContext();
-      const buf = await blob.arrayBuffer();
-      const decoded = await ctx.decodeAudioData(buf.slice(0)); // slice avoids Safari reuse issues
-      return decoded.duration ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  const resetAudioState = () => {
-    stopWaveformVisualization();
-    setShowRecordModal(false);
-
-    console.log("Resetting all audio states.");
-
-    if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
-
-    // timers
-    if (recordingTimeoutRef.current) { clearTimeout(recordingTimeoutRef.current); recordingTimeoutRef.current = null; }
-    if (recordingIntervalRef.current) { clearInterval(recordingIntervalRef.current); recordingIntervalRef.current = null; }
-    setRecordingSeconds(0);
-
-    // recorder
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onstop = null;
-      try { mediaRecorderRef.current.stop(); } catch {}
-    }
-    mediaRecorderRef.current = null;
-
-    // stream
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(t => t.stop());
-      mediaStreamRef.current = null;
-    }
-
-    // audio element
-    safeUnloadReviewAudio();
-    lastRecordingBlobRef.current = null;
-
-    setIsRecording(false);
-    setAsrStatus('idle');
-    dropFirstChunkRef.current = true;
-    prevStopAtRef.current = performance.now();
-    recorderBusyRef.current = false;
-    setCurrentAsrId(null); // NEW: Clear ASR ID on reset
-    forceUpdate(x => x + 1);
-  };
-
-  // Clean up media stream on unmount
-  useEffect(() => {
-    return () => {
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-        mediaStreamRef.current = null;
-      }
-    };
-  }, []);
-
   useEffect(() => {
     // Don't auto-translate if translation is restricted and user is not authenticated
     if (translationRestricted) {
@@ -598,15 +491,6 @@ export default function Translator() {
     }
   }, [showRecordModal, isRecording]);
 
-  // ASR helper functions (single copy inside component)
-  function getPreferredMime() {
-    if (typeof window !== 'undefined' && window.MediaRecorder && MediaRecorder.isTypeSupported) {
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
-      if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) return 'audio/ogg;codecs=opus';
-    }
-    return 'audio/webm';
-  }
-
   function inferHintFromSrcLang() {
     const code = (srcLang?.code || '').toLowerCase();
     if (code.includes('spa')) return 'spa_Latn';
@@ -628,98 +512,6 @@ export default function Translator() {
   const dstHint = getHintForLang(dstLang);
   const srcDisplay = srcLang?.name || 'Fuente';
   const dstDisplay = dstLang?.name || 'Destino';
-
-  async function performTranscribe(which) {
-    if (!lastRecordingBlobRef.current) return;
-    // If user chose the TARGET button, swap langs in the UI first
-    if (which === 'target') {
-      // prevent auto-translate side-effect on swap
-      setSuppressNextAutoTranslate(true);
-      const prevSrc = srcLang, prevDst = dstLang;
-      setSrcLang(prevDst);
-      setDstLang(prevSrc);
-      setAsrStatus('error');
-      toast(`El archivo supera ${process.env.NEXT_PUBLIC_MAX_AUDIO_MB || 25} MB.`);
-      return;
-    }
-
-	const hint = overrideHint || inferHintFromSrcLang();
-    setAsrStatus('transcribing');
-
-    let timeoutId = null; // To hold the timer
-
-    // Abort ASR
-    const controller = new AbortController();
-    asrAbortRef.current = controller;
-
-    try {
-      // Set a timer to show a message if transcription takes too long
-      timeoutId = setTimeout(() => {
-        toast("La transcripción está tardando más tiempo de lo esperado...", {
-          description: "Por favor, espere un momento mientras el modelo se carga",
-          duration: 20000,
-          cancel: {
-            label: 'Cerrar',
-            onClick: () => console.log('Pop up cerrado'),
-          },
-        });
-      }, 5000);
-
-      // Use our asrService; pass AbortSignal if supported (extra arg is safe if ignored)
-      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename, { signal: controller.signal });
-
-      // If we get here, transcription was fast enough, so clear the timer
-      clearTimeout(timeoutId);
-
-      const transcript = data?.text || '';
-
-      if (AUTOFILL_TRANSCRIPT !== false) {
-        // Avoid the auto-translate from the useEffect
-        setSuppressNextAutoTranslate(true);
-        setSrcText(transcript);
-      }
-      toast('Transcripción lista.');
-    } catch (err) {
-      // If an error occurs, also clear the timer
-      clearTimeout(timeoutId);
-      console.error(err);
-	  if (err?.name === 'AbortError') {
-        toast('Transcripción cancelada.');
-        return; // don't reset again in finally
-      }
-      toast('Error al transcribir.', {
-        description: err?.response?.data?.error || 'Reintenta con otro archivo.',
-      });
-    } finally {
-	  asrAbortRef.current = null;
-      // small post-transcribe cooldown, then reset
-      await new Promise(r => setTimeout(r, COOLDOWN_MS));
-      // Only reset if not aborted earlier by Cancel
-      if (asrStatus !== 'idle') resetAudioState();
-    }
-  }
-  
-  // Transcribe for modal review (no auto-reset) ---
-  async function transcribeForReview(blob, hint, filename = 'audio.webm') {
-    setAsrStatus('transcribing');
-    try {
-      // Direct call to ASR service
-      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
-      
-      // NEW: Mark that we just used ASR (keep server warm)
-      updateASRActivity();
-      
-      setReviewTranscript((data?.text || '').trim());
-      setCurrentAsrId(data?.id || null); // NEW: Store ASR record ID
-      setAsrStatus('reviewing');
-    } catch (err) {
-      console.error(err);
-      setAsrStatus('error');
-      toast('Error al transcribir.', {
-        description: err?.response?.data?.error || 'Reintenta con otro archivo.',
-      });
-    }
-  }
 
   const [isSubmittingValidation, setIsSubmittingValidation] = useState(false);
 
@@ -787,380 +579,19 @@ export default function Translator() {
     setTimeout(() => translate(), 0);
   }
 
-  async function startRecording() {
-    if (recorderBusyRef.current) return;
-    recorderBusyRef.current = true;
-
-    try {
-      setIsRecording(false);            // explicit
-      setShowRecordModal(true);
-	  
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast('Tu navegador no soporta grabación de audio.');
-        recorderBusyRef.current = false;
-        return;
-      }
-
-      const elapsed = performance.now() - (prevStopAtRef.current || 0);
-      if (elapsed < COOLDOWN_MS) {
-        await new Promise(r => setTimeout(r, COOLDOWN_MS - elapsed));
-      }
-
-      // IMPORTANT: re-enable suppression/AGC to reduce “static/hiss”
-      const constraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: 1,
-          // Safari-only enhancement (ignored elsewhere)
-          // @ts-ignore
-          voiceIsolation: true,
-          // Chrome legacy flags (ignored if not supported)
-          // @ts-ignore
-          googEchoCancellation: true,
-          // @ts-ignore
-          googNoiseSuppression: true,
-          // @ts-ignore
-          googAutoGainControl: true,
-        }
-      };
-
-      const mime = getPreferredMime();
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      mediaStreamRef.current = stream;
-
-      const track = stream.getAudioTracks()[0];
-      await waitForTrackUnmute(track, 1500);
-      await waitForInputEnergy(stream, 0.008, 800, 80);
-      await new Promise(r => setTimeout(r, 150)); // small pre-roll
-
-      const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 160000 });
-      chunksRef.current = [];
-      dropFirstChunkRef.current = false; // keep first chunk (header)
-
-      recorder.ondataavailable = (e) => {
-        if (!e.data || e.data.size === 0) return;
-        // IMPORTANT: keep the first chunk (container header); do not drop it
-        chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-		setShowRecordModal(true);
-		stopWaveformVisualization();
-		stopMicTracksNow();
-		
-        // Clear safeguard if set
-        if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
-
-        await new Promise(resolve => setTimeout(resolve, 120)); // flush
-
-        if (!chunksRef.current.length || chunksRef.current.every(c => c.size === 0)) {
-          toast('No se grabó audio. Intente nuevamente.');
-          resetAudioState();
-          return;
-        }
-
-        try {
-          const blob = new Blob(chunksRef.current, { type: mime.includes('ogg') ? 'audio/ogg' : 'audio/webm' });
-
-          // Robust duration
-          const duration = await getBlobDuration(blob);
-
-          let finalBlob = blob;
-          let finalAudioURL = URL.createObjectURL(finalBlob);
-          let wasTruncated = false;
-
-          if (duration != null && duration > 30) {
-            // Decode to trim exactly 30s
-            const ctx = await getAudioContext();
-            const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-            const sampleRate = decoded.sampleRate;
-            const frames = Math.min(decoded.length, Math.floor(sampleRate * 30));
-            const trimmed = ctx.createBuffer(decoded.numberOfChannels, frames, sampleRate);
-            for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
-              trimmed.copyToChannel(decoded.getChannelData(ch).slice(0, frames), ch);
-            }
-
-            // WAV encoder (pcm16)
-            function encodeWAV(buffer) {
-              const numCh = buffer.numberOfChannels;
-              const sr = buffer.sampleRate;
-              const len = buffer.length * numCh * 2 + 44;
-              const ab = new ArrayBuffer(len);
-              const view = new DataView(ab);
-              const w = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
-
-              w(0, 'RIFF'); view.setUint32(4, 36 + buffer.length * numCh * 2, true);
-              w(8, 'WAVE'); w(12, 'fmt '); view.setUint32(16, 16, true);
-              view.setUint16(20, 1, true); view.setUint16(22, numCh, true);
-              view.setUint32(24, sr, true); view.setUint32(28, sr * numCh * 2, true);
-              view.setUint16(32, numCh * 2, true); view.setUint16(34, 16, true);
-              w(36, 'data'); view.setUint32(40, buffer.length * numCh * 2, true);
-
-              let off = 44;
-              for (let i = 0; i < buffer.length; i++) {
-                for (let ch = 0; ch < numCh; ch++) {
-                  let s = buffer.getChannelData(ch)[i];
-                  s = Math.max(-1, Math.min(1, s));
-                  view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-                  off += 2;
-                }
-              }
-              return new Blob([ab], { type: 'audio/wav' });
-            }
-
-            if (finalAudioURL) URL.revokeObjectURL(finalAudioURL);
-            finalBlob = encodeWAV(trimmed);
-            finalAudioURL = URL.createObjectURL(finalBlob);
-            wasTruncated = true;
-          }
-
-          lastRecordingBlobRef.current = finalBlob;
-          if (lastRecordingUrl.current) URL.revokeObjectURL(lastRecordingUrl.current);
-          lastRecordingUrl.current = finalAudioURL;
-          forceUpdate(x => x + 1);
-          recorderBusyRef.current = false;
-
-          if (wasTruncated) toast('El audio fue truncado a 30 segundos.');
-
-          // immediately transcribe for review with the chosen side
-          const hintChosen =
-            transcribeChoice === 'target'
-              ? (dstHint || inferHintFromSrcLang())
-              : (srcHint || inferHintFromSrcLang());
-          await transcribeForReview(finalBlob, hintChosen, 'grabacion.webm');
-        } catch (err) {
-          console.error('Finalizing recording failed:', err);
-          toast('No se pudo procesar la grabación.');
-          resetAudioState();
-        }
-      };
-
-      mediaRecorderRef.current = recorder;
-      setIsRecording(true);
-      setAsrStatus('recording');
-      recordingStartedAtRef.current = performance.now(); // NEW: Log start time
-	  
-      // --- NEW: Start timer ---
-      setRecordingSeconds(0);
-      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingSeconds(sec => sec + 1);
-      }, 1000);
-
-      // Start with small timeslice so first usable audio arrives quickly
-      recorder.start(200);
-      toast('Grabación iniciada');
-
-      // Auto-stop after 30s
-      if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
-      recordingTimeoutRef.current = setTimeout(() => {
-        stopRecording();
-        toast('El audio no debe superar los 30 segundos.');
-      }, 30000);
-    } catch (err) {
-      console.error('Error starting recording:', err);
-      toast('Error al iniciar grabación: ' + (err.message || err.name));
-      stopMicTracksNow();
-	  recorderBusyRef.current = false;
-    }
-  }
-
-  function stopRecording() {
-    const r = mediaRecorderRef.current;
-
-    // Clear timers
-    if (recordingTimeoutRef.current) { clearTimeout(recordingTimeoutRef.current); recordingTimeoutRef.current = null; }
-    if (recordingIntervalRef.current) { clearInterval(recordingIntervalRef.current); recordingIntervalRef.current = null; }
-    setRecordingSeconds(0);
-
-    // Quick-cancel
-    const duration = performance.now() - recordingStartedAtRef.current;
-    if (r && r.state === 'recording' && duration < 500) {
-      resetAudioState();
-      toast('Grabación cancelada.');
-      return;
-    }
-
-    // Normal stop + safeguard if onstop never fires
-    if (r && r.state === 'recording') {
-      setIsRecording(false);
-      setAsrStatus('processing');
-      r.stop();
-	  stopMicTracksNow();
-	  
-	  // visualizer will be stopped in onstop, but ensure no double RAF
-      // stopWaveformVisualization(); <-- uncomment if we want to stop immediately
-
-      if (stopSafeguardRef.current) clearTimeout(stopSafeguardRef.current);
-      stopSafeguardRef.current = setTimeout(() => {
-        if (asrStatus === 'processing') {
-          console.warn('MediaRecorder onstop did not fire, forcing reset.');
-          resetAudioState();
-        }
-      }, 4000);
-    } else {
-      resetAudioState();
-    }
-  }
-  
-  function cancelTranscription() {
-    try { asrAbortRef.current?.abort(); } catch {}
-    asrAbortRef.current = null;
-    resetAudioState();
-  }
-
   useEffect(() => {
-
     return () => {
       if (lastRecordingUrl.current) {
         URL.revokeObjectURL(lastRecordingUrl.current);
       }
     };
   }, []);
-
-
-  // Wait until the mic track is actually unmuted (Chrome can start muted briefly)
-  function waitForTrackUnmute(track, timeoutMs = 1500) {
-    return new Promise((resolve) => {
-      if (!track.muted) return resolve();
-      let done = false;
-      const onUnmute = () => {
-        if (done) return;
-        done = true;
-        track.removeEventListener('unmute', onUnmute);
-        clearTimeout(timer);
-        resolve();
-      };
-      const timer = setTimeout(() => {
-        if (done) return;
-        done = true;
-        track.removeEventListener('unmute', onUnmute);
-        resolve(); // continue even if still muted after timeout
-      }, timeoutMs);
-      track.addEventListener('unmute', onUnmute, { once: true });
-    });
-  }
-
-  // Wait until there is detectable input energy to avoid silent first seconds
-  async function waitForInputEnergy(stream, threshold = 0.008, windowMs = 800, stepMs = 80) {
-    try {
-      const ctx = await getAudioContext();
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048;
-      source.connect(analyser);
-
-      const data = new Uint8Array(analyser.fftSize);
-      const steps = Math.max(1, Math.floor(windowMs / stepMs));
-      for (let i = 0; i < steps; i++) {
-        analyser.getByteTimeDomainData(data);
-        // simple RMS
-        let sum = 0;
-        for (let j = 0; j < data.length; j++) {
-          const v = (data[j] - 128) / 128; // [-1,1]
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / data.length);
-        if (rms >= threshold) {
-          try { source.disconnect(); } catch {}
-          try { analyser.disconnect && analyser.disconnect(); } catch {}
-          return;
-        }
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise(r => setTimeout(r, stepMs));
-      }
-      try { source.disconnect(); } catch {}
-      try { analyser.disconnect && analyser.disconnect(); } catch {}
-    } catch (_) {
-      // ignore analyser errors (fallback to no wait)
-    }
-  }
-
-  // Add this helper once (used by resetAudioState)
-  function safeUnloadReviewAudio() {
-    const el = reviewAudioRef.current;
-    const url = lastRecordingUrl.current;
-    if (!el) {
-      if (url) { try { URL.revokeObjectURL(url); } catch {} lastRecordingUrl.current = null; }
-      return;
-    }
-    try {
-      const p = el.pause?.();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch {}
-    const clearNow = () => {
-      try { el.removeAttribute('src'); el.srcObject = null; el.load(); } catch {}
-      if (url) {
-        try { URL.revokeObjectURL(url); } catch {}
-        if (lastRecordingUrl.current === url) lastRecordingUrl.current = null;
-      }
-      el.removeEventListener('pause', clearNow);
-      el.removeEventListener('ended', clearNow);
-      el.removeEventListener('emptied', clearNow);
-    };
-    if (el.paused || el.ended) {
-      setTimeout(clearNow, 0);
-    } else {
-      el.addEventListener('pause', clearNow, { once: true });
-      el.addEventListener('ended', clearNow, { once: true });
-      el.addEventListener('emptied', clearNow, { once: true });
-      try { el.pause(); } catch {}
-    }
-  }
-  
-
-  
-  function stopMicTracksNow() {
-      const s = mediaStreamRef.current;
-      if (s) {
-        try { s.getTracks().forEach(t => t.stop()); } catch {}
-        mediaStreamRef.current = null;
-      }
-  }
   
   const handleClearTexts = () => {
     setSrcText('');
     setDstText('');
     setShowSrcTextMessage(false);
   };
-
-
-
-
-  // Add refs to track warmup state (already exists)
-  const asrWarmupDoneRef = useRef(false);
-  const lastAsrActivityRef = useRef(0);
-  const WARMUP_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-
-  // Helper to check if warmup is needed (already exists)
-  const shouldWarmupASR = () => {
-    const now = Date.now();
-    const timeSinceLastActivity = now - lastAsrActivityRef.current;
-    return !asrWarmupDoneRef.current || timeSinceLastActivity > WARMUP_COOLDOWN_MS;
-  };
-
-  // Helper to trigger warmup (already exists - unchanged)
-  const triggerASRWarmupIfNeeded = async () => {
-    if (!shouldWarmupASR()) {
-      console.debug('ASR warmup skipped - server still warm');
-      return;
-    }
-    
-    console.debug('Triggering ASR warmup...');
-    asrWarmupDoneRef.current = true;
-    lastAsrActivityRef.current = Date.now();
-    
-    const hintForWarmup = srcHint || dstHint || 'spa_Latn';
-    warmupASRModel(hintForWarmup).catch(() => {}); // Fire and forget
-  };
-
-  // Update lastAsrActivityRef after EVERY real ASR call (already exists)
-  const updateASRActivity = () => {
-    lastAsrActivityRef.current = Date.now();
-  };
-
 
   const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
