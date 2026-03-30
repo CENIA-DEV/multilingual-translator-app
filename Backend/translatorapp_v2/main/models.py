@@ -30,6 +30,12 @@ def get_asr_audio_upload_path(instance, filename):
     return os.path.join("asr_audios", f"{unique_id}.{ext}")
 
 
+def get_ocr_upload_path(instance, filename):
+    ext = filename.split(".")[-1]
+    unique_id = uuid.uuid4().hex
+    return os.path.join("ocr_uploads", f"{unique_id}.{ext}")
+
+
 class PasswordResetToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     token = models.CharField(max_length=128, unique=True)
@@ -292,6 +298,50 @@ class SpeechToTextAudio(models.Model):
             finally:
                 self.audio_file.close()
         return None
+
+
+class OCRRequest(models.Model):
+    src_languages = models.JSONField(default=list)
+    tgt_languages = models.JSONField(default=list)
+    provider = models.CharField(max_length=50, null=True, default="Gemini")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["provider"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"OCRRequest {self.pk} ({self.provider})"
+
+
+class OCRResult(models.Model):
+    ocr_request = models.ForeignKey(
+        OCRRequest, on_delete=models.CASCADE, related_name="results"
+    )
+    uploaded_file = models.FileField(upload_to=get_ocr_upload_path)
+    original_filename = models.CharField(max_length=255)
+    text = models.TextField(null=True, blank=True)
+    pages = models.IntegerField(null=True, blank=True)
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    error = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["ocr_request"]),
+            models.Index(fields=["original_filename"]),
+            models.Index(fields=["created_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.original_filename} ({'error' if self.error else 'ok'})"
 
 
 class GeneralSuggestion(models.Model):
