@@ -27,7 +27,6 @@ import {
   faStop,
   faSpinner,
   faMicrophone,
-  faPlus,
   faPaperPlane, 
   faXmark,
   faComment
@@ -35,10 +34,11 @@ import {
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
+import DocumentOCRTools from '../components/documentOCRTools/documentOCRTools.jsx';
 import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { AuthContext } from '../contexts';
@@ -601,6 +601,9 @@ export default function Translator() {
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
           <DialogTitle>Modelo en desarrollo</DialogTitle>
+          <DialogDescription className="sr-only">
+            Informacion de estado del modelo de traduccion.
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <p>
@@ -616,6 +619,9 @@ export default function Translator() {
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-3/4'>
         <DialogHeader>
           <DialogTitle>Acceso restringido</DialogTitle>
+          <DialogDescription className="sr-only">
+            Indicacion de inicio de sesion requerido para usar el traductor.
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <p>
@@ -656,89 +662,13 @@ export default function Translator() {
 			onClearTexts={handleClearTexts}
           />
 
-          {/* LEFT: keep Upload*/}
+          {/* LEFT: Document OCR tools */}
           <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
-            {/* Upload button */}
-            {ASR_UPLOAD_VISIBLE_D && (
-              <label
-                className="max-[850px]:hidden w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition cursor-pointer"
-                title="Subir audio"
-                aria-label="Subir audio"
-              >
-                <input
-                  type="file"
-                  accept="audio/*"
-                  hidden
-                  onChange={async (e) => {
-                    if (translationRestricted) {
-                      setTranslationRestrictedDialogOpen(true);
-                      e.currentTarget.value = "";
-                      return;
-                    }
-                    const files = e.currentTarget.files;
-                    if (!files || files.length === 0) return;
-                    const file = files[0];
-                    e.currentTarget.value = ""; // Reset file input
-
-                    // --- RE-ADD MIME TYPE VALIDATION ---
-                    const okTypes = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a'];
-                    if (file.type && !okTypes.includes(file.type)) {
-                      toast('Formato no soportado.', {
-                        description: `El formato '${file.type}' no es compatible. Intente con webm, ogg, mp3, o wav.`,
-                      });
-                      return;
-                    }
-                    // --- END RE-ADD ---
-
-                    // --- DURATION VALIDATION START ---
-                    const audioURL = URL.createObjectURL(file);
-                    const tempAudio = document.createElement('audio');
-                    tempAudio.preload = 'metadata';
-
-                    const cleanup = () => {
-                      URL.revokeObjectURL(audioURL);
-                      tempAudio.removeEventListener('loadedmetadata', onMetadataLoaded);
-                      tempAudio.removeEventListener('error', onError);
-                    };
-
-                    const onMetadataLoaded = () => {
-                      const duration = tempAudio.duration;
-                      cleanup();
-                      
-                      if (duration > 30) {
-                        toast('El audio no debe superar los 30 segundos.', {
-                          description: `Duración detectada: ${Math.round(duration)}s`,
-                        });
-                        setAsrStatus('idle'); // Reset status
-                        return;
-                      }
-                      
-                      // If duration is valid, proceed to transcribe
-                      setAsrStatus('uploading');
-                      handleTranscribeBlob(file, file.name || 'audio.subido').catch(err => {
-                        console.error(err);
-                        setAsrStatus('error');
-                        toast('No se pudo procesar el archivo.');
-                      });
-                    };
-
-                    const onError = () => {
-                      cleanup();
-                      toast('Error al leer el archivo de audio.', {
-                        description: 'El archivo podría estar dañado o en un formato no soportado.',
-                      });
-                      setAsrStatus('idle');
-                    };
-
-                    tempAudio.addEventListener('loadedmetadata', onMetadataLoaded);
-                    tempAudio.addEventListener('error', onError);
-                    tempAudio.src = audioURL;
-                    // --- DURATION VALIDATION END ---
-                  }}
-                />
-                <FontAwesomeIcon icon={faPlus} className="fa-lg" color="#0a8cde" />
-              </label>
-            )}
+            <DocumentOCRTools
+              visible={ASR_UPLOAD_VISIBLE_D}
+              translationRestricted={translationRestricted}
+              onRestricted={() => setTranslationRestrictedDialogOpen(true)}
+            />
           </div>
 
           {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
@@ -897,6 +827,7 @@ export default function Translator() {
       >
 
       <DialogContent
+        aria-describedby={undefined}
         onInteractOutside={(e) => e.preventDefault()}  // ignore outside clicks
         onEscapeKeyDown={() => handleFullCancel()}    // Esc = full cancel
         className="w-[min(800px,90vw)] max-w-none gap-y-4 py-5"
