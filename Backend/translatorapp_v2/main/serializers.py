@@ -27,6 +27,8 @@ from .models import (
     GeneralSuggestion,
     InvitationToken,
     Lang,
+    OCRRequest,
+    OCRResult,
     PasswordResetToken,
     Profile,
     RequestAccess,
@@ -616,3 +618,49 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["created_at"]
+
+
+class OCRRequestSerializer(serializers.Serializer):
+    src_languages = serializers.ListField(
+        child=serializers.CharField(allow_blank=False, trim_whitespace=True),
+        required=False,
+        default=["auto"],
+    )
+    tgt_languages = serializers.ListField(
+        child=serializers.CharField(allow_blank=False, trim_whitespace=True),
+        required=False,
+        default=["auto"],
+    )
+
+
+class OCRResultSerializer(serializers.ModelSerializer):
+    filename = serializers.CharField(source="original_filename", read_only=True)
+
+    class Meta:
+        model = OCRResult
+        fields = [
+            "id",
+            "filename",
+            "text",
+            "pages",
+            "input_tokens",
+            "output_tokens",
+            "error",
+        ]
+
+
+class OCRResponseSerializer(serializers.ModelSerializer):
+    results = OCRResultSerializer(many=True, read_only=True)
+    error_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OCRRequest
+        fields = [
+            "results",
+            "src_languages",
+            "tgt_languages",
+            "error_count",
+        ]
+
+    def get_error_count(self, obj):
+        return obj.results.exclude(error__isnull=True).exclude(error="").count()
