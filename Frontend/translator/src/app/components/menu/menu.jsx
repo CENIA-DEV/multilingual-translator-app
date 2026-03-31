@@ -64,19 +64,21 @@ export default function Menu(){
   return (
       <>
         <div className={
-          `fixed top-4 left-4 max-[850px]:left-0 z-50 
+          `fixed top-12 left-0 w-full z-50 pointer-events-none
           animate-fade animate-once animate-duration-[1200ms] ${path !== '/translator'? 'animate-delay-[100ms]' : 'animate-delay-[1500ms]'} animate-ease-in-out 
           ${path === '/about'? 'hidden':''}
           `  
         }>
-          <Button 
-            onClick={toggleMenu}
-            variant="ghost"
-            className={`rounded-md ${path === '/profile'? 'hover:text-white' : 'hover:text-default'} hover:bg-transparent`}
-            aria-label="Toggle menu"
-          >
-            <FontAwesomeIcon icon={faBars} className="h-6 w-6"/>
-          </Button>
+          <div className="w-[96vw] max-w-[1600px] mx-auto flex pl-2 max-[850px]:pl-0">
+            <Button 
+              onClick={toggleMenu}
+              variant="ghost"
+              className={`rounded-md pointer-events-auto ${path === '/profile'? 'hover:text-white' : 'hover:text-default'} hover:bg-transparent`}
+              aria-label="Toggle menu"
+            >
+              <FontAwesomeIcon icon={faBars} className="h-6 w-6"/>
+            </Button>
+          </div>
         </div>
 
         {/* Overlay */}

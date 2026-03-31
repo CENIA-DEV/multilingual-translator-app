@@ -642,7 +642,7 @@ export default function Translator() {
       </Dialog>
       
       <TooltipProvider>
-        <div className="relative">
+        <div className="relative flex-1 w-1/2 h-full max-[850px]:w-full max-[850px]:h-auto">
           <Card
             side={"left"}
             srcText={srcText}
@@ -817,7 +817,7 @@ export default function Translator() {
 		
         
 
-        <div className="relative">
+        <div className="relative flex-1 w-1/2 h-full max-[850px]:w-full max-[850px]:h-auto">
           <Card
             side={"right"}
             dstText={dstText}
@@ -873,8 +873,12 @@ export default function Translator() {
       </div>
       </div> {/* END of translator-container */}
 
-      <div className="w-full flex-1 flex">
-        <Dictionary word={selectedText} lang={dstLang} />
+      <div className="w-[96vw] max-w-[1600px] mx-auto flex-1 flex pb-6">
+        <div className="w-full max-[850px]:w-full">
+          <div className="flex flex-col bg-white rounded-[30px] shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] pb-4 mt-2 h-full w-full">
+            <Dictionary word={selectedText} lang={dstLang} />
+          </div>
+        </div>
       </div>
 
       <LangsModal

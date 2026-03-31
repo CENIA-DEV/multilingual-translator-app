@@ -34,7 +34,7 @@ export default function Dictionary({ word, lang }) {
   }, [word, lang]);
 
   return (
-    <div className="w-full text-left relative z-[2] max-[850px]:w-full min-[850px]:w-[50dvw] flex flex-col items-center">
+    <div className="w-full text-left relative z-[2] flex flex-col items-center pt-2">
       <div className="w-[calc(100%-80px)] max-[850px]:w-[calc(100%-40px)] flex flex-col justify-start">
         <div className="flex items-center border-[0px] border-b-[3px] border-b-[#c8d1e1] pb-[5px] pt-[15px] mb-6 w-full">
           <strong className="font-['Roboto_Condensed',sans-serif] text-[18px] text-[#0a8cde] mr-[10px] cursor-default">
