@@ -18,6 +18,17 @@ FROM node:20.10-alpine
 # Set the working directory to /app
 WORKDIR /app
 
+#install requirements for canva (document processing)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    build-base \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev
+
 # Copy the package.json and package-lock.json files
 COPY package*.json ./
 
