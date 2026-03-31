@@ -14,7 +14,9 @@
 # limitations under the License.
 from django.contrib import admin
 
-from .models import TranslationPair
+from .models import Definition, TranslationPair, Word
 
 # Register your models here.
 admin.site.register(TranslationPair)
+admin.site.register(Word)
+admin.site.register(Definition)
