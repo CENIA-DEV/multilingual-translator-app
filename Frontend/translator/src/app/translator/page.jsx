@@ -35,6 +35,8 @@ import {
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
+import Dictionary from '../components/dictionary/Dictionary.jsx';
+import { useTextSelection } from '../../hooks/useTextSelection';
 import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
@@ -96,6 +98,8 @@ export default function Translator() {
   const [feedbackData, setFeedbackData] = useState(null);
   const [modelData, setModelData] = useState(null);
   const [isSuggestionOnlyMode, setIsSuggestionOnlyMode] = useState(false);
+
+  const { selectedText } = useTextSelection();
 
   const [loadingState, setLoadingState] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
@@ -596,8 +600,9 @@ export default function Translator() {
   const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
   return (
-    <div className="translator-container relative min-h-[100dvh] overflow-hidden">
-      <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
+    <div className="page-wrapper min-h-[100dvh] flex flex-col bg-[#f3f4f6]">
+      <div className="translator-container relative overflow-hidden shrink-0">
+        <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
           <DialogTitle>Modelo en desarrollo</DialogTitle>
@@ -865,6 +870,11 @@ export default function Translator() {
 
 
         )}
+      </div>
+      </div> {/* END of translator-container */}
+
+      <div className="w-full flex-1 flex">
+        <Dictionary word={selectedText} lang={dstLang} />
       </div>
 
       <LangsModal

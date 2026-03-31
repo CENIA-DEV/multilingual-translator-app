@@ -12,11 +12,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background-color: #f3f4f6; /* light gray for dictionary section */
+}
+
 .translator-container {
   width: 100dvw;
-  height: 100dvh;
+  /* Instead of full height, limit it to make room for dictionary */
+  height: 75dvh; 
+  min-height: 400px;
   display: flex;
+  position: relative;
   background-color: #0a8cde;
+  flex-shrink: 0;
 }
 
 .translator-switch-button {
@@ -126,7 +137,7 @@ limitations under the License. */
 
 .card-container {
   width: 50dvw;
-  height: 100dvh;
+  height: 100%;
 }
 
 .card-container-left {
@@ -172,6 +183,8 @@ limitations under the License. */
 @media screen and (max-width: 850px) {
   .translator-container {
     flex-direction: column;
+    height: auto;
+    min-height: 70dvh;
   }
 
   .translator-switch-button {
@@ -202,7 +215,8 @@ limitations under the License. */
   
   .card-container {
     width: 100dvw;
-    height: 50dvh;
+    height: 35dvh;
+    min-height: 300px;
   }
   
   .card-container-left {
