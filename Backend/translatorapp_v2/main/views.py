@@ -46,6 +46,7 @@ from .models import (
     TranslationPair,
     TranslationRequest,
     Word,
+    WordInformation,
 )
 from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
 from .serializers import (
@@ -62,6 +63,7 @@ from .serializers import (
     TranslationPairSerializer,
     TranslationRequestSerializer,
     UserSerializer,
+    WordInformationSerializer,
     WordSerializer,
 )
 from .utils import (
@@ -1140,3 +1142,15 @@ class WordViewSet(viewsets.ModelViewSet):
                 "results": serializer.data,
             }
         )
+
+
+class WordInformationViewSet(viewsets.ModelViewSet):
+    queryset = WordInformation.objects.all()
+    serializer_class = WordInformationSerializer
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
+        else:
+            permission_classes = [AllowAny]
+        return [permission() for permission in permission_classes]

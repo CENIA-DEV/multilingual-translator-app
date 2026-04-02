@@ -447,3 +447,14 @@ class Definition(models.Model):
 
     def __str__(self):
         return f"{self.word.text}: {self.meaning[:20]}..."
+
+
+class WordInformation(models.Model):
+    word = models.OneToOneField(
+        Word, related_name="information", on_delete=models.CASCADE
+    )
+    other_ways_to_say = models.JSONField(default=list, blank=True, null=True)
+    additional_explanation = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Info for {self.word.text}"

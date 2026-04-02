@@ -37,6 +37,7 @@ from .models import (
     TranslationPair,
     TranslationRequest,
     Word,
+    WordInformation,
 )
 
 
@@ -626,12 +627,19 @@ class DefinitionSerializer(serializers.ModelSerializer):
         fields = ["meaning"]
 
 
+class WordInformationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WordInformation
+        fields = ["id", "word", "other_ways_to_say", "additional_explanation"]
+
+
 class WordSerializer(serializers.ModelSerializer):
     definitions = DefinitionSerializer(many=True, read_only=True)
+    information = WordInformationSerializer(read_only=True)
 
     class Meta:
         model = Word
-        fields = ["text", "definitions"]
+        fields = ["id", "text", "definitions", "information"]
 
     def create(self, validated_data):
         definitions_data = validated_data.pop("definitions", [])
