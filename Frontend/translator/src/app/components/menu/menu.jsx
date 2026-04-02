@@ -19,7 +19,7 @@ import { faUsersGear, faDatabase, faHouse, faLanguage, faUser, faBars, faX, faAr
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button } from "@/components/ui/button";
 import { AuthContext } from '@/app/contexts';
-import { PATHS, NATIVE_ADMIN, ADMIN, NO_USER_PATHS, ACCESS_TOKEN} from '@/app/constants';
+import { PATHS, NATIVE_ADMIN, ADMIN, NO_USER_PATHS, ACCESS_TOKEN, DICTIONARY_ENABLED} from '@/app/constants';
 import ActionButton from '../actionButton/actionButton';
 import './menu.css'
 
@@ -64,13 +64,13 @@ export default function Menu(){
   return (
       <>
         <div className={
-          `absolute top-12 left-0 w-full z-50 pointer-events-none
+          `absolute left-0 w-full z-50 pointer-events-none
+          ${DICTIONARY_ENABLED ? 'top-12 max-[850px]:top-9 max-[850px]:mt-2' : 'top-4 max-[850px]:top-4 max-[850px]:mt-1'}
           animate-fade animate-once animate-duration-[1200ms] ${path !== '/translator'? 'animate-delay-[100ms]' : 'animate-delay-[1500ms]'} animate-ease-in-out 
           ${path === '/about'? 'hidden':''}
-          max-[850px]:top-9 max-[850px]:mt-2
           `  
         }>
-          <div className="w-[96vw] max-w-[1600px] mx-auto flex pl-2 max-[850px]:pl-1">
+          <div className={`${DICTIONARY_ENABLED ? 'w-[96vw] max-w-[1600px] pl-2 max-[850px]:pl-1' : 'w-full pl-0 max-[850px]:pl-0'} mx-auto flex`}>
             <Button 
               onClick={toggleMenu}
               variant="ghost"
