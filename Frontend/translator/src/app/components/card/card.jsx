@@ -16,16 +16,19 @@ import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
 import { TypeAnimation } from "react-type-animation";
 import Image from "next/image";
-import { VARIANT_LANG, LANG_TITLE } from "@/app/constants";
+import { VARIANT_LANG, LANG_TITLE, API_ENDPOINTS } from "@/app/constants";
+import api from "@/app/api";
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
+import { useState, useEffect } from "react";
 
 export default function Card(props) {
   const side = props.side;
@@ -47,6 +50,93 @@ export default function Card(props) {
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
   const showClearLeft = side === 'left' && !!srcText?.trim();
+
+  // Word Information State and Effect
+  const [wordInfo, setWordInfo] = useState([]);
+  
+  useEffect(() => {
+    const textToAnalyze = side === 'left' ? srcText : dstText;
+    if (!textToAnalyze) {
+      setWordInfo([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const res = await api.post(API_ENDPOINTS.WORDS_ANALYZE, { sentence: textToAnalyze });
+        if (res.data && res.data.results) {
+          setWordInfo(res.data.results.filter(w => w.information));
+        }
+      } catch (e) {
+        console.error("Failed to analyze sentence for word information", e);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [srcText, dstText, side]);
+
+  // Helper renderer
+  const renderHighlightedText = (text, textColorClass) => {
+    if (!text) return null;
+    if (wordInfo.length === 0) return <span className={`whitespace-pre-wrap ${textColorClass}`}>{text}</span>;
+
+    const wordsWithInfo = wordInfo
+      .filter(w => w.information?.other_ways_to_say?.length > 0 || w.information?.additional_explanation)
+      .map(w => w.text.toLowerCase());
+
+    const elements = text.split(/(\s+)/).map((word, idx) => {
+      const baseWord = word.replace(/^[.,!?;:—\-()[\]{}""']+|[.,!?;:—\-()[\]{}""']+$/g, '').toLowerCase();
+      const candidates = [
+        baseWord,
+        "'" + baseWord,
+        "’" + baseWord,
+        baseWord.replace(/^['’]/, "")
+      ].filter(Boolean);
+
+      const hasInfo = candidates.some(c => wordsWithInfo.includes(c));
+
+      if (hasInfo && !word.match(/^\s+$/)) {
+        return (
+          <span key={idx} className={`whitespace-pre-wrap ${textColorClass} border-b-[2px] border-dotted ${side === 'left' ? 'border-black' : 'border-white'} pb-[1px]`}>
+            {word}
+          </span>
+        );
+      }
+      return <span key={idx} className={`whitespace-pre-wrap ${textColorClass}`}>{word}</span>;
+    });
+
+    return <>{elements}</>;
+  };
+
+  const renderInfoPopover = () => {
+    if (wordInfo.length === 0) return null;
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className={`relative z-30 h-8 w-8 ml-4 rounded-full flex items-center justify-center transition-transform hover:scale-125 ${side === 'left' ? 'text-black' : 'text-white'}`}>
+             <FontAwesomeIcon icon={faInfoCircle} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="bottom" align="end" className="w-80 p-4 bg-white/95 backdrop-blur-md border shadow-2xl rounded-xl z-50 text-black">
+           <h4 className="font-bold mb-3 border-b pb-2">Información adicional</h4>
+           <div className="max-h-[300px] overflow-y-auto">
+             {wordInfo.map(w => (
+               <div key={w.id} className="mb-4 last:mb-0">
+                 <strong className="text-lg text-blue-500 capitalize">{w.text}</strong>
+                 {w.information?.other_ways_to_say?.length > 0 && (
+                   <p className="text-sm mt-1"><strong>Sinónimos:</strong> {w.information.other_ways_to_say.join(", ")}</p>
+                 )}
+                 {w.information?.additional_explanation && (
+                   <p className="text-sm mt-1 text-slate-700">{w.information.additional_explanation}</p>
+                 )}
+               </div>
+             ))}
+           </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   return(
     <div 
       className={`card-container flex flex-col items-center relative ${
@@ -91,14 +181,20 @@ export default function Card(props) {
 
       {side === 'left'?
 	   <>
-        <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px]">
-            <Textarea
-              value={srcText}
-              placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
-              onChange={e => handleSrcText(e.target.value)}
-              className={`w-full h-full ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
-            />
-		    {/* speaker (only if text exists) */}
+        <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative">
+            <div className="relative w-full h-full">
+              <div className="absolute inset-0 pointer-events-none z-20 px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light break-words whitespace-pre-wrap overflow-hidden whitespace-pre-wrap">
+                  {renderHighlightedText(srcText, "text-transparent")}
+                  <span className="inline-flex items-center align-middle pointer-events-auto h-[1.75rem]">{renderInfoPopover()}</span>
+              </div>
+              <Textarea
+                value={srcText}
+                placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
+                onChange={e => handleSrcText(e.target.value)}
+                className={`absolute inset-0 z-10 w-full h-full ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-[1.125rem] leading-[1.75rem] font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
+              />
+            </div>
+            {/* speaker (only if text exists) */}
             {(showSpeaker || showClearLeft) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">
                 {showSpeaker && (
@@ -151,16 +247,18 @@ export default function Card(props) {
         </>
         :
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white">
-            <Textarea readOnly 
-              key={dstText}
-              wrapper="span"
-              cursor={false}
-              speed={70}
-              deletionSpeed={70}
-              value={dstText}
-              className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0 scrollbar-white-thumb"
-            />
+          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
+            <div className="relative w-full h-full">
+              <div className="absolute inset-0 pointer-events-none z-20 px-3 py-2 text-[1.125rem] leading-[1.75rem] font-light break-words whitespace-pre-wrap overflow-hidden">
+                  {renderHighlightedText(dstText, "text-transparent")}
+                  <span className="inline-flex items-center align-middle pointer-events-auto h-[1.75rem]">{renderInfoPopover()}</span>
+              </div>
+              <Textarea 
+                readOnly 
+                value={dstText} 
+                className="absolute inset-0 z-10 w-full h-full resize-none bg-transparent outline-none text-white text-[1.125rem] leading-[1.75rem] font-light focus-visible:ring-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-transparent border-none scrollbar-white-thumb p-3"
+              />
+            </div>
 			{dstText && dstText.length > 0 && (
 				<div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">	
 				
