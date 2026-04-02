@@ -29,6 +29,11 @@ on:
         required: true
         type: boolean
         default: false
+      dictionary_enabled:
+        description: 'Enable dictionary feature'
+        required: true
+        type: boolean
+        default: true
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -94,6 +99,8 @@ jobs:
           echo "NEXT_PUBLIC_TTS_REQUIRES_AUTH=${{ github.event.inputs.tts_requires_auth }}" >> .env.production
           # Set speech-to-text enablement
           echo "NEXT_PUBLIC_ASR_REQUIRES_AUTH=${{ github.event.inputs.asr_requires_auth }}" >> .env.production
+          # Set dictionary enablement
+          echo "NEXT_PUBLIC_DICTIONARY_ENABLED=${{ github.event.inputs.dictionary_enabled }}" >> .env.production
 
           # if not production, set the api url to the backend url so we dont use relative path
           if [ "${{ steps.set-environment.outputs.environment }}" != "PRODUCTION" ]; then

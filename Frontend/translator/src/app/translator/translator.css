@@ -141,7 +141,8 @@ limitations under the License. */
 
 .card-container {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
+  flex: 1;
 }
 
 .card-container-left {
@@ -182,6 +183,12 @@ limitations under the License. */
 .btn-icon.muted {
   background: #e5e7eb;
   color: #374151;
+}
+
+.translator-container.no-dictionary {
+  height: auto;
+  flex: 1;
+  margin-bottom: 1.5rem;
 }
 
 @media screen and (max-width: 850px) {
