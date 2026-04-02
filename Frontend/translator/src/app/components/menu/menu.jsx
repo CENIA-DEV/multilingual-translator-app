@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 'use client'
 
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { faUsersGear, faDatabase, faHouse, faLanguage, faUser, faBars, faX, faArrowRightFromBracket } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -64,12 +64,13 @@ export default function Menu(){
   return (
       <>
         <div className={
-          `fixed top-12 left-0 w-full z-50 pointer-events-none
+          `absolute top-12 left-0 w-full z-50 pointer-events-none
           animate-fade animate-once animate-duration-[1200ms] ${path !== '/translator'? 'animate-delay-[100ms]' : 'animate-delay-[1500ms]'} animate-ease-in-out 
           ${path === '/about'? 'hidden':''}
+          max-[850px]:top-9 max-[850px]:mt-2
           `  
         }>
-          <div className="w-[96vw] max-w-[1600px] mx-auto flex pl-2 max-[850px]:pl-0">
+          <div className="w-[96vw] max-w-[1600px] mx-auto flex pl-2 max-[850px]:pl-1">
             <Button 
               onClick={toggleMenu}
               variant="ghost"

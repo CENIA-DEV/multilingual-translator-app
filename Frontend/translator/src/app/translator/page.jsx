@@ -873,7 +873,7 @@ export default function Translator() {
       </div>
       </div> {/* END of translator-container */}
 
-      <div className="w-[96vw] max-w-[1600px] mx-auto flex-1 flex pb-6">
+      <div className="w-[96vw] max-w-[1600px] mx-auto flex-1 flex pb-6 max-[850px]:pb-32">
         <div className="w-full max-[850px]:w-full">
           <div className="flex flex-col bg-white rounded-[30px] shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] pb-4 mt-2 h-full w-full">
             <Dictionary word={selectedText} lang={dstLang} />
