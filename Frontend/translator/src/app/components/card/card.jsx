@@ -28,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function Card(props) {
   const side = props.side;
@@ -84,21 +84,46 @@ export default function Card(props) {
       .filter(w => w.information?.other_ways_to_say?.length > 0 || w.information?.additional_explanation)
       .map(w => w.text.toLowerCase());
 
+    const dotColor = side === 'left' ? '#000000' : '#ffffff';
+
     const elements = text.split(/(\s+)/).map((word, idx) => {
       const baseWord = word.replace(/^[.,!?;:—\-()[\]{}""']+|[.,!?;:—\-()[\]{}""']+$/g, '').toLowerCase();
       const candidates = [
         baseWord,
         "'" + baseWord,
-        "’" + baseWord,
-        baseWord.replace(/^['’]/, "")
+        "'" + baseWord,
+        baseWord.replace(/^['']/, "")
       ].filter(Boolean);
 
       const hasInfo = candidates.some(c => wordsWithInfo.includes(c));
 
       if (hasInfo && !word.match(/^\s+$/)) {
+        const leadingPunctuation = (word.match(/^["'''([{]+/) || [''])[0];
+        const trailingPunctuation = (word.match(/[.,!?;:)\]}"'']+$/) || [''])[0];
+        const coreStart = leadingPunctuation.length;
+        const coreEnd = word.length - trailingPunctuation.length;
+        const coreWord = word.slice(coreStart, coreEnd);
+
+        if (!coreWord) {
+          return <span key={idx} className={`whitespace-pre-wrap ${textColorClass}`}>{word}</span>;
+        }
+
         return (
-          <span key={idx} className={`whitespace-pre-wrap ${textColorClass} border-b-[2px] border-dotted ${side === 'left' ? 'border-black' : 'border-white'} pb-[1px]`}>
-            {word}
+          <span key={idx} className={`whitespace-pre-wrap ${textColorClass}`}>
+            {leadingPunctuation}
+            <span
+              style={{
+                backgroundImage: `radial-gradient(circle, ${dotColor} 2px, transparent 2px)`,
+                backgroundRepeat: 'repeat-x',
+                backgroundSize: '8px 3px',
+                backgroundPosition: '0 100%',
+                paddingBottom: '5px',
+                color: 'inherit',
+              }}
+            >
+              {coreWord}
+            </span>
+            {trailingPunctuation}
           </span>
         );
       }
@@ -113,8 +138,8 @@ export default function Card(props) {
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <button type="button" className={`relative z-30 h-8 w-8 ml-4 rounded-full flex items-center justify-center transition-transform hover:scale-125 ${side === 'left' ? 'text-black' : 'text-white'}`}>
-             <FontAwesomeIcon icon={faInfoCircle} />
+          <button type="button" className={`transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50 animate-jump-in animate-once animate-duration-500 animate-ease-out`} aria-label="Información adicional" title="Información adicional">
+             <FontAwesomeIcon icon={faInfoCircle} className={`h-6 w-6 ${speakerColor === '#ffffff' ? 'text-white' : 'text-[#0a8cde]'}`} />
           </button>
         </PopoverTrigger>
         <PopoverContent side="bottom" align="end" className="w-80 p-4 bg-white/95 backdrop-blur-md border shadow-2xl rounded-xl z-50 text-black">
@@ -135,6 +160,23 @@ export default function Card(props) {
         </PopoverContent>
       </Popover>
     );
+  };
+
+  const leftOverlayRef = useRef(null);
+  const rightOverlayRef = useRef(null);
+
+  const handleLeftScroll = (e) => {
+    if (leftOverlayRef.current) {
+      leftOverlayRef.current.scrollTop = e.target.scrollTop;
+      leftOverlayRef.current.scrollLeft = e.target.scrollLeft;
+    }
+  };
+
+  const handleRightScroll = (e) => {
+    if (rightOverlayRef.current) {
+      rightOverlayRef.current.scrollTop = e.target.scrollTop;
+      rightOverlayRef.current.scrollLeft = e.target.scrollLeft;
+    }
   };
 
   return(
@@ -182,21 +224,31 @@ export default function Card(props) {
       {side === 'left'?
 	   <>
         <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative">
-            <div className="relative w-full h-full">
-              <div className="absolute inset-0 pointer-events-none z-20 px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light break-words whitespace-pre-wrap overflow-hidden whitespace-pre-wrap">
-                  {renderHighlightedText(srcText, "text-transparent")}
-                  <span className="inline-flex items-center align-middle pointer-events-auto h-[1.75rem]">{renderInfoPopover()}</span>
+            <div className="relative flex-1 h-full min-w-0">
+              <div 
+                ref={leftOverlayRef}
+                className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide">
+                  {renderHighlightedText(srcText, "text-black")}
+                  {srcText?.endsWith('\n') ? <br /> : null}
               </div>
               <Textarea
+                onScroll={handleLeftScroll}
                 value={srcText}
                 placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
                 onChange={e => handleSrcText(e.target.value)}
-                className={`absolute inset-0 z-10 w-full h-full ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-[1.125rem] leading-[1.75rem] font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                autoComplete="off"
+                data-gramm="false"
+                style={{ color: 'transparent', caretColor: '#000000', padding: '8px 14px' }}
+                className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? 'border-red-500 focus-visible:ring-red-500' : 'border-transparent focus-visible:ring-0'} resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]`}
               />
             </div>
             {/* speaker (only if text exists) */}
-            {(showSpeaker || showClearLeft) && (
-              <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">
+            {(showSpeaker || showClearLeft || wordInfo.length > 0) && (
+              <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0">
+                {renderInfoPopover()}
                 {showSpeaker && (
                   <Tooltip delayDuration={1000}>
                     <TooltipTrigger asChild>
@@ -248,20 +300,29 @@ export default function Card(props) {
         :
         <>
           <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
-            <div className="relative w-full h-full">
-              <div className="absolute inset-0 pointer-events-none z-20 px-3 py-2 text-[1.125rem] leading-[1.75rem] font-light break-words whitespace-pre-wrap overflow-hidden">
-                  {renderHighlightedText(dstText, "text-transparent")}
-                  <span className="inline-flex items-center align-middle pointer-events-auto h-[1.75rem]">{renderInfoPopover()}</span>
+            <div className="relative flex-1 h-full min-w-0">
+              <div 
+                ref={rightOverlayRef}
+                className="absolute inset-0 pointer-events-none z-10 px-3 py-2 text-[1.125rem] leading-[1.75rem] border border-transparent font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide">
+                  {renderHighlightedText(dstText, "text-white")}
+                  {dstText?.endsWith('\n') ? <br /> : null}
               </div>
               <Textarea 
+                onScroll={handleRightScroll}
                 readOnly 
                 value={dstText} 
-                className="absolute inset-0 z-10 w-full h-full resize-none bg-transparent outline-none text-white text-[1.125rem] leading-[1.75rem] font-light focus-visible:ring-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-transparent border-none scrollbar-white-thumb p-3"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                autoComplete="off"
+                data-gramm="false"
+                style={{ color: 'transparent' }}
+                className="absolute inset-0 z-20 w-full h-full resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide focus-visible:ring-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-transparent border-none scrollbar-white-thumb px-3 py-2"
               />
             </div>
-			{dstText && dstText.length > 0 && (
-				<div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">	
-				
+			{((dstText && dstText.length > 0) || wordInfo.length > 0) && (
+                            <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0"> 
+                              {renderInfoPopover()}
 				  {showSpeaker && (
 					  <Tooltip delayDuration={1000}>
 						<TooltipTrigger asChild>
