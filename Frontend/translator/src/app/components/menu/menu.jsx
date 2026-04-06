@@ -15,7 +15,7 @@ limitations under the License. */
 
 import React, { useContext, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { faUsersGear, faDatabase, faHouse, faLanguage, faUser, faBars, faX, faArrowRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+import { faUsersGear, faDatabase, faHouse, faLanguage, faUser, faBars, faX, faArrowRightFromBracket, faBook } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button } from "@/components/ui/button";
 import { AuthContext } from '@/app/contexts';
@@ -29,7 +29,8 @@ const iconMap = {
   'language': faLanguage,
   'user': faUser,
   'database': faDatabase,
-  'home': faHouse
+  'home': faHouse,
+  'book': faBook
 }
 
 
