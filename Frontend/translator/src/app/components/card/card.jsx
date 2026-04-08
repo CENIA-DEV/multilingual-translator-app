@@ -78,38 +78,34 @@ export default function Card(props) {
   // Helper renderer
   const renderHighlightedText = (text, textColorClass) => {
     if (!text) return null;
-    if (wordInfo.length === 0) return <span className={`whitespace-pre-wrap ${textColorClass}`}>{text}</span>;
 
     const wordsWithInfo = wordInfo
       .filter(w => w.information?.other_ways_to_say?.length > 0 || w.information?.additional_explanation)
       .map(w => w.text.toLowerCase());
 
     const dotColor = side === 'left' ? '#000000' : '#ffffff';
+    const parts = text.split(/(\s+)/);
 
-    const elements = text.split(/(\s+)/).map((word, idx) => {
+    const elements = parts.map((word, idx) => {
+      // 1. Handle Whitespace cleanly
+      if (word.match(/^\s+$/)) {
+        return <span key={idx}>{word}</span>; 
+      }
+
+      // 2. Handle Words (Dictionary Highlight Logic)
       const baseWord = word.replace(/^[.,!?;:—\-()[\]{}""']+|[.,!?;:—\-()[\]{}""']+$/g, '').toLowerCase();
-      const candidates = [
-        baseWord,
-        "'" + baseWord,
-        "'" + baseWord,
-        baseWord.replace(/^['']/, "")
-      ].filter(Boolean);
-
+      const candidates = [baseWord, "'" + baseWord, "'" + baseWord, baseWord.replace(/^['']/, "")].filter(Boolean);
       const hasInfo = candidates.some(c => wordsWithInfo.includes(c));
 
-      if (hasInfo && !word.match(/^\s+$/)) {
+      if (hasInfo) {
         const leadingPunctuation = (word.match(/^["'''([{]+/) || [''])[0];
         const trailingPunctuation = (word.match(/[.,!?;:)\]}"'']+$/) || [''])[0];
-        const coreStart = leadingPunctuation.length;
-        const coreEnd = word.length - trailingPunctuation.length;
-        const coreWord = word.slice(coreStart, coreEnd);
+        const coreWord = word.slice(leadingPunctuation.length, word.length - trailingPunctuation.length);
 
-        if (!coreWord) {
-          return <span key={idx} className={`whitespace-pre-wrap ${textColorClass}`}>{word}</span>;
-        }
+        if (!coreWord) return <span key={idx} className={textColorClass}>{word}</span>;
 
         return (
-          <span key={idx} className={`whitespace-pre-wrap ${textColorClass}`}>
+          <span key={idx} className={textColorClass}>
             {leadingPunctuation}
             <span
               style={{
@@ -127,7 +123,9 @@ export default function Card(props) {
           </span>
         );
       }
-      return <span key={idx} className={`whitespace-pre-wrap ${textColorClass}`}>{word}</span>;
+      
+      // 3. Normal Words
+      return <span key={idx} className={textColorClass}>{word}</span>;
     });
 
     return <>{elements}</>;
@@ -222,13 +220,13 @@ export default function Card(props) {
       />
 
       {side === 'left'?
-	   <>
+     <>
         <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative">
             <div className="relative flex-1 h-full min-w-0">
               <div 
                 ref={leftOverlayRef}
                 className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide">
-                  {renderHighlightedText(srcText, "text-black")}
+                  {renderHighlightedText(srcText, "text-transparent")}
                   {srcText?.endsWith('\n') ? <br /> : null}
               </div>
               <Textarea
@@ -241,7 +239,7 @@ export default function Card(props) {
                 autoCapitalize="off"
                 autoComplete="off"
                 data-gramm="false"
-                style={{ color: 'transparent', caretColor: '#000000', padding: '8px 14px' }}
+                style={{ color: '#000000', caretColor: '#000000', padding: '8px 14px' }}
                 className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? 'border-red-500 focus-visible:ring-red-500' : 'border-transparent focus-visible:ring-0'} resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]`}
               />
             </div>
@@ -304,7 +302,7 @@ export default function Card(props) {
               <div 
                 ref={rightOverlayRef}
                 className="absolute inset-0 pointer-events-none z-10 px-3 py-2 text-[1.125rem] leading-[1.75rem] border border-transparent font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide">
-                  {renderHighlightedText(dstText, "text-white")}
+                  {renderHighlightedText(dstText, "text-transparent")}
                   {dstText?.endsWith('\n') ? <br /> : null}
               </div>
               <Textarea 
@@ -316,52 +314,52 @@ export default function Card(props) {
                 autoCapitalize="off"
                 autoComplete="off"
                 data-gramm="false"
-                style={{ color: 'transparent' }}
+                style={{ color: '#ffffff' }}
                 className="absolute inset-0 z-20 w-full h-full resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide focus-visible:ring-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-transparent border-none scrollbar-white-thumb px-3 py-2"
               />
             </div>
-			{((dstText && dstText.length > 0) || wordInfo.length > 0) && (
+      {((dstText && dstText.length > 0) || wordInfo.length > 0) && (
                             <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0"> 
                               {renderInfoPopover()}
-				  {showSpeaker && (
-					  <Tooltip delayDuration={1000}>
-						<TooltipTrigger asChild>
-						  <button
-							onClick={() => (isSpeaking ? onStop() : onSpeak())}
-							aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
-							title={isSpeaking ? "Detener" : "Escuchar"}
-							className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
-							disabled={isLoadingAudio}
-						  >
-							<FontAwesomeIcon
-							  icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
-							  className={isLoadingAudio ? "fa-spin" : ""}
-							  color={speakerColor /* white on right */}
-							/>
-						  </button>
-						</TooltipTrigger>
-						<TooltipContent className="bg-default border-white text-white rounded-full border-2">
-						  <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
-						</TooltipContent>
-					  </Tooltip>
+          {showSpeaker && (
+            <Tooltip delayDuration={1000}>
+            <TooltipTrigger asChild>
+              <button
+              onClick={() => (isSpeaking ? onStop() : onSpeak())}
+              aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+              title={isSpeaking ? "Detener" : "Escuchar"}
+              className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
+              disabled={isLoadingAudio}
+              >
+              <FontAwesomeIcon
+                icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
+                className={isLoadingAudio ? "fa-spin" : ""}
+                color={speakerColor /* white on right */}
+              />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-default border-white text-white rounded-full border-2">
+              <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+            </TooltipContent>
+            </Tooltip>
                   )}
-				  
-				  <Tooltip delayDuration={1000}>
-					<TooltipTrigger asChild>
-					  <button
-						onClick={handleCopyText}
-						aria-label="Copiar traducción"
-						title="Copiar traducción"
-						className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
-					  >
-						<FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
-					  </button>
-					</TooltipTrigger>
-					<TooltipContent className="bg-default border-white text-white rounded-full border-2">
-					  <p>Copiar traducción</p>
-					</TooltipContent>
-				  </Tooltip>
-				</div>
+          
+          <Tooltip delayDuration={1000}>
+          <TooltipTrigger asChild>
+            <button
+            onClick={handleCopyText}
+            aria-label="Copiar traducción"
+            title="Copiar traducción"
+            className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
+            >
+            <FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="bg-default border-white text-white rounded-full border-2">
+            <p>Copiar traducción</p>
+          </TooltipContent>
+          </Tooltip>
+        </div>
             )}
           </div>
         </>
