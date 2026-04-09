@@ -137,11 +137,11 @@ jobs:
           # NEW: HANDLE TTS VARIANT
           elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
             echo "=== Downloading TTS models ==="
-            
+
             echo "Downloading female model..."
             mkdir -p tts-rap/rap/female
             gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/female/* tts-rap/rap/female/
-            
+
             echo "Downloading male model..."
             mkdir -p tts-rap/rap/male
             gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/male/* tts-rap/rap/male/
