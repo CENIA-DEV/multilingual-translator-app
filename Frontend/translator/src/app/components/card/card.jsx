@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 'use client'
+import { useState, useEffect, useRef } from "react";
 import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
 import { TypeAnimation } from "react-type-animation";
@@ -23,11 +24,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh, faMars, faVenus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
+  const [showGenderOptions, setShowGenderOptions] = useState(false);
+  const containerRef = useRef(null);
+  
   const side = props.side;
   const lang = props.lang;
   const handleLangChange = side === 'left'? props.handleSrcLang : props.handleDstLang;
@@ -47,6 +51,23 @@ export default function Card(props) {
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
   const showClearLeft = side === 'left' && !!srcText?.trim();
+
+  // Close options if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowGenderOptions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close options if text changes
+  useEffect(() => {
+    setShowGenderOptions(false);
+  }, [srcText, dstText]);
+
   return(
     <div 
       className={`card-container flex flex-col items-center relative ${
@@ -100,13 +121,53 @@ export default function Card(props) {
             />
 		    {/* speaker (only if text exists) */}
             {(showSpeaker || showClearLeft) && (
-              <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">
+              <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1 h-full min-w-9" ref={containerRef}>
                 {showSpeaker && (
+                  showGenderOptions && !isSpeaking && !isLoadingAudio ? (
+                    <div className="flex flex-col items-center gap-1 rounded-full bg-black/10 py-1">
+                      <Tooltip delayDuration={1000}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => { setShowGenderOptions(false); onSpeak('male'); }}
+                            aria-label="Voz masculina"
+                            title="Voz masculina"
+                            className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                          >
+                            <FontAwesomeIcon icon={faMars} color={speakerColor} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="rounded-full">
+                          <p>Voz masculina</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip delayDuration={1000}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => { setShowGenderOptions(false); onSpeak('female'); }}
+                            aria-label="Voz femenina"
+                            title="Voz femenina"
+                            className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                          >
+                            <FontAwesomeIcon icon={faVenus} color={speakerColor} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="rounded-full">
+                          <p>Voz femenina</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  ) : (
                   <Tooltip delayDuration={1000}>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => (isSpeaking ? onStop() : onSpeak())}
-                        aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+                        onClick={() => {
+                          if (isSpeaking) {
+                            onStop();
+                          } else {
+                            setShowGenderOptions(true);
+                          }
+                        }}
+                        aria-label={isSpeaking ? "Detener lectura" : "Seleccionar voz"}
                         title={isSpeaking ? "Detener" : "Escuchar"}
                         className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
                         disabled={isLoadingAudio}
@@ -122,6 +183,7 @@ export default function Card(props) {
                       <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
                     </TooltipContent>
                   </Tooltip>
+                  )
                 )}
            
                 {showClearLeft && (
@@ -162,14 +224,54 @@ export default function Card(props) {
               className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0 scrollbar-white-thumb"
             />
 			{dstText && dstText.length > 0 && (
-				<div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1">	
+				<div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1 h-full min-w-9" ref={containerRef}>	
 				
 				  {showSpeaker && (
-					  <Tooltip delayDuration={1000}>
+					  showGenderOptions && !isSpeaking && !isLoadingAudio ? (
+              <div className="flex flex-col items-center gap-1 rounded-full bg-white/10 py-1">
+                <Tooltip delayDuration={1000}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { setShowGenderOptions(false); onSpeak('male'); }}
+                      aria-label="Voz masculina"
+                      title="Voz masculina"
+                      className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                    >
+                      <FontAwesomeIcon icon={faMars} color={speakerColor} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-default border-white text-white rounded-full border-2">
+                    <p>Voz masculina</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip delayDuration={1000}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { setShowGenderOptions(false); onSpeak('female'); }}
+                      aria-label="Voz femenina"
+                      title="Voz femenina"
+                      className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                    >
+                      <FontAwesomeIcon icon={faVenus} color={speakerColor} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-default border-white text-white rounded-full border-2">
+                    <p>Voz femenina</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            ) : (
+            <Tooltip delayDuration={1000}>
 						<TooltipTrigger asChild>
 						  <button
-							onClick={() => (isSpeaking ? onStop() : onSpeak())}
-							aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+							onClick={() => {
+                if (isSpeaking) {
+                  onStop();
+                } else {
+                  setShowGenderOptions(true);
+                }
+              }}
+							aria-label={isSpeaking ? "Detener lectura" : "Seleccionar voz"}
 							title={isSpeaking ? "Detener" : "Escuchar"}
 							className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
 							disabled={isLoadingAudio}
@@ -185,7 +287,8 @@ export default function Card(props) {
 						  <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
 						</TooltipContent>
 					  </Tooltip>
-                  )}
+            )
+          )}
 				  
 				  <Tooltip delayDuration={1000}>
 					<TooltipTrigger asChild>

@@ -394,7 +394,7 @@ export default function Translator() {
   };
   
   // TTS Wrapper Functions
-  async function handleSpeak({ text, lang = 'es-ES' }) {
+  async function handleSpeak({ text, lang = 'es-ES', gender }) {
     if (TTSRestricted) {
       setTranslationRestrictedDialogOpen(true);
       toast("Debe iniciar sesión para usar la síntesis de voz", { duration: 4000 });
@@ -651,7 +651,7 @@ export default function Translator() {
             ttsLangCode={srcLang?.code}
             isSpeaking={isSpeaking}
             isLoadingAudio={isLoadingAudio}
-            onSpeak={() => handleSpeak({ text: srcText, lang: srcLang?.code })}
+            onSpeak={(gender) => handleSpeak({ text: srcText, lang: srcLang?.code, gender })}
             onStop={stopSpeaking}
 			onClearTexts={handleClearTexts}
           />
@@ -826,7 +826,7 @@ export default function Translator() {
             ttsLangCode={dstLang?.code}
             isSpeaking={isSpeaking}
             isLoadingAudio={isLoadingAudio}
-            onSpeak={() => handleSpeak({ text: dstText, lang: dstLang?.code })}
+            onSpeak={(gender) => handleSpeak({ text: dstText, lang: dstLang?.code, gender })}
             onStop={stopSpeaking}
           />
         </div>
