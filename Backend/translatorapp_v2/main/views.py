@@ -780,17 +780,28 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
         if serializer.is_valid():
             text = serializer.validated_data["text"]
-            language_code = serializer.validated_data["language"]
+            base_language_code = serializer.validated_data["language"]
+            gender = serializer.validated_data.get("gender")
             model_name = serializer.validated_data.get("model_name")
             model_version = serializer.validated_data.get("model_version")
+
+            language_code = (
+                f"{base_language_code}_{gender}" if gender else base_language_code
+            )
 
             logger.debug(f"Validated TTS request: {language_code}")
 
             try:
-                lang_obj = Lang.objects.get(code=language_code)
+                lang_obj = Lang.objects.get(code=base_language_code)
 
                 # Check cache (normalized matching, no schema changes)
                 try:
+                    # Skip cache if a non-default gender is requested
+                    if gender and gender != "female":
+                        raise CacheTTS.DoesNotExist(
+                            "Cache skipped for specific non-default gender"
+                        )
+
                     cached_tts = find_cached_tts_normalized(lang_obj, text)
                     if not cached_tts:
                         raise CacheTTS.DoesNotExist()

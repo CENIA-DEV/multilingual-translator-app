@@ -251,8 +251,17 @@ def get_tts_prediction(text, lang_code, deployment):
         ],
     }
 
-    response = requests.post(url=deployment, data=json.dumps(payload))
-    response = response.json()
+    try:
+        response = requests.post(
+            url=deployment, json=payload, headers={"Content-Type": "application/json"}
+        )
+        if response.status_code != 200:
+            logger.error(f"TTS API Error {response.status_code}: {response.text}")
+            response.raise_for_status()
+        response = response.json()
+    except Exception as e:
+        logger.error(f"TTS API Request failed: {str(e)}")
+        raise
 
     # Process the response
     if "outputs" in response:
@@ -278,6 +287,14 @@ def generate_tts(src_text, src_lang):
     lang_code = src_lang
     if hasattr(src_lang, "code"):
         lang_code = src_lang.code
+
+    # Map general language code to specific model token if needed (e.g. Rapa Nui)
+    if lang_code == "rap_Latn":
+        lang_code = "rap_female"  # default to female
+    elif lang_code == "rap_Latn_female":
+        lang_code = "rap_female"
+    elif lang_code == "rap_Latn_male":
+        lang_code = "rap_male"
 
     native_deployment = (
         f"{settings.APP_SETTINGS.inference_tts_model_url}/v2/models/"

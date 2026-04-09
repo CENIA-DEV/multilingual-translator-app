@@ -519,10 +519,11 @@ class TextToSpeechSerializer(serializers.ModelSerializer):
     language = serializers.CharField(required=True)
     model_name = serializers.CharField(required=True)
     model_version = serializers.CharField(required=True)
+    gender = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
         model = TextToSpeechAudio
-        fields = ["text", "language", "model_name", "model_version"]
+        fields = ["text", "language", "model_name", "model_version", "gender"]
         extra_kwargs = {
             "created_at": {"read_only": True},
         }
