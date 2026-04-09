@@ -400,7 +400,7 @@ export default function Translator() {
       toast("Debe iniciar sesión para usar la síntesis de voz", { duration: 4000 });
       return;
     }
-    await handleSpeakBase({ text, lang });
+    await handleSpeakBase({ text, lang, gender });
   }
 
   function stopSpeaking() {
