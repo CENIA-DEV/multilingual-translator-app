@@ -15,12 +15,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf ~/.cache/pip
 
-# Copy downloaded models
-COPY tts-rap/ /app/tts-rap/
-
 #WORKDIR /app
 
 WORKDIR /home/app/src
+
+# Copy downloaded models to where the script is located
+COPY tts-rap/ ./tts-rap/
+
 COPY . .
 
 ENTRYPOINT ["python3", "server_audio.py"]
