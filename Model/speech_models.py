@@ -9,7 +9,10 @@ from transformers import AutoTokenizer, VitsModel
 load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-nllb_language_token_map = {"rap_Latn": "rap", "spa_Latn": "spa", "eng_Latn": "eng"}
+nllb_language_token_map = {
+    "rap_female": "rap/female",
+    "rap_male": "rap/male"
+}
 
 
 class SpeechModelWrapper(ABC):
@@ -37,7 +40,7 @@ class SpeechModelWrapper(ABC):
         self.logger.info(f"Model base path: {self.model_base_path}")
 
         # Check if we're in a container with downloaded models
-        tts_rap_dir = os.path.join(os.getcwd(), "tts-rap")
+        tts_rap_dir = os.path.join(os.getcwd(), "tts-rap") 
         if os.path.exists(tts_rap_dir) and os.path.isdir(tts_rap_dir):
             self.logger.info(f"Found local tts-rap directory at {tts_rap_dir}")
 

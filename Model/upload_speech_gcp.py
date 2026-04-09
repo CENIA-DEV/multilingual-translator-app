@@ -17,13 +17,20 @@ base_folder = "tts-rap"
 bucket = storage_client.bucket(bucket_name)
 
 # Language mappings from speech_models.py
-nllb_language_token_map = {"mri_Latn": "rap", "spa_Latn": "spa", "eng_Latn": "eng"}
+nllb_language_token_map = {
+    "mri_Latn_female": "rap/female",
+    "mri_Latn_male": "rap/male",
+    "spa_Latn": "spa",
+    "eng_Latn": "eng"
+}
 
 
 def get_model_name(lang):
     """Get the correct model name based on language code."""
-    if lang == "rap":
-        return "agustinghent/mms-tts-rap-train1_1"
+    if lang == "rap/female":
+        return "voces-ai/rapanui-tts-female"
+    elif lang == "rap/male":
+        return "voces-ai/rapanui-tts-male"
     else:
         return f"facebook/mms-tts-{lang}"
 
