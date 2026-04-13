@@ -586,10 +586,11 @@ class GeneralSuggestionSerializer(serializers.ModelSerializer):
 class CacheTTSSerializer(serializers.ModelSerializer):
     language = serializers.CharField()
     audio_data = serializers.CharField(read_only=True)
+    gender = serializers.CharField(required=False, default="female")
 
     class Meta:
         model = CacheTTS
-        fields = ["id", "text", "language", "audio_data", "audio_format"]
+        fields = ["text", "language", "gender", "audio_data", "audio_format"]
         read_only_fields = [
             "audio_data",
         ]

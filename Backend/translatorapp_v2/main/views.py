@@ -796,13 +796,11 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
                 # Check cache (normalized matching, no schema changes)
                 try:
-                    # Skip cache if a non-default gender is requested
-                    if gender and gender != "female":
-                        raise CacheTTS.DoesNotExist(
-                            "Cache skipped for specific non-default gender"
-                        )
+                    actual_gender = gender or "female"
 
-                    cached_tts = find_cached_tts_normalized(lang_obj, text)
+                    cached_tts = find_cached_tts_normalized(
+                        lang_obj, text, gender=actual_gender
+                    )
                     if not cached_tts:
                         raise CacheTTS.DoesNotExist()
 

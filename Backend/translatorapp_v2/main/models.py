@@ -358,6 +358,7 @@ class CacheTTS(models.Model):
 
     text = models.TextField(max_length=5000)
     language = models.ForeignKey("Lang", on_delete=models.CASCADE)
+    gender = models.CharField(max_length=15, default="female")
 
     # Store the generated audio in base64
     audio_data = models.TextField()  # Base64 encoded audio
@@ -365,10 +366,10 @@ class CacheTTS(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["text", "language"]),
+            models.Index(fields=["text", "language", "gender"]),
         ]
         # Ensure uniqueness for same text + language + model
-        unique_together = [["text", "language"]]
+        unique_together = [["text", "language", "gender"]]
 
     def get_audio_bytes(self):
         """Decode base64 audio data back to bytes"""

@@ -427,7 +427,11 @@ def normalize_text_for_cache(s: str) -> str:
 
 
 def find_cached_tts_normalized(
-    lang_obj, raw_text: str, max_token_candidates: int = 100, max_fallback: int = 200
+    lang_obj,
+    raw_text: str,
+    gender: str = "female",
+    max_token_candidates: int = 100,
+    max_fallback: int = 200,
 ):
     """
     Find CacheTTS by normalized text without changing DB schema.
@@ -441,7 +445,13 @@ def find_cached_tts_normalized(
 
     # 1) exact icase match (fast path)
     try:
-        return CacheTTS.objects.get(language=lang_obj, text__iexact=raw_text)
+        return CacheTTS.objects.get(
+            language=lang_obj, text__iexact=raw_text, gender=gender
+        )
+    except CacheTTS.MultipleObjectsReturned:
+        return CacheTTS.objects.filter(
+            language=lang_obj, text__iexact=raw_text, gender=gender
+        ).first()
     except CacheTTS.DoesNotExist:
         pass
 
@@ -455,7 +465,7 @@ def find_cached_tts_normalized(
 
     if q:
         candidates = (
-            CacheTTS.objects.filter(language=lang_obj)
+            CacheTTS.objects.filter(language=lang_obj, gender=gender)
             .filter(q)
             .order_by("-id")[:max_token_candidates]
         )
@@ -464,7 +474,9 @@ def find_cached_tts_normalized(
                 return c
 
     # 3) small recent-window fallback
-    recent = CacheTTS.objects.filter(language=lang_obj).order_by("-id")[:max_fallback]
+    recent = CacheTTS.objects.filter(language=lang_obj, gender=gender).order_by("-id")[
+        :max_fallback
+    ]
     for c in recent:
         if normalize_text_for_cache(c.text) == norm:
             return c
