@@ -174,6 +174,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "storages",
+    "drf_spectacular",
 ]
 
 REST_FRAMEWORK = {
@@ -184,6 +185,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
     ],
     "PAGE_SIZE": 15,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 
@@ -293,6 +295,8 @@ INVITATION_GUIDE_URL = os.environ.get("INVITATION_GUIDE_URL")
 SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL")
 VARIANT = os.environ.get("VARIANT")
 MAX_WORDS_TRANSLATION = int(os.environ.get("MAX_WORDS_TRANSLATION", 150))
+OCR_MAX_PDF_PAGES = int(os.environ.get("OCR_MAX_PDF_PAGES", 100))
+OCR_MAX_FILE_SIZE_MB = int(os.environ.get("OCR_MAX_FILE_SIZE_MB", 20))
 
 # Convert string environment variable to boolean
 TRANSLATION_REQUIRES_AUTH = (

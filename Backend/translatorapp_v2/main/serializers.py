@@ -17,6 +17,7 @@ from datetime import datetime
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.validators import UniqueValidator
@@ -27,7 +28,6 @@ from .models import (
     GeneralSuggestion,
     InvitationToken,
     Lang,
-    OCRRequest,
     OCRResult,
     PasswordResetToken,
     Profile,
@@ -64,6 +64,7 @@ class BaseProfileSerializer(serializers.ModelSerializer):
             )
         return date_of_birth
 
+    @extend_schema_field(serializers.IntegerField())
     def get_age(self, obj):
         return (datetime.now().date() - obj.date_of_birth).days // 365
 
@@ -620,47 +621,59 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at"]
 
 
+class CornersSerializer(serializers.Serializer):
+    x1 = serializers.FloatField()
+    x2 = serializers.FloatField()
+    x3 = serializers.FloatField()
+    x4 = serializers.FloatField()
+    y1 = serializers.FloatField()
+    y2 = serializers.FloatField()
+    y3 = serializers.FloatField()
+    y4 = serializers.FloatField()
+
+
 class OCRRequestSerializer(serializers.Serializer):
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        required=True,
+        write_only=True,
+    )
     src_languages = serializers.ListField(
         child=serializers.CharField(allow_blank=False, trim_whitespace=True),
         required=False,
         default=["auto"],
     )
-    tgt_languages = serializers.ListField(
-        child=serializers.CharField(allow_blank=False, trim_whitespace=True),
-        required=False,
-        default=["auto"],
-    )
+    corners = CornersSerializer(required=False, allow_null=True, default=None)
 
 
 class OCRResultSerializer(serializers.ModelSerializer):
     filename = serializers.CharField(source="original_filename", read_only=True)
+    file_url = serializers.SerializerMethodField()
+    tgt_languages = serializers.SerializerMethodField()
+    corners = serializers.SerializerMethodField()
 
     class Meta:
         model = OCRResult
         fields = [
             "id",
             "filename",
+            "file_url",
             "text",
-            "pages",
             "input_tokens",
             "output_tokens",
             "error",
-        ]
-
-
-class OCRResponseSerializer(serializers.ModelSerializer):
-    results = OCRResultSerializer(many=True, read_only=True)
-    error_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = OCRRequest
-        fields = [
-            "results",
             "src_languages",
             "tgt_languages",
-            "error_count",
+            "corners",
         ]
 
-    def get_error_count(self, obj):
-        return obj.results.exclude(error__isnull=True).exclude(error="").count()
+    def get_file_url(self, obj):
+        if obj.uploaded_file:
+            return obj.uploaded_file.url
+        return None
+
+    def get_tgt_languages(self, obj):
+        return []
+
+    def get_corners(self, obj):
+        return obj.ocr_request.corners

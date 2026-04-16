@@ -20,10 +20,13 @@ from functools import reduce
 from operator import or_
 
 import numpy as np
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -57,7 +60,7 @@ from .serializers import (
     InvitationSerializer,
     LanguageSerializer,
     OCRRequestSerializer,
-    OCRResponseSerializer,
+    OCRResultSerializer,
     ParticipateSerializer,
     PasswordResetSerializer,
     RequestSerializer,
@@ -753,6 +756,38 @@ class OCRViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return OCRRequest.objects.none()
 
+    @extend_schema(
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string", "format": "binary"},
+                    },
+                    "src_languages": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "corners": {
+                        "type": "object",
+                        "properties": {
+                            "x1": {"type": "number"},
+                            "x2": {"type": "number"},
+                            "x3": {"type": "number"},
+                            "x4": {"type": "number"},
+                            "y1": {"type": "number"},
+                            "y2": {"type": "number"},
+                            "y3": {"type": "number"},
+                            "y4": {"type": "number"},
+                        },
+                        "required": ["x1", "x2", "x3", "x4", "y1", "y2", "y3", "y4"],
+                    },
+                },
+                "required": ["files"],
+            }
+        }
+    )
     def create(self, request, *args, **kwargs):
         files = self._get_uploaded_files(request)
         if not files:
@@ -763,13 +798,13 @@ class OCRViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(
             data={
+                "files": files,
                 "src_languages": self._get_list_value(request, "src_languages"),
-                "tgt_languages": self._get_list_value(
-                    request, "tgt_languages", "dst_languages"
-                ),
+                "corners": self._get_corners(request),
             }
         )
         serializer.is_valid(raise_exception=True)
+        src_languages = serializer.validated_data["src_languages"]
 
         try:
             client = self._get_ocr_client()
@@ -781,41 +816,59 @@ class OCRViewSet(viewsets.ModelViewSet):
             )
 
         ocr_request = OCRRequest.objects.create(
-            src_languages=serializer.validated_data["src_languages"],
-            tgt_languages=serializer.validated_data["tgt_languages"],
+            src_languages=src_languages,
+            tgt_languages=self._get_list_value(
+                request, "tgt_languages", "dst_languages"
+            ),
+            corners=serializer.validated_data.get("corners"),
+            user=request.user if request.user.is_authenticated else None,
         )
 
         for uploaded_file in files:
-            original_filename = uploaded_file.name
-            result_data = {
-                "text": None,
-                "pages": 0,
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "error": None,
-            }
-
             try:
-                result_data.update(self._process_file(client, uploaded_file))
+                page_results = self._process_file(client, uploaded_file)
             except Exception as exc:
-                logger.warning("OCR processing failed for %s: %s", original_filename, exc)
-                result_data["error"] = str(exc)
+                logger.warning(
+                    "OCR processing failed for %s: %s", uploaded_file.name, exc
+                )
+                page_results = [
+                    {
+                        "page_filename": uploaded_file.name,
+                        "page_image_bytes": b"",
+                        "text": None,
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "error": str(exc),
+                    }
+                ]
 
-            uploaded_file.seek(0)
+            for page in page_results:
+                page_file = ContentFile(
+                    page["page_image_bytes"], name=page["page_filename"]
+                )
+                OCRResult.objects.create(
+                    ocr_request=ocr_request,
+                    uploaded_file=page_file,
+                    original_filename=page["page_filename"],
+                    src_languages=src_languages,
+                    text=page["text"],
+                    input_tokens=page["input_tokens"],
+                    output_tokens=page["output_tokens"],
+                    error=page["error"],
+                )
 
-            OCRResult.objects.create(
-                ocr_request=ocr_request,
-                uploaded_file=uploaded_file,
-                original_filename=original_filename,
-                text=result_data["text"],
-                pages=result_data["pages"],
-                input_tokens=result_data["input_tokens"],
-                output_tokens=result_data["output_tokens"],
-                error=result_data["error"],
-            )
+        results = ocr_request.results.order_by("created_at")
+        return Response(
+            OCRResultSerializer(results, many=True).data,
+            status=HTTP_200_OK,
+        )
 
-        response_serializer = OCRResponseSerializer(ocr_request)
-        return Response(response_serializer.data, status=HTTP_200_OK)
+    def _get_corners(self, request):
+        _CORNER_FIELDS = ("x1", "x2", "x3", "x4", "y1", "y2", "y3", "y4")
+        data = request.data
+        if not any(f in data for f in _CORNER_FIELDS):
+            return None
+        return {f: data.get(f) for f in _CORNER_FIELDS}
 
     def _get_uploaded_files(self, request):
         files = request.FILES.getlist("files")
@@ -870,34 +923,71 @@ class OCRViewSet(viewsets.ModelViewSet):
         if ext not in [".pdf", ".jpg", ".jpeg", ".png"]:
             raise ValueError(f"Unsupported file type: {ext}")
 
+        max_bytes = settings.OCR_MAX_FILE_SIZE_MB * 1024 * 1024
+        if uploaded_file.size > max_bytes:
+            raise ValueError(
+                f"File exceeds max size of {settings.OCR_MAX_FILE_SIZE_MB} MB"
+            )
+
         content = uploaded_file.read()
-        uploaded_file.seek(0)
 
         if ext == ".pdf":
-            page_images = self._pdf_to_images(content)
-        else:
-            page_images = [content]
+            stem = os.path.splitext(uploaded_file.name)[0]
+            return self._process_pdf_pages(client, content, stem)
 
-        extracted_pages = []
-        total_input_tokens = 0
-        total_output_tokens = 0
+        normalized = self._normalize_image(content)
+        try:
+            text, in_tokens, out_tokens = self._run_ocr_inference(client, normalized)
+        except Exception as exc:
+            return [
+                {
+                    "page_filename": uploaded_file.name,
+                    "page_image_bytes": normalized,
+                    "text": None,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "error": str(exc),
+                }
+            ]
+        return [
+            {
+                "page_filename": uploaded_file.name,
+                "page_image_bytes": normalized,
+                "text": text,
+                "input_tokens": in_tokens,
+                "output_tokens": out_tokens,
+                "error": None,
+            }
+        ]
 
-        for image_bytes in page_images:
-            normalized_image = self._normalize_image(image_bytes)
-            text, in_tokens, out_tokens = self._run_ocr_inference(
-                client, normalized_image
+    def _process_pdf_pages(self, client, pdf_bytes, stem):
+        page_images = self._pdf_to_images(pdf_bytes)
+        results = []
+        for i, image_bytes in enumerate(page_images, start=1):
+            page_filename = f"{stem}/page_{i}.png"
+            normalized = self._normalize_image(image_bytes)
+            try:
+                text, in_tokens, out_tokens = self._run_ocr_inference(
+                    client, normalized
+                )
+                error = None
+            except Exception as exc:
+                logger.warning("OCR inference failed for %s: %s", page_filename, exc)
+                text = None
+                in_tokens = 0
+                out_tokens = 0
+                error = str(exc)
+            results.append(
+                {
+                    "page_filename": page_filename,
+                    "page_image_bytes": normalized,
+                    "text": text,
+                    "input_tokens": in_tokens,
+                    "output_tokens": out_tokens,
+                    "error": error,
+                }
             )
-            if text:
-                extracted_pages.append(text)
-            total_input_tokens += in_tokens
-            total_output_tokens += out_tokens
-
-        return {
-            "text": "\n\n".join(extracted_pages),
-            "pages": len(page_images),
-            "input_tokens": total_input_tokens,
-            "output_tokens": total_output_tokens,
-        }
+        return results
 
     def _normalize_image(self, image_bytes):
         from PIL import Image
@@ -922,7 +1012,7 @@ class OCRViewSet(viewsets.ModelViewSet):
 
         images = []
         with fitz.open(stream=pdf_bytes, filetype="pdf") as document:
-            max_pages = min(len(document), 100)
+            max_pages = min(len(document), settings.OCR_MAX_PDF_PAGES)
             matrix = fitz.Matrix(2.0, 2.0)
             for page_number in range(max_pages):
                 page = document.load_page(page_number)

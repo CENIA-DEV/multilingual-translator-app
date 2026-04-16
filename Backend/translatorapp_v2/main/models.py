@@ -33,7 +33,7 @@ def get_asr_audio_upload_path(instance, filename):
 def get_ocr_upload_path(instance, filename):
     ext = filename.split(".")[-1]
     unique_id = uuid.uuid4().hex
-    return os.path.join("ocr_uploads", f"{unique_id}.{ext}")
+    return os.path.join("images_ocr", f"{unique_id}.{ext}")
 
 
 class PasswordResetToken(models.Model):
@@ -304,13 +304,22 @@ class OCRRequest(models.Model):
     src_languages = models.JSONField(default=list)
     tgt_languages = models.JSONField(default=list)
     provider = models.CharField(max_length=50, null=True, default="Gemini")
+    corners = models.JSONField(null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ocr_requests",
+    )
 
     class Meta:
         indexes = [
             models.Index(fields=["created_at"]),
             models.Index(fields=["provider"]),
+            models.Index(fields=["user"]),
         ]
         ordering = ["-created_at"]
 
@@ -324,8 +333,8 @@ class OCRResult(models.Model):
     )
     uploaded_file = models.FileField(upload_to=get_ocr_upload_path)
     original_filename = models.CharField(max_length=255)
+    src_languages = models.JSONField(default=list)
     text = models.TextField(null=True, blank=True)
-    pages = models.IntegerField(null=True, blank=True)
     input_tokens = models.PositiveIntegerField(default=0)
     output_tokens = models.PositiveIntegerField(default=0)
     error = models.TextField(null=True, blank=True)
