@@ -251,8 +251,17 @@ def get_tts_prediction(text, lang_code, deployment):
         ],
     }
 
-    response = requests.post(url=deployment, data=json.dumps(payload))
-    response = response.json()
+    try:
+        response = requests.post(
+            url=deployment, json=payload, headers={"Content-Type": "application/json"}
+        )
+        if response.status_code != 200:
+            logger.error(f"TTS API Error {response.status_code}: {response.text}")
+            response.raise_for_status()
+        response = response.json()
+    except Exception as e:
+        logger.error(f"TTS API Request failed: {str(e)}")
+        raise
 
     # Process the response
     if "outputs" in response:
@@ -278,6 +287,14 @@ def generate_tts(src_text, src_lang):
     lang_code = src_lang
     if hasattr(src_lang, "code"):
         lang_code = src_lang.code
+
+    # Map general language code to specific model token if needed (e.g. Rapa Nui)
+    if lang_code == "rap_Latn":
+        lang_code = "rap_female"  # default to female
+    elif lang_code == "rap_Latn_female":
+        lang_code = "rap_female"
+    elif lang_code == "rap_Latn_male":
+        lang_code = "rap_male"
 
     native_deployment = (
         f"{settings.APP_SETTINGS.inference_tts_model_url}/v2/models/"
@@ -410,7 +427,11 @@ def normalize_text_for_cache(s: str) -> str:
 
 
 def find_cached_tts_normalized(
-    lang_obj, raw_text: str, max_token_candidates: int = 100, max_fallback: int = 200
+    lang_obj,
+    raw_text: str,
+    gender: str = "female",
+    max_token_candidates: int = 100,
+    max_fallback: int = 200,
 ):
     """
     Find CacheTTS by normalized text without changing DB schema.
@@ -424,7 +445,13 @@ def find_cached_tts_normalized(
 
     # 1) exact icase match (fast path)
     try:
-        return CacheTTS.objects.get(language=lang_obj, text__iexact=raw_text)
+        return CacheTTS.objects.get(
+            language=lang_obj, text__iexact=raw_text, gender=gender
+        )
+    except CacheTTS.MultipleObjectsReturned:
+        return CacheTTS.objects.filter(
+            language=lang_obj, text__iexact=raw_text, gender=gender
+        ).first()
     except CacheTTS.DoesNotExist:
         pass
 
@@ -438,7 +465,7 @@ def find_cached_tts_normalized(
 
     if q:
         candidates = (
-            CacheTTS.objects.filter(language=lang_obj)
+            CacheTTS.objects.filter(language=lang_obj, gender=gender)
             .filter(q)
             .order_by("-id")[:max_token_candidates]
         )
@@ -447,7 +474,9 @@ def find_cached_tts_normalized(
                 return c
 
     # 3) small recent-window fallback
-    recent = CacheTTS.objects.filter(language=lang_obj).order_by("-id")[:max_fallback]
+    recent = CacheTTS.objects.filter(language=lang_obj, gender=gender).order_by("-id")[
+        :max_fallback
+    ]
     for c in recent:
         if normalize_text_for_cache(c.text) == norm:
             return c
