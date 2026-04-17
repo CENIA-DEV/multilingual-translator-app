@@ -14,3 +14,6 @@ package-lock.json
 *.log
 Model/key.json
 Model/_tmp_tokenizer
+Scripts/RECORDED_AUDIOS
+Scripts/RECORDED_AUDIOS_CLONE
+Scripts/proxy-sql-service-account.json
