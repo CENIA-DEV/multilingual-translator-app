@@ -2,9 +2,11 @@ import base64
 import json
 import os
 
+import librosa
+import numpy as np
 import psycopg2
 
-DB_HOST = "127.0.0.1"  # Switched to localhost for Cloud SQL Proxy
+DB_HOST = "127.0.0.1"
 DB_PORT = "5432"
 DB_NAME = "rap"
 DB_USER = "postgres"
@@ -24,7 +26,6 @@ def upload_data():
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD,
-            # Removed connect_timeout
         )
     except Exception as e:
         print(f"Error connecting to database: {e}")
@@ -42,7 +43,8 @@ def upload_data():
         text = entry.get("text")
         audio_filename = entry.get("audio")
         gender = entry.get("gender")
-        # Hardcoding default values from your image/context if they aren't in JSON
+
+        # Hardcoding default values
         audio_format = "wav"
         language_id = 163
 
@@ -50,11 +52,14 @@ def upload_data():
 
         try:
             with conn.cursor() as cur:
-                with open(audio_path, "rb") as audio_file:
-                    audio_data = audio_file.read()
-                    audio_base64 = base64.b64encode(audio_data).decode("utf-8")
+                audio_data, _ = librosa.load(
+                    audio_path, sr=16000, mono=True, dtype=np.float32
+                )
 
-                # Assuming the image is for main_cachetts
+                # Extract contiguous base-level bytes to base64 encode
+                raw_bytes = audio_data.tobytes()
+                audio_base64 = base64.b64encode(raw_bytes).decode("utf-8")
+
                 cur.execute(
                     """
                     INSERT INTO main_cachetts
@@ -63,8 +68,10 @@ def upload_data():
                     """,
                     (text, audio_base64, audio_format, language_id, gender),
                 )
+
             conn.commit()
             print(f"Successfully uploaded: {audio_filename}")
+
         except FileNotFoundError:
             print(f"Warning: Audio file not found: {audio_path}")
         except Exception as e:
