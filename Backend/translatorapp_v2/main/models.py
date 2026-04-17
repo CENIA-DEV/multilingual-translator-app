@@ -433,3 +433,29 @@ class TranslationRequest(models.Model):
 
     def __str__(self):
         return f"{self.src_lang.code} → {self.dst_lang.code} | {self.created_at}"
+
+
+class Word(models.Model):
+    text = models.CharField(max_length=100, unique=True, db_index=True)
+
+    def __str__(self):
+        return self.text
+
+
+class Definition(models.Model):
+    word = models.ForeignKey(Word, related_name="definitions", on_delete=models.CASCADE)
+    meaning = models.TextField()
+
+    def __str__(self):
+        return f"{self.word.text}: {self.meaning[:20]}..."
+
+
+class WordInformation(models.Model):
+    word = models.OneToOneField(
+        Word, related_name="information", on_delete=models.CASCADE
+    )
+    other_ways_to_say = models.JSONField(default=list, blank=True, null=True)
+    additional_explanation = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Info for {self.word.text}"

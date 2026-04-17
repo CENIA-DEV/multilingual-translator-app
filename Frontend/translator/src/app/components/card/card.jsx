@@ -17,7 +17,8 @@ import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
 import { TypeAnimation } from "react-type-animation";
 import Image from "next/image";
-import { VARIANT_LANG, LANG_TITLE } from "@/app/constants";
+import { VARIANT_LANG, LANG_TITLE, API_ENDPOINTS } from "@/app/constants";
+import api from "@/app/api";
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -27,6 +28,7 @@ import {
 import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh, faMars, faVenus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
+import { useState, useEffect, useRef } from "react";
 
 export default function Card(props) {
   const [showGenderOptions, setShowGenderOptions] = useState(false);

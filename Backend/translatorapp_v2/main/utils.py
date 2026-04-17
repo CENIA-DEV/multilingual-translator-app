@@ -32,7 +32,7 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-from .models import CacheTTS
+from .models import CacheTTS, Word
 
 logger = logging.getLogger(__name__)
 
@@ -679,3 +679,17 @@ def get_hashed_token(token):
     hash_object.update(token.encode("utf-8"))
     hashed_token = hash_object.hexdigest()
     return hashed_token
+
+
+def get_definitions_for_sentence(sentence):
+    clean_words = re.findall(r"\b\w+\b", sentence.lower())
+
+    found_words = Word.objects.filter(text__in=clean_words).prefetch_related(
+        "definitions"
+    )
+
+    result = {}
+    for word in found_words:
+        result[word.text] = [defi.meaning for defi in word.definitions.all()]
+
+    return result

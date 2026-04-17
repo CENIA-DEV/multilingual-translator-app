@@ -25,7 +25,10 @@ export const API_ENDPOINTS = {
     SEND_INVITATION: 'api/invitations/send_invitation/',
     SUGGESTIONS: 'api/suggestions/',
     PASSWORD_RECOVERY: 'api/password_reset/',
-    LANGUAGES: 'api/languages/'
+    LANGUAGES: 'api/languages/',
+    WORDS: 'api/words/',
+    WORD_INFORMATION: 'api/word-information/',
+    WORDS_ANALYZE: 'api/words/analyze_sentence/'
   };
 
 export const NATIVE_ADMIN = 'NativeAdmin';
@@ -48,6 +51,9 @@ export const ASR_ENABLED = VARIANT_LANG === 'rap'; // Only enable ASR for Rapa N
 
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;
+export const DICTIONARY_ENABLED = process.env.NEXT_PUBLIC_DICTIONARY_ENABLED === 'true';
+//export const DICTIONARY_ENABLED = 'true';
+
 
 
 export const isTranslationRestricted = (currentUser) => {
@@ -91,6 +97,7 @@ const ADMIN_PATHS = [
   ...USER_PATHS,
   {'name': 'Administrar Accesos', 'route': '/manage-access', 'icon': 'users'},
   {'name': 'Explorar Datos', 'route': '/explore-data', 'icon': 'database'},
+  {'name': 'Administrar Palabras', 'route': '/manage-word-information', 'icon': 'book'},
 ];
 
 export const PATHS = {

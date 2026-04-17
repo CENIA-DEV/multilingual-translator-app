@@ -35,7 +35,9 @@ import {
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED } from '../constants';
+import Dictionary from '../components/dictionary/Dictionary.jsx';
+import { useTextSelection } from '../../hooks/useTextSelection';
+import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED, DICTIONARY_ENABLED } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -96,6 +98,8 @@ export default function Translator() {
   const [feedbackData, setFeedbackData] = useState(null);
   const [modelData, setModelData] = useState(null);
   const [isSuggestionOnlyMode, setIsSuggestionOnlyMode] = useState(false);
+
+  const { selectedText } = useTextSelection();
 
   const [loadingState, setLoadingState] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
@@ -607,8 +611,9 @@ export default function Translator() {
   const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
   return (
-    <div className="translator-container relative min-h-[100dvh] overflow-hidden">
-      <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
+    <div className="page-wrapper min-h-[100dvh] flex flex-col bg-[#f3f4f6]">
+      <div className={`translator-container relative overflow-hidden shrink-0 ${DICTIONARY_ENABLED ? '' : 'no-dictionary'}`}>
+        <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
           <DialogTitle>Modelo en desarrollo</DialogTitle>
@@ -648,7 +653,7 @@ export default function Translator() {
       </Dialog>
       
       <TooltipProvider>
-        <div className="relative">
+        <div className="relative flex flex-col flex-1 w-1/2 max-[850px]:w-full max-[850px]:h-auto">
           <Card
             side={"left"}
             srcText={srcText}
@@ -823,7 +828,7 @@ export default function Translator() {
 		
         
 
-        <div className="relative">
+        <div className="relative flex flex-col flex-1 w-1/2 max-[850px]:w-full max-[850px]:h-auto">
           <Card
             side={"right"}
             dstText={dstText}
@@ -876,6 +881,16 @@ export default function Translator() {
 
 
         )}
+      </div>
+      </div> {/* END of translator-container */}
+
+      {/* Dictionary Section */}
+      <div className={`${DICTIONARY_ENABLED ? '' : 'hidden'} w-[96vw] max-w-[1600px] mx-auto flex-1 flex pb-6 max-[850px]:pb-32`}>
+        <div className="w-full max-[850px]:w-full">
+          <div className="flex flex-col bg-white rounded-[30px] shadow-[0_10px_40px_-20px_rgba(0,0,0,0.15)] pb-4 mt-2 h-full w-full">
+            <Dictionary word={selectedText} lang={dstLang} />
+          </div>
+        </div>
       </div>
 
       <LangsModal
