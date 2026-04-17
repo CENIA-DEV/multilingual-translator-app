@@ -128,6 +128,31 @@ jobs:
             gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
 
           # HANDLE SINGLE MODEL DOWNLOADS
+          elif [[ "${{ github.event.inputs.variant }}" == "raw" ]]; then
+            echo "=== Downloading RAW model ==="
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
+          # NEW: HANDLE TTS VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "=== Downloading TTS models ==="
+
+            echo "Downloading female model..."
+            mkdir -p tts-rap/rap/female
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/female/* tts-rap/rap/female/
+
+            echo "Downloading male model..."
+            mkdir -p tts-rap/rap/male
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/male/* tts-rap/rap/male/
+
+          # HANDLE ARN VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "arn" ]]; then
+            echo "=== Downloading ARN model ==="
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
           else
             MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
             echo "Using model path: $MODEL_PATH"
@@ -179,6 +204,13 @@ jobs:
             fi
 
             echo "✅ All required bfloat16 model files present"
+          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "=== Checking TTS model files ==="
+            if [ ! -f "tts-rap/rap/female/config.json" ] || [ ! -f "tts-rap/rap/male/config.json" ]; then
+              echo "ERROR: TTS config.json not found for male or female!"
+              exit 1
+            fi
+            echo "✅ All required TTS model files present"
           else
             echo "Skipping verification for variant: ${{ github.event.inputs.variant }}"
           fi

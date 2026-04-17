@@ -26,5 +26,6 @@ repos:
     - id: check-yaml
     - id: end-of-file-fixer
     - id: trailing-whitespace
-# exclude frontend as of now
-exclude: 'Backend/translatorapp_v2/main/migrations/*|Backend/translatorapp_v2/main/tests/*|Frontend/*'
+
+# exclude frontend and seed-vc folders, correctly formatted regex
+exclude: '^(Backend/translatorapp_v2/main/migrations/.*|Backend/translatorapp_v2/main/tests/.*|Frontend/.*|Scripts/seed-vc/.*)$'
