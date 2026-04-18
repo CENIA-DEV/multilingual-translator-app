@@ -25,8 +25,9 @@ export const API_ENDPOINTS = {
     SEND_INVITATION: 'api/invitations/send_invitation/',
     SUGGESTIONS: 'api/suggestions/',
     PASSWORD_RECOVERY: 'api/password_reset/',
-    LANGUAGES: 'api/languages/'
-  };
+    LANGUAGES: 'api/languages/',
+    WORDS_ANALYZE: 'api/words/analyze_sentence/' 
+};
 
 export const NATIVE_ADMIN = 'NativeAdmin';
 export const ADMIN = 'Admin';
