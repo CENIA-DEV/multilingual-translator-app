@@ -73,13 +73,13 @@ export const useAudioPlayer = () => {
     setIsSpeaking(false);
   };
 
-  const handleSpeak = async ({ text, lang = 'es-ES', gender }) => {
+  const handleSpeak = async ({ text, lang = 'es-ES' }) => {
     if (!text?.trim()) return;
 
     setTtsError('');
     setIsSpeaking(true);
     
-    const cacheKey = `${lang}_${gender || 'default'}_${text}`;
+    const cacheKey = `${lang}_${text}`;
     
     if (audioRef.current) {
       try { audioRef.current.stop(); } catch (err) { console.log("Audio already stopped"); }
@@ -101,7 +101,7 @@ export const useAudioPlayer = () => {
     setIsLoadingAudio(true);
     
     try {
-      const response = await generateSpeech(text, lang, gender);
+      const response = await generateSpeech(text, lang);
       setIsLoadingAudio(false);
       
       audioCache.current.set(cacheKey, response.waveform);
