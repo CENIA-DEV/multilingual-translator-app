@@ -233,7 +233,7 @@ export default function Manageaccess() {
       setUsers(
         users.map((user) =>
           user.id === userId
-            ? { ...user, profile: { ...(user?.profile || {}), role: newRole } }
+            ? { ...user, profile: { ...user.profile, role: newRole } }
             : user
         )
       );
@@ -372,7 +372,7 @@ export default function Manageaccess() {
                         <div className="flex items-center space-x-4">
                           <Avatar>
                             <AvatarImage
-                              src={user?.profile?.avatar}
+                              src={user.profile.avatar}
                               alt={user.username}
                             />
                             <AvatarFallback>
@@ -399,7 +399,7 @@ export default function Manageaccess() {
                             onValueChange={(newRole) =>
                               handleUserRoleChange(user.id, newRole)
                             }
-                            defaultValue={roles.find(role => role.value === user?.profile?.role)?.value || ''}
+                            defaultValue={roles.find(role => role.value === user.profile.role).value}
                           >
                             <SelectTrigger className="w-[160px]">
                               <SelectValue placeholder="Seleccionar Rol" />
