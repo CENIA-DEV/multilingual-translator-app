@@ -26,7 +26,14 @@ export const API_ENDPOINTS = {
     SUGGESTIONS: 'api/suggestions/',
     PASSWORD_RECOVERY: 'api/password_reset/',
     LANGUAGES: 'api/languages/',
-    WORDS_ANALYZE: 'api/words/analyze_sentence/' 
+    WORDS_ANALYZE: 'api/words/analyze_sentence/' ,
+    WORDS: 'api/words/',
+    WORD_INFORMATION: 'api/word-information/',
+
+
+
+
+
 };
 
 export const NATIVE_ADMIN = 'NativeAdmin';
@@ -92,6 +99,7 @@ const ADMIN_PATHS = [
   ...USER_PATHS,
   {'name': 'Administrar Accesos', 'route': '/manage-access', 'icon': 'users'},
   {'name': 'Explorar Datos', 'route': '/explore-data', 'icon': 'database'},
+  {'name': 'Administrar Palabras', 'route': '/manage-word-information', 'icon': 'database'},
 ];
 
 export const PATHS = {
