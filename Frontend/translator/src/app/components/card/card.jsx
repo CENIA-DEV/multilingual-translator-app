@@ -11,9 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 'use client'
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import api from "@/app/api";
 import { API_ENDPOINTS } from "@/app/constants";
 import LangSelector from "../langSelector/langSelector.jsx";
@@ -28,11 +27,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faCopy, faSpinner, faStop, faTrash, faVolumeHigh, faMars, faVenus, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
+  const [showGenderOptions, setShowGenderOptions] = useState(false);
+  const containerRef = useRef(null);
+  
   const side = props.side;
   const lang = props.lang;
   const handleLangChange = side === 'left'? props.handleSrcLang : props.handleDstLang;
@@ -52,10 +54,8 @@ export default function Card(props) {
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
   const showClearLeft = side === 'left' && !!srcText?.trim();
-
-  // Word Information State and Effect
   const [wordInfo, setWordInfo] = useState([]);
-  
+
   useEffect(() => {
     const textToAnalyze = side === 'left' ? srcText : dstText;
     if (!textToAnalyze) {
@@ -73,65 +73,25 @@ export default function Card(props) {
         console.error("Failed to analyze sentence for word information", e);
       }
     }, 500);
-    
+
     return () => clearTimeout(timeoutId);
   }, [srcText, dstText, side]);
 
-  // Helper renderer
-  const renderHighlightedText = (text, textColorClass) => {
-    if (!text) return null;
-
-    const wordsWithInfo = wordInfo
-      .filter(w => w.information?.other_ways_to_say?.length > 0 || w.information?.additional_explanation)
-      .map(w => w.text.toLowerCase());
-
-    const dotColor = side === 'left' ? '#000000' : '#ffffff';
-    const parts = text.split(/(\s+)/);
-
-    const elements = parts.map((word, idx) => {
-      // 1. Handle Whitespace cleanly
-      if (word.match(/^\s+$/)) {
-        return <span key={idx}>{word}</span>; 
+  // Close options if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowGenderOptions(false);
       }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-      // 2. Handle Words (Dictionary Highlight Logic)
-      const baseWord = word.replace(/^[.,!?;:—\-()[\]{}""']+|[.,!?;:—\-()[\]{}""']+$/g, '').toLowerCase();
-      const candidates = [baseWord, "'" + baseWord, "'" + baseWord, baseWord.replace(/^['']/, "")].filter(Boolean);
-      const hasInfo = candidates.some(c => wordsWithInfo.includes(c));
-
-      if (hasInfo) {
-        const leadingPunctuation = (word.match(/^["'''([{]+/) || [''])[0];
-        const trailingPunctuation = (word.match(/[.,!?;:)\]}"'']+$/) || [''])[0];
-        const coreWord = word.slice(leadingPunctuation.length, word.length - trailingPunctuation.length);
-
-        if (!coreWord) return <span key={idx} className={textColorClass}>{word}</span>;
-
-        return (
-          <span key={idx} className={textColorClass}>
-            {leadingPunctuation}
-            <span
-              style={{
-                backgroundImage: `radial-gradient(circle, ${dotColor} 2px, transparent 2px)`,
-                backgroundRepeat: 'repeat-x',
-                backgroundSize: '8px 3px',
-                backgroundPosition: '0 100%',
-                paddingBottom: '5px',
-                color: 'inherit',
-              }}
-            >
-              {coreWord}
-            </span>
-            {trailingPunctuation}
-          </span>
-        );
-      }
-      
-      // 3. Normal Words
-      return <span key={idx} className={textColorClass}>{word}</span>;
-    });
-
-    return <>{elements}</>;
-  };
+  // Close options if text changes
+  useEffect(() => {
+    setShowGenderOptions(false);
+  }, [srcText, dstText]);
 
   const renderInfoPopover = () => {
     if (wordInfo.length === 0) return null;
@@ -171,23 +131,6 @@ export default function Card(props) {
         </PopoverContent>
       </Popover>
     );
-  };
-
-  const leftOverlayRef = useRef(null);
-  const rightOverlayRef = useRef(null);
-
-  const handleLeftScroll = (e) => {
-    if (leftOverlayRef.current) {
-      leftOverlayRef.current.scrollTop = e.target.scrollTop;
-      leftOverlayRef.current.scrollLeft = e.target.scrollLeft;
-    }
-  };
-
-  const handleRightScroll = (e) => {
-    if (rightOverlayRef.current) {
-      rightOverlayRef.current.scrollTop = e.target.scrollTop;
-      rightOverlayRef.current.scrollLeft = e.target.scrollLeft;
-    }
   };
 
   return(
@@ -233,39 +176,64 @@ export default function Card(props) {
       />
 
       {side === 'left'?
-     <>
-        <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative">
-            <div className="relative flex-1 h-full min-w-0">
-              <div 
-                ref={leftOverlayRef}
-                className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide">
-                  {renderHighlightedText(srcText, "text-transparent")}
-                  {srcText?.endsWith('\n') ? <br /> : null}
-              </div>
-              <Textarea
-                onScroll={handleLeftScroll}
-                value={srcText}
-                placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
-                onChange={e => handleSrcText(e.target.value)}
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-                autoComplete="off"
-                data-gramm="false"
-                style={{ color: '#000000', caretColor: '#000000', padding: '8px 14px' }}
-                className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? 'border-red-500 focus-visible:ring-red-500' : 'border-transparent focus-visible:ring-0'} resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]`}
-              />
-            </div>
-            {/* speaker (only if text exists) */}
+	   <>
+        <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px]">
+            <Textarea
+              value={srcText}
+              placeholder={lang.code === "rap_Latn"? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" :'Escriba aquí el texto a traducir'}
+              onChange={e => handleSrcText(e.target.value)}
+              className={`w-full h-full ${showTextMessage && 'border-red-500' } resize-none bg-transparent outline-none text-black text-lg font-light animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${showTextMessage ? 'focus-visible:ring-red-500' : 'focus-visible:ring-0'}`}
+            />
+		    {/* speaker (only if text exists) */}
             {(showSpeaker || showClearLeft || wordInfo.length > 0) && (
-              <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0">
+              <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1 h-full min-w-9" ref={containerRef}>
                 {renderInfoPopover()}
                 {showSpeaker && (
+                  showGenderOptions && !isSpeaking && !isLoadingAudio ? (
+                    <div className="flex flex-col items-center gap-1 rounded-full bg-black/10 py-1">
+                      <Tooltip delayDuration={1000}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => { setShowGenderOptions(false); onSpeak('male'); }}
+                            aria-label="Voz masculina"
+                            title="Voz masculina"
+                            className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                          >
+                            <FontAwesomeIcon icon={faMars} color={speakerColor} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="rounded-full">
+                          <p>Voz masculina</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip delayDuration={1000}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => { setShowGenderOptions(false); onSpeak('female'); }}
+                            aria-label="Voz femenina"
+                            title="Voz femenina"
+                            className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                          >
+                            <FontAwesomeIcon icon={faVenus} color={speakerColor} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="rounded-full">
+                          <p>Voz femenina</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  ) : (
                   <Tooltip delayDuration={1000}>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => (isSpeaking ? onStop() : onSpeak())}
-                        aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
+                        onClick={() => {
+                          if (isSpeaking) {
+                            onStop();
+                          } else {
+                            setShowGenderOptions(true);
+                          }
+                        }}
+                        aria-label={isSpeaking ? "Detener lectura" : "Seleccionar voz"}
                         title={isSpeaking ? "Detener" : "Escuchar"}
                         className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
                         disabled={isLoadingAudio}
@@ -281,6 +249,7 @@ export default function Card(props) {
                       <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
                     </TooltipContent>
                   </Tooltip>
+                  )
                 )}
            
                 {showClearLeft && (
@@ -310,69 +279,100 @@ export default function Card(props) {
         </>
         :
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
-            <div className="relative flex-1 h-full min-w-0">
-              <div 
-                ref={rightOverlayRef}
-                className="absolute inset-0 pointer-events-none z-10 px-3 py-2 text-[1.125rem] leading-[1.75rem] border border-transparent font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide">
-                  {renderHighlightedText(dstText, "text-transparent")}
-                  {dstText?.endsWith('\n') ? <br /> : null}
-              </div>
-              <Textarea 
-                onScroll={handleRightScroll}
-                readOnly 
-                value={dstText} 
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-                autoComplete="off"
-                data-gramm="false"
-                style={{ color: '#ffffff' }}
-                className="absolute inset-0 z-20 w-full h-full resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide focus-visible:ring-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-transparent border-none scrollbar-white-thumb px-3 py-2"
-              />
-            </div>
+          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white">
+            <Textarea readOnly 
+              key={dstText}
+              wrapper="span"
+              cursor={false}
+              speed={70}
+              deletionSpeed={70}
+              value={dstText}
+              className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0 scrollbar-white-thumb"
+            />
       {((dstText && dstText.length > 0) || wordInfo.length > 0) && (
-                            <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0"> 
-                              {renderInfoPopover()}
-          {showSpeaker && (
+				<div className="ml-2 flex flex-col items-center justify-start gap-2 pt-1 h-full min-w-9" ref={containerRef}>	
+          {renderInfoPopover()}
+				
+				  {showSpeaker && (
+					  showGenderOptions && !isSpeaking && !isLoadingAudio ? (
+              <div className="flex flex-col items-center gap-1 rounded-full bg-white/10 py-1">
+                <Tooltip delayDuration={1000}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { setShowGenderOptions(false); onSpeak('male'); }}
+                      aria-label="Voz masculina"
+                      title="Voz masculina"
+                      className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                    >
+                      <FontAwesomeIcon icon={faMars} color={speakerColor} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-default border-white text-white rounded-full border-2">
+                    <p>Voz masculina</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip delayDuration={1000}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { setShowGenderOptions(false); onSpeak('female'); }}
+                      aria-label="Voz femenina"
+                      title="Voz femenina"
+                      className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
+                    >
+                      <FontAwesomeIcon icon={faVenus} color={speakerColor} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-default border-white text-white rounded-full border-2">
+                    <p>Voz femenina</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            ) : (
             <Tooltip delayDuration={1000}>
-            <TooltipTrigger asChild>
-              <button
-              onClick={() => (isSpeaking ? onStop() : onSpeak())}
-              aria-label={isSpeaking ? "Detener lectura" : "Reproducir lectura"}
-              title={isSpeaking ? "Detener" : "Escuchar"}
-              className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
-              disabled={isLoadingAudio}
-              >
-              <FontAwesomeIcon
-                icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
-                className={isLoadingAudio ? "fa-spin" : ""}
-                color={speakerColor /* white on right */}
-              />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-              <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
-            </TooltipContent>
-            </Tooltip>
-                  )}
-          
-          <Tooltip delayDuration={1000}>
-          <TooltipTrigger asChild>
-            <button
-            onClick={handleCopyText}
-            aria-label="Copiar traducción"
-            title="Copiar traducción"
-            className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
-            >
-            <FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-            <p>Copiar traducción</p>
-          </TooltipContent>
-          </Tooltip>
-        </div>
+						<TooltipTrigger asChild>
+						  <button
+							onClick={() => {
+                if (isSpeaking) {
+                  onStop();
+                } else {
+                  setShowGenderOptions(true);
+                }
+              }}
+							aria-label={isSpeaking ? "Detener lectura" : "Seleccionar voz"}
+							title={isSpeaking ? "Detener" : "Escuchar"}
+							className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
+							disabled={isLoadingAudio}
+						  >
+							<FontAwesomeIcon
+							  icon={isSpeaking ? faStop : (isLoadingAudio ? faSpinner : faVolumeHigh)}
+							  className={isLoadingAudio ? "fa-spin" : ""}
+							  color={speakerColor /* white on right */}
+							/>
+						  </button>
+						</TooltipTrigger>
+						<TooltipContent className="bg-default border-white text-white rounded-full border-2">
+						  <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+						</TooltipContent>
+					  </Tooltip>
+            )
+          )}
+				  
+				  <Tooltip delayDuration={1000}>
+					<TooltipTrigger asChild>
+					  <button
+						onClick={handleCopyText}
+						aria-label="Copiar traducción"
+						title="Copiar traducción"
+						className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
+					  >
+						<FontAwesomeIcon icon={copyReady ? faCheck : faCopy} className="copy-icon" color="#ffffff" />
+					  </button>
+					</TooltipTrigger>
+					<TooltipContent className="bg-default border-white text-white rounded-full border-2">
+					  <p>Copiar traducción</p>
+					</TooltipContent>
+				  </Tooltip>
+				</div>
             )}
           </div>
         </>

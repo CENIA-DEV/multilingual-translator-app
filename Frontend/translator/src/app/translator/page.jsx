@@ -132,9 +132,10 @@ export default function Translator() {
   // --- Language helpers for button visibility---
   const codeOf = (l) => (l?.code || '').toLowerCase(); // 'spa_Latn','eng_Latn','rap_Latn',…
   const isES  = (l) => codeOf(l).startsWith('spa');
+  const isEN  = (l) => codeOf(l).startsWith('eng');
   const isRAP = (l) => codeOf(l).startsWith('rap');
 
-  // TTS (API-only): Rapa Nui only, and only if globally enabled
+  // TTS (API-only): Only RAP if TTS_ENABLED
   const isTTSSideAllowed = (l) => TTS_ENABLED && isRAP(l);
 
   // ASR helpers - only if ASR_ENABLED
@@ -185,7 +186,7 @@ export default function Translator() {
   };
 
   const handleCrossLang = async () => {
-    if(loadingState === false){
+    if(loadingState === false && !isLoadingAudio){
       setLoadingState(true);
       setSrcText(dstText);
       setSrcLang(dstLang);
@@ -393,13 +394,24 @@ export default function Translator() {
   };
   
   // TTS Wrapper Functions
-  async function handleSpeak({ text, lang = 'es-ES' }) {
+  async function handleSpeak({ text, lang = 'es-ES', gender }) {
     if (TTSRestricted) {
       setTranslationRestrictedDialogOpen(true);
       toast("Debe iniciar sesión para usar la síntesis de voz", { duration: 4000 });
       return;
     }
-    await handleSpeakBase({ text, lang });
+    if (loadingState || isLoadingAudio) return; // prevent TTS while translating or already loading TTS
+    
+    // Give a notification if fetching takes longer than 3 seconds
+    const timeoutId = setTimeout(() => {
+      toast("El modelo de voz se está cargando...", { duration: 20000 });
+    }, 3000);
+
+    try {
+      await handleSpeakBase({ text, lang, gender });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   function stopSpeaking() {
@@ -412,7 +424,7 @@ export default function Translator() {
 
   const translate = async () => {
     if (translationRestricted) { setTranslationRestrictedDialogOpen(true); return; }
-    if (loadingState) return;                      // extra guard
+    if (loadingState || isLoadingAudio) return;                      // extra guard
     if (srcText.length === 0) { setDstText(''); return; }
     setLoadingState(true);
     const startTime = performance.now();
@@ -650,7 +662,7 @@ export default function Translator() {
             ttsLangCode={srcLang?.code}
             isSpeaking={isSpeaking}
             isLoadingAudio={isLoadingAudio}
-            onSpeak={() => handleSpeak({ text: srcText, lang: srcLang?.code })}
+            onSpeak={(gender) => handleSpeak({ text: srcText, lang: srcLang?.code, gender })}
             onStop={stopSpeaking}
 			onClearTexts={handleClearTexts}
           />
@@ -797,9 +809,9 @@ export default function Translator() {
         </div>
 
         <div
-          className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${translationRestricted ? 'opacity-50' : ''}`}
+          className={`delayed-fade-in w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white absolute left-1/2 top-1/2 z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005] ${(translationRestricted || isLoadingAudio || loadingState) ? 'opacity-50' : ''}`}
           onClick={() => handleTranslate()}
-          style={{ pointerEvents: loadingState ? 'none' : 'auto' }}
+          style={{ pointerEvents: (loadingState || isLoadingAudio) ? 'none' : 'auto' }}
         >
           <FontAwesomeIcon
             icon={loadingState ? faArrowsRotate : (translationRestricted ? faLock : faArrowRight)}
@@ -825,7 +837,7 @@ export default function Translator() {
             ttsLangCode={dstLang?.code}
             isSpeaking={isSpeaking}
             isLoadingAudio={isLoadingAudio}
-            onSpeak={() => handleSpeak({ text: dstText, lang: dstLang?.code })}
+            onSpeak={(gender) => handleSpeak({ text: dstText, lang: dstLang?.code, gender })}
             onStop={stopSpeaking}
           />
         </div>
