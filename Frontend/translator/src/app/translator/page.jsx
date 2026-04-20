@@ -35,7 +35,7 @@ import {
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED, WORD_INFORMATION_REQUIRES_AUTH } from '../constants';
+import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED, WORD_INFORMATION_REQUIRES_AUTH, SEPARATE_GENDERS_REQUIRES_AUTH } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -153,7 +153,10 @@ export default function Translator() {
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
-  const WORD_INFORMATION_VISIBLE_D = WORD_INFORMATION_REQUIRES_AUTH ? isLoggedIn : false;
+  const WORD_INFORMATION_VISIBLE_D = !WORD_INFORMATION_REQUIRES_AUTH || isLoggedIn;
+  
+  // Separate genders: allowed if not required for auth, or if auth is required and user is logged in
+  const SEPARATE_GENDERS_ALLOWED_D = !SEPARATE_GENDERS_REQUIRES_AUTH || isLoggedIn;
 
   // ASR buttons: show if language is supported
   const ASR_MIC_VISIBLE_D = isASRLang(srcLang) || isASRLang(dstLang);
@@ -665,6 +668,7 @@ export default function Translator() {
             isSpeaking={isSpeaking}
             isLoadingAudio={isLoadingAudio}
             wordInformationEnabled={WORD_INFORMATION_VISIBLE_D}
+            separateGendersAllowed={SEPARATE_GENDERS_ALLOWED_D}
             onSpeak={(gender) => handleSpeak({ text: srcText, lang: srcLang?.code, gender })}
             onStop={stopSpeaking}
 			onClearTexts={handleClearTexts}
@@ -841,6 +845,7 @@ export default function Translator() {
             isSpeaking={isSpeaking}
             isLoadingAudio={isLoadingAudio}
             wordInformationEnabled={WORD_INFORMATION_VISIBLE_D}
+            separateGendersAllowed={SEPARATE_GENDERS_ALLOWED_D}
             onSpeak={(gender) => handleSpeak({ text: dstText, lang: dstLang?.code, gender })}
             onStop={stopSpeaking}
           />

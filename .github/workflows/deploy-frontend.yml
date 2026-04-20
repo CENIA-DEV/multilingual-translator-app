@@ -39,6 +39,11 @@ on:
         required: true
         type: boolean
         default: true
+      separate_genders_requires_auth:
+        description: 'Separate gender selection requires authentication (false = default to female for non-auth)'
+        required: true
+        type: boolean
+        default: false
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -108,6 +113,8 @@ jobs:
           echo "NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH=${{ github.event.inputs.word_information_requires_auth }}" >> .env.production
           # Set dictionary enablement
           echo "NEXT_PUBLIC_DICTIONARY_ENABLED=${{ github.event.inputs.dictionary_enabled }}" >> .env.production
+          # Set separate gender selection (when false, non-auth users get female voice by default)
+          echo "NEXT_PUBLIC_SEPARATE_GENDERS_REQUIRES_AUTH=${{ github.event.inputs.separate_genders_requires_auth }}" >> .env.production
 
           # if not production, set the api url to the backend url so we dont use relative path
           if [ "${{ steps.set-environment.outputs.environment }}" != "PRODUCTION" ]; then

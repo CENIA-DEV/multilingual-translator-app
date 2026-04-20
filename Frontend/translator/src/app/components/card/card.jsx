@@ -48,6 +48,7 @@ export default function Card(props) {
   const isSpeaking = props.isSpeaking;
   const isLoadingAudio = props.isLoadingAudio;
   const wordInformationEnabled = !!props.wordInformationEnabled;
+  const separateGendersAllowed = props.separateGendersAllowed !== false; // default to true if not specified
   const onSpeak = props.onSpeak;
   const onStop = props.onStop;
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
@@ -268,7 +269,7 @@ export default function Card(props) {
                 {renderInfoPopover()}
 
                 {showSpeaker && (
-                  showGenderOptions && !isSpeaking && !isLoadingAudio ? (
+                  separateGendersAllowed && showGenderOptions && !isSpeaking && !isLoadingAudio ? (
                     <div className="flex flex-col items-center gap-1 rounded-full bg-black/10 py-1">
                       <Tooltip delayDuration={1000}>
                         <TooltipTrigger asChild>
@@ -309,8 +310,10 @@ export default function Card(props) {
                           onClick={() => {
                             if (isSpeaking) {
                               onStop();
-                            } else {
+                            } else if (separateGendersAllowed) {
                               setShowGenderOptions(true);
+                            } else {
+                              onSpeak('female');
                             }
                           }}
                           aria-label={isSpeaking ? "Detener lectura" : "Seleccionar voz"}
@@ -373,7 +376,7 @@ export default function Card(props) {
                 {renderInfoPopover()}
 
                 {showSpeaker && (
-                  showGenderOptions && !isSpeaking && !isLoadingAudio ? (
+                  separateGendersAllowed && showGenderOptions && !isSpeaking && !isLoadingAudio ? (
                     <div className="flex flex-col items-center gap-1 rounded-full bg-white/10 py-1">
                       <Tooltip delayDuration={1000}>
                         <TooltipTrigger asChild>
@@ -414,8 +417,10 @@ export default function Card(props) {
                           onClick={() => {
                             if (isSpeaking) {
                               onStop();
-                            } else {
+                            } else if (separateGendersAllowed) {
                               setShowGenderOptions(true);
+                            } else {
+                              onSpeak('female');
                             }
                           }}
                           aria-label={isSpeaking ? "Detener lectura" : "Seleccionar voz"}
