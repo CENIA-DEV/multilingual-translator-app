@@ -132,11 +132,10 @@ export default function Translator() {
   // --- Language helpers for button visibility---
   const codeOf = (l) => (l?.code || '').toLowerCase(); // 'spa_Latn','eng_Latn','rap_Latn',…
   const isES  = (l) => codeOf(l).startsWith('spa');
-  const isEN  = (l) => codeOf(l).startsWith('eng');
   const isRAP = (l) => codeOf(l).startsWith('rap');
 
-  // TTS (API-only): ES/EN/RAP - but only if TTS_ENABLED
-  const isTTSSideAllowed = (l) => TTS_ENABLED && (isES(l) || isEN(l) || isRAP(l));
+  // TTS (API-only): Rapa Nui only, and only if globally enabled
+  const isTTSSideAllowed = (l) => TTS_ENABLED && isRAP(l);
 
   // ASR helpers - only if ASR_ENABLED
   const isASRLang = (l) => ASR_ENABLED && (isES(l) || isRAP(l)); // ASR works for Spanish and Rapa Nui

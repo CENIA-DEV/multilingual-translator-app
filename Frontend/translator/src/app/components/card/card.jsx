@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 'use client'
 import React, { useState, useEffect, useRef } from "react";
 import api from "@/app/api";
@@ -134,13 +135,24 @@ export default function Card(props) {
 
   const renderInfoPopover = () => {
     if (wordInfo.length === 0) return null;
+    const infoTooltipClassName = side === 'left'
+      ? 'rounded-full'
+      : 'bg-default border-white text-white rounded-full border-2';
+
     return (
       <Popover>
-        <PopoverTrigger asChild>
-          <button type="button" className={`transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50 animate-jump-in animate-once animate-duration-500 animate-ease-out`} aria-label="Información adicional" title="Información adicional">
-             <FontAwesomeIcon icon={faInfoCircle} className={`h-6 w-6 ${speakerColor === '#ffffff' ? 'text-white' : 'text-[#0a8cde]'}`} />
-          </button>
-        </PopoverTrigger>
+        <Tooltip delayDuration={1000}>
+          <PopoverTrigger asChild>
+            <TooltipTrigger asChild>
+              <button type="button" className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50" aria-label="Información adicional">
+                 <FontAwesomeIcon icon={faInfoCircle} className={`h-6 w-6 ${speakerColor === '#ffffff' ? 'text-white' : 'text-[#0a8cde]'}`} />
+              </button>
+            </TooltipTrigger>
+          </PopoverTrigger>
+          <TooltipContent className={infoTooltipClassName}>
+            <p>Información palabras</p>
+          </TooltipContent>
+        </Tooltip>
         <PopoverContent side="bottom" align="end" className="w-80 p-4 bg-white/95 backdrop-blur-md border shadow-2xl rounded-xl z-50 text-black">
            <h4 className="font-bold mb-3 border-b pb-2">Información adicional</h4>
            <div className="max-h-[300px] overflow-y-auto">
