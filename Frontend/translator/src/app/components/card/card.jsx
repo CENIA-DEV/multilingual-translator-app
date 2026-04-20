@@ -111,32 +111,22 @@ export default function Card(props) {
       const hasInfo = candidates.some(c => wordsWithInfo.includes(c));
 
       if (hasInfo) {
-        const leadingPunctuation = (word.match(/^["'''([{]+/) || [''])[0];
-        const trailingPunctuation = (word.match(/[.,!?;:)\]}"'']+$/) || [''])[0];
-        const coreWord = word.slice(leadingPunctuation.length, word.length - trailingPunctuation.length);
-
-        if (!coreWord) return <span key={idx} className={textColorClass}>{word}</span>;
-
         return (
-          <span key={idx} className={textColorClass}>
-            {leadingPunctuation}
-            <span
-              style={{
-                backgroundImage: `radial-gradient(circle, ${dotColor} 2px, transparent 2px)`,
-                backgroundRepeat: 'repeat-x',
-                backgroundSize: '8px 3px',
-                backgroundPosition: '0 100%',
-                paddingBottom: '5px',
-                color: 'inherit',
-              }}
-            >
-              {coreWord}
-            </span>
-            {trailingPunctuation}
+          <span
+            key={idx}
+            className={textColorClass}
+            style={{
+              backgroundImage: `radial-gradient(circle, ${dotColor} 2px, transparent 2px)`,
+              backgroundRepeat: 'repeat-x',
+              backgroundSize: '8px 3px',
+              backgroundPosition: '0 100%',
+              paddingBottom: '5px',
+            }}
+          >
+            {word}
           </span>
         );
       }
-
       return <span key={idx} className={textColorClass}>{word}</span>;
     });
 
@@ -185,18 +175,10 @@ export default function Card(props) {
 
   const leftOverlayRef = useRef(null);
   const rightOverlayRef = useRef(null);
-
   const handleLeftScroll = (e) => {
     if (leftOverlayRef.current) {
       leftOverlayRef.current.scrollTop = e.target.scrollTop;
       leftOverlayRef.current.scrollLeft = e.target.scrollLeft;
-    }
-  };
-
-  const handleRightScroll = (e) => {
-    if (rightOverlayRef.current) {
-      rightOverlayRef.current.scrollTop = e.target.scrollTop;
-      rightOverlayRef.current.scrollLeft = e.target.scrollLeft;
     }
   };
 
@@ -362,26 +344,12 @@ export default function Card(props) {
         :
         <>
           <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
-            <div className="relative flex-1 h-full min-w-0">
-              <div
-                ref={rightOverlayRef}
-                className="absolute inset-0 pointer-events-none z-10 px-3 py-2 text-[1.125rem] leading-[1.75rem] border border-transparent font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide"
-              >
-                {renderHighlightedText(dstText, "text-transparent")}
-                {dstText?.endsWith('\n') ? <br /> : null}
-              </div>
-              <Textarea
-                onScroll={handleRightScroll}
-                readOnly
-                value={dstText}
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-                autoComplete="off"
-                data-gramm="false"
-                style={{ color: '#ffffff' }}
-                className="absolute inset-0 z-20 w-full h-full resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide focus-visible:ring-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-transparent border-none scrollbar-white-thumb px-3 py-2"
-              />
+            <div
+              ref={rightOverlayRef}
+              className="flex-1 h-full min-w-0 overflow-y-auto scrollbar-hide scrollbar-white-thumb px-3 py-2 text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap"
+            >
+              {renderHighlightedText(dstText, "text-white")}
+              {dstText?.endsWith('\n') ? <br /> : null}
             </div>
 
             {((dstText && dstText.length > 0) || wordInfo.length > 0) && (
