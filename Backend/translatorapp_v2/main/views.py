@@ -790,8 +790,9 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             model_name = serializer.validated_data.get("model_name")
             model_version = serializer.validated_data.get("model_version")
 
+            tts_lang_prefix = base_language_code.split("_")[0]
             language_code = (
-                f"{base_language_code}_{gender}" if gender else base_language_code
+                f"{tts_lang_prefix}_{gender}" if gender else base_language_code
             )
 
             logger.debug(f"Validated TTS request: {language_code}")
