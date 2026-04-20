@@ -23,6 +23,7 @@ from rest_framework.validators import UniqueValidator
 
 from .models import (
     CacheTTS,
+    Definition,
     Dialect,
     GeneralSuggestion,
     InvitationToken,
@@ -35,6 +36,8 @@ from .models import (
     TextToSpeechAudio,
     TranslationPair,
     TranslationRequest,
+    Word,
+    WordInformation,
 )
 
 
@@ -519,10 +522,11 @@ class TextToSpeechSerializer(serializers.ModelSerializer):
     language = serializers.CharField(required=True)
     model_name = serializers.CharField(required=True)
     model_version = serializers.CharField(required=True)
+    gender = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
         model = TextToSpeechAudio
-        fields = ["text", "language", "model_name", "model_version"]
+        fields = ["text", "language", "model_name", "model_version", "gender"]
         extra_kwargs = {
             "created_at": {"read_only": True},
         }
@@ -585,10 +589,11 @@ class GeneralSuggestionSerializer(serializers.ModelSerializer):
 class CacheTTSSerializer(serializers.ModelSerializer):
     language = serializers.CharField()
     audio_data = serializers.CharField(read_only=True)
+    gender = serializers.CharField(required=False, default="female")
 
     class Meta:
         model = CacheTTS
-        fields = ["id", "text", "language", "audio_data", "audio_format"]
+        fields = ["text", "language", "gender", "audio_data", "audio_format"]
         read_only_fields = [
             "audio_data",
         ]
@@ -616,3 +621,32 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["created_at"]
+
+
+class DefinitionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Definition
+        fields = ["meaning"]
+
+
+class WordInformationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WordInformation
+        fields = ["id", "word", "other_ways_to_say", "additional_explanation"]
+
+
+class WordSerializer(serializers.ModelSerializer):
+    definitions = DefinitionSerializer(many=True, read_only=True)
+    information = WordInformationSerializer(read_only=True)
+
+    class Meta:
+        model = Word
+        fields = ["id", "text", "definitions", "information"]
+
+    def create(self, validated_data):
+        definitions_data = validated_data.pop("definitions", [])
+        word = Word.objects.create(**validated_data)
+        for definition_data in definitions_data:
+            Definition.objects.create(word=word, **definition_data)
+
+        return word

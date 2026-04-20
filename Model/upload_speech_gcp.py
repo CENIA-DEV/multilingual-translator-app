@@ -21,7 +21,7 @@ nllb_language_token_map = {
     "mri_Latn_female": "rap/female",
     "mri_Latn_male": "rap/male",
     "spa_Latn": "spa",
-    "eng_Latn": "eng"
+    "eng_Latn": "eng",
 }
 
 

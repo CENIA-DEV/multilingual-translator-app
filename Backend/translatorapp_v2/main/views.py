@@ -14,6 +14,7 @@
 # limitations under the License.
 import base64
 import logging
+import re
 from functools import reduce
 from operator import or_
 
@@ -22,7 +23,7 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
@@ -44,9 +45,10 @@ from .models import (
     TextToSpeechAudio,
     TranslationPair,
     TranslationRequest,
+    Word,
+    WordInformation,
 )
 from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
-from .serializers import TranslationRequestSerializer  # Add this import
 from .serializers import (
     FullUserSerializer,
     GeneralSuggestionSerializer,
@@ -59,11 +61,14 @@ from .serializers import (
     SuggestionSerializer,
     TextToSpeechSerializer,
     TranslationPairSerializer,
+    TranslationRequestSerializer,
     UserSerializer,
+    WordInformationSerializer,
+    WordSerializer,
 )
-from .utils import find_cached_tts_normalized  # added
 from .utils import (
     filter_cache,
+    find_cached_tts_normalized,
     generate_asr,
     generate_tts,
     send_invite_email,
@@ -780,18 +785,28 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
         if serializer.is_valid():
             text = serializer.validated_data["text"]
-            language_code = serializer.validated_data["language"]
+            base_language_code = serializer.validated_data["language"]
+            gender = serializer.validated_data.get("gender")
             model_name = serializer.validated_data.get("model_name")
             model_version = serializer.validated_data.get("model_version")
+
+            tts_lang_prefix = base_language_code.split("_")[0]
+            language_code = (
+                f"{tts_lang_prefix}_{gender}" if gender else base_language_code
+            )
 
             logger.debug(f"Validated TTS request: {language_code}")
 
             try:
-                lang_obj = Lang.objects.get(code=language_code)
+                lang_obj = Lang.objects.get(code=base_language_code)
 
                 # Check cache (normalized matching, no schema changes)
                 try:
-                    cached_tts = find_cached_tts_normalized(lang_obj, text)
+                    actual_gender = gender or "female"
+
+                    cached_tts = find_cached_tts_normalized(
+                        lang_obj, text, gender=actual_gender
+                    )
                     if not cached_tts:
                         raise CacheTTS.DoesNotExist()
 
@@ -1088,3 +1103,64 @@ class TranslationRequestViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(user__id=user_id)
 
         return queryset.order_by("-created_at")
+
+
+class WordViewSet(viewsets.ModelViewSet):
+    queryset = Word.objects.all().prefetch_related("definitions")
+    serializer_class = WordSerializer
+
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def analyze_sentence(self, request):
+        sentence = request.data.get("sentence", "")
+
+        if not sentence:
+            return Response(
+                {"error": "Please provide a 'sentence' in the request body."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Keep unicode words and make matching tolerant to leading apostrophes
+        # used in Rapa Nui orthography: Iorana, 'Iorana, ’Iorana.
+        tokens = re.findall(r"[^\W_]+(?:['’][^\W_]+)*", sentence.lower(), re.UNICODE)
+        candidates = set()
+
+        for token in tokens:
+            base = token.strip("'’")
+            if not base:
+                continue
+            candidates.add(base)
+            candidates.add("'" + base)
+            candidates.add("’" + base)
+
+        if not candidates:
+            return Response(
+                {
+                    "analyzed_sentence": sentence,
+                    "matches_found": 0,
+                    "results": [],
+                }
+            )
+
+        query = reduce(or_, [Q(text__iexact=word) for word in candidates])
+        found_words = self.get_queryset().filter(query)
+
+        serializer = self.get_serializer(found_words, many=True)
+        return Response(
+            {
+                "analyzed_sentence": sentence,
+                "matches_found": found_words.count(),
+                "results": serializer.data,
+            }
+        )
+
+
+class WordInformationViewSet(viewsets.ModelViewSet):
+    queryset = WordInformation.objects.all()
+    serializer_class = WordInformationSerializer
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
+        else:
+            permission_classes = [AllowAny]
+        return [permission() for permission in permission_classes]
