@@ -29,6 +29,11 @@ on:
         required: true
         type: boolean
         default: false
+      word_information_requires_auth:
+        description: 'Word information requires authentication'
+        required: true
+        type: boolean
+        default: false
       dictionary_enabled:
         description: 'Enable dictionary feature'
         required: true
@@ -99,6 +104,8 @@ jobs:
           echo "NEXT_PUBLIC_TTS_REQUIRES_AUTH=${{ github.event.inputs.tts_requires_auth }}" >> .env.production
           # Set speech-to-text enablement
           echo "NEXT_PUBLIC_ASR_REQUIRES_AUTH=${{ github.event.inputs.asr_requires_auth }}" >> .env.production
+          # Set word information enablement
+          echo "NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH=${{ github.event.inputs.word_information_requires_auth }}" >> .env.production
           # Set dictionary enablement
           echo "NEXT_PUBLIC_DICTIONARY_ENABLED=${{ github.event.inputs.dictionary_enabled }}" >> .env.production
 

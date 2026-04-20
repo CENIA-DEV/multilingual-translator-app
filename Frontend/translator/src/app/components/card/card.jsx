@@ -47,6 +47,7 @@ export default function Card(props) {
   const ttsText = props.ttsText;
   const isSpeaking = props.isSpeaking;
   const isLoadingAudio = props.isLoadingAudio;
+  const wordInformationEnabled = !!props.wordInformationEnabled;
   const onSpeak = props.onSpeak;
   const onStop = props.onStop;
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
@@ -55,6 +56,11 @@ export default function Card(props) {
   const [wordInfo, setWordInfo] = useState([]);
 
   useEffect(() => {
+    if (!wordInformationEnabled) {
+      setWordInfo([]);
+      return;
+    }
+
     const textToAnalyze = side === 'left' ? srcText : dstText;
     if (!textToAnalyze) {
       setWordInfo([]);
@@ -73,7 +79,7 @@ export default function Card(props) {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [srcText, dstText, side]);
+  }, [srcText, dstText, side, wordInformationEnabled]);
 
   // Close options if clicked outside
   useEffect(() => {
@@ -93,6 +99,10 @@ export default function Card(props) {
 
   const renderHighlightedText = (text, textColorClass) => {
     if (!text) return null;
+
+    if (!wordInformationEnabled) {
+      return <span className={textColorClass}>{text}</span>;
+    }
 
     const wordsWithInfo = wordInfo
       .filter(w => w.information?.other_ways_to_say?.length > 0 || w.information?.additional_explanation)
@@ -134,7 +144,7 @@ export default function Card(props) {
   };
 
   const renderInfoPopover = () => {
-    if (wordInfo.length === 0) return null;
+    if (!wordInformationEnabled || wordInfo.length === 0) return null;
     const infoTooltipClassName = side === 'left'
       ? 'rounded-full'
       : 'bg-default border-white text-white rounded-full border-2';
@@ -156,17 +166,23 @@ export default function Card(props) {
         <PopoverContent side="bottom" align="end" className="w-80 p-4 bg-white/95 backdrop-blur-md border shadow-2xl rounded-xl z-50 text-black">
           <h4 className="font-bold mb-3 border-b pb-2">Información adicional</h4>
           <div className="max-h-[300px] overflow-y-auto">
-            {wordInfo.map(w => (
-              <div key={w.id} className="mb-4 last:mb-0">
-                <strong className="text-lg text-blue-500 capitalize">{w.text}</strong>
-                {w.information?.other_ways_to_say?.length > 0 && (
-                  <p className="text-sm mt-1"><strong>Sinónimos:</strong> {w.information.other_ways_to_say.join(", ")}</p>
-                )}
-                {w.information?.additional_explanation && (
-                  <p className="text-sm mt-1 text-slate-700">{w.information.additional_explanation}</p>
-                )}
-              </div>
-            ))}
+            {wordInfo.length > 0 ? (
+              wordInfo.map(w => (
+                <div key={w.id} className="mb-4 last:mb-0">
+                  <strong className="text-lg text-blue-500 capitalize">{w.text}</strong>
+                  {w.information?.other_ways_to_say?.length > 0 && (
+                    <p className="text-sm mt-1"><strong>Sinónimos:</strong> {w.information.other_ways_to_say.join(", ")}</p>
+                  )}
+                  {w.information?.additional_explanation && (
+                    <p className="text-sm mt-1 text-slate-700">{w.information.additional_explanation}</p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-600">
+                No hay información disponible para esta traducción.
+              </p>
+            )}
           </div>
         </PopoverContent>
       </Popover>
@@ -247,7 +263,7 @@ export default function Card(props) {
               />
             </div>
 
-            {(showSpeaker || showClearLeft || wordInfo.length > 0) && (
+            {(showSpeaker || showClearLeft || wordInformationEnabled) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 
@@ -352,7 +368,7 @@ export default function Card(props) {
               {dstText?.endsWith('\n') ? <br /> : null}
             </div>
 
-            {((dstText && dstText.length > 0) || wordInfo.length > 0) && (
+            {((dstText && dstText.length > 0) || wordInformationEnabled) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 

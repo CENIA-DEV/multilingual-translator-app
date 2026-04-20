@@ -49,6 +49,7 @@ export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-reque
 export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
 export const TTS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TTS_REQUIRES_AUTH === 'true';
 export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === 'true';
+export const WORD_INFORMATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH === 'true';
 
 // Feature availability by variant
 export const TTS_ENABLED = VARIANT_LANG === 'rap'; // Only enable TTS for Rapa Nui
