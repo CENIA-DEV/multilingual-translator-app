@@ -32,7 +32,7 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-from .models import CacheTTS
+from .models import CacheTTS, Word
 
 logger = logging.getLogger(__name__)
 
@@ -251,8 +251,17 @@ def get_tts_prediction(text, lang_code, deployment):
         ],
     }
 
-    response = requests.post(url=deployment, data=json.dumps(payload))
-    response = response.json()
+    try:
+        response = requests.post(
+            url=deployment, json=payload, headers={"Content-Type": "application/json"}
+        )
+        if response.status_code != 200:
+            logger.error(f"TTS API Error {response.status_code}: {response.text}")
+            response.raise_for_status()
+        response = response.json()
+    except Exception as e:
+        logger.error(f"TTS API Request failed: {str(e)}")
+        raise
 
     # Process the response
     if "outputs" in response:
@@ -278,6 +287,16 @@ def generate_tts(src_text, src_lang):
     lang_code = src_lang
     if hasattr(src_lang, "code"):
         lang_code = src_lang.code
+
+    # Strip script part if present (e.g. "rap_Latn" -> "rap")
+    tts_lang_prefix = lang_code.split("_")[0]
+
+    # Map general language code to specific model token if needed (e.g. Rapa Nui)
+    if tts_lang_prefix == "rap":
+        if "male" in lang_code:
+            lang_code = "rap_male"
+        else:
+            lang_code = "rap_female"  # default to female
 
     native_deployment = (
         f"{settings.APP_SETTINGS.inference_tts_model_url}/v2/models/"
@@ -410,7 +429,11 @@ def normalize_text_for_cache(s: str) -> str:
 
 
 def find_cached_tts_normalized(
-    lang_obj, raw_text: str, max_token_candidates: int = 100, max_fallback: int = 200
+    lang_obj,
+    raw_text: str,
+    gender: str = "female",
+    max_token_candidates: int = 100,
+    max_fallback: int = 200,
 ):
     """
     Find CacheTTS by normalized text without changing DB schema.
@@ -424,7 +447,13 @@ def find_cached_tts_normalized(
 
     # 1) exact icase match (fast path)
     try:
-        return CacheTTS.objects.get(language=lang_obj, text__iexact=raw_text)
+        return CacheTTS.objects.get(
+            language=lang_obj, text__iexact=raw_text, gender=gender
+        )
+    except CacheTTS.MultipleObjectsReturned:
+        return CacheTTS.objects.filter(
+            language=lang_obj, text__iexact=raw_text, gender=gender
+        ).first()
     except CacheTTS.DoesNotExist:
         pass
 
@@ -438,7 +467,7 @@ def find_cached_tts_normalized(
 
     if q:
         candidates = (
-            CacheTTS.objects.filter(language=lang_obj)
+            CacheTTS.objects.filter(language=lang_obj, gender=gender)
             .filter(q)
             .order_by("-id")[:max_token_candidates]
         )
@@ -447,7 +476,9 @@ def find_cached_tts_normalized(
                 return c
 
     # 3) small recent-window fallback
-    recent = CacheTTS.objects.filter(language=lang_obj).order_by("-id")[:max_fallback]
+    recent = CacheTTS.objects.filter(language=lang_obj, gender=gender).order_by("-id")[
+        :max_fallback
+    ]
     for c in recent:
         if normalize_text_for_cache(c.text) == norm:
             return c
@@ -650,3 +681,17 @@ def get_hashed_token(token):
     hash_object.update(token.encode("utf-8"))
     hashed_token = hash_object.hexdigest()
     return hashed_token
+
+
+def get_definitions_for_sentence(sentence):
+    clean_words = re.findall(r"\b\w+\b", sentence.lower())
+
+    found_words = Word.objects.filter(text__in=clean_words).prefetch_related(
+        "definitions"
+    )
+
+    result = {}
+    for word in found_words:
+        result[word.text] = [defi.meaning for defi in word.definitions.all()]
+
+    return result

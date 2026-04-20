@@ -25,8 +25,16 @@ export const API_ENDPOINTS = {
     SEND_INVITATION: 'api/invitations/send_invitation/',
     SUGGESTIONS: 'api/suggestions/',
     PASSWORD_RECOVERY: 'api/password_reset/',
-    LANGUAGES: 'api/languages/'
-  };
+    LANGUAGES: 'api/languages/',
+    WORDS_ANALYZE: 'api/words/analyze_sentence/' ,
+    WORDS: 'api/words/',
+    WORD_INFORMATION: 'api/word-information/',
+
+
+
+
+
+};
 
 export const NATIVE_ADMIN = 'NativeAdmin';
 export const ADMIN = 'Admin';
@@ -41,6 +49,8 @@ export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-reque
 export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
 export const TTS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TTS_REQUIRES_AUTH === 'true';
 export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === 'true';
+export const WORD_INFORMATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH === 'true';
+export const SEPARATE_GENDERS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_SEPARATE_GENDERS_REQUIRES_AUTH === 'true';
 
 // Feature availability by variant
 export const TTS_ENABLED = VARIANT_LANG === 'rap'; // Only enable TTS for Rapa Nui
@@ -91,6 +101,7 @@ const ADMIN_PATHS = [
   ...USER_PATHS,
   {'name': 'Administrar Accesos', 'route': '/manage-access', 'icon': 'users'},
   {'name': 'Explorar Datos', 'route': '/explore-data', 'icon': 'database'},
+  {'name': 'Administrar Palabras', 'route': '/manage-word-information', 'icon': 'database'},
 ];
 
 export const PATHS = {

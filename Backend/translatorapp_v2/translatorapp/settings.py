@@ -142,7 +142,7 @@ LOGGING = {
         "main": {  # This matches your views.py logger
             "handlers": ["console", "file"],
             "level": "DEBUG" if DEBUG else "INFO",
-            "propagate": True,
+            "propagate": False,
         },
     },
 }

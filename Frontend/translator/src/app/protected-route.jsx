@@ -49,7 +49,7 @@ export default function ProtectedRoute({ children }) {
         else {
           try {
             const res = await api.get(
-              API_ENDPOINTS.USERS+'get_by_token'
+              API_ENDPOINTS.USERS+'get_by_token/'
             )
               setCurrentUser(res.data)
 

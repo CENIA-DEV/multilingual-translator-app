@@ -12,29 +12,26 @@ on:
           - raw
           - tts
           - asr
-          - asr-backup  # ✅ New option for backup ASR
+          - asr-backup
+          - asr-bf16
 
       model_path:
-        description: 'Model path'
-        required: true
+        description: 'Model path (for single models) or ignored for asr-bf16'
+        required: false
         type: string
+
 jobs:
   build-push-gcp:
     name: Build and Push Model to GCP
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'PRODUCTION' || 'STAGING' }}
     env:
-        PROJECT_ID: ${{ secrets.PROJECT_ID }}
-        ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
-        ARTIFACT_REGISTRY_NAME: model
-        STORAGE_URI: ${{ vars.STORAGE_URI }}
-        # VPC_NAME: ${{ vars.VPC_NAME }}
-        # SUBNET_NAME: ${{ vars.SUBNET_NAME }}
-        # SERVICE_REGION: ${{ vars.SERVICE_REGION }}
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      ARTIFACT_REGION: ${{ vars.ARTIFACT_REGION }}
+      ARTIFACT_REGISTRY_NAME: model
+      STORAGE_URI: ${{ vars.STORAGE_URI }}
+
     steps:
-      # Delete huge unnecessary tools folder
-      # Running oout of memory on the runner
-      # https://github.com/orgs/community/discussions/25678
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
@@ -48,32 +45,183 @@ jobs:
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v0.4.0'
+        uses: google-github-actions/auth@v0.4.0
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
       - name: Set up Cloud SDK
-        uses: 'google-github-actions/setup-gcloud@v2'
+        uses: google-github-actions/setup-gcloud@v2
         with:
           version: '>= 416.0.0'
 
-      - name: Download model
+      - name: Download model(s)
         working-directory: Model/
         run: |
-          MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
-          echo "Using model path: $MODEL_PATH"
-          # Create the target directory
-          mkdir -p ${{ github.event.inputs.model_path }}
-          # Download recursively the model from GCS
-          gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
-          # List files to verify download
-          find ${{ github.event.inputs.model_path }} -type f | sort
+          echo "=== Deploying variant: ${{ github.event.inputs.variant }} ==="
+
+          # HANDLE BFLOAT16 VARIANT
+          if [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+            echo "=== Downloading BFLOAT16 ASR models ==="
+
+            echo "Checking if whisper-bfloat16 exists in GCS..."
+            if gcloud storage ls ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/ &>/dev/null; then
+              echo "Downloading Whisper bfloat16 model..."
+              mkdir -p asr-rap/whisper-bfloat16
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/* asr-rap/whisper-bfloat16/
+              echo "Whisper bfloat16 download complete. Contents:"
+              ls -la asr-rap/whisper-bfloat16/
+            else
+              echo "ERROR: whisper-bfloat16 directory not found in GCS!"
+              echo "Please upload bfloat16 models to: ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/"
+              exit 1
+            fi
+
+            echo "Checking if mms-1b-all-bfloat16 exists in GCS..."
+            if gcloud storage ls ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/ &>/dev/null; then
+              echo "Downloading MMS bfloat16 model..."
+              mkdir -p asr-rap/mms-1b-all-bfloat16
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/* asr-rap/mms-1b-all-bfloat16/
+              echo "MMS bfloat16 download complete. Contents:"
+              ls -la asr-rap/mms-1b-all-bfloat16/
+            else
+              echo "ERROR: mms-1b-all-bfloat16 directory not found in GCS!"
+              echo "Please upload bfloat16 models to: ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/"
+              exit 1
+            fi
+
+          # HANDLE RAP & BACKUP VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+            echo "=== Downloading STANDARD ASR models for variant: ${{ github.event.inputs.variant }} ==="
+
+            echo "Downloading Standard Whisper model..."
+            mkdir -p asr-rap/whisper
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper/* asr-rap/whisper/
+            echo "Whisper download complete. Contents:"
+            ls -la asr-rap/whisper/
+
+            echo "Downloading Standard MMS model..."
+            mkdir -p asr-rap/mms-1b-all
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all/* asr-rap/mms-1b-all/
+            echo "MMS download complete. Contents:"
+            ls -la asr-rap/mms-1b-all/
+
+            echo "Downloading RAP model..."
+            mkdir -p asr-rap/rap
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
+            echo "RAP model download complete. Contents:"
+            ls -la asr-rap/rap/
+
+          # HANDLE ASR VARIANT (hybrid without backup)
+          elif [[ "${{ github.event.inputs.variant }}" == "asr" ]]; then
+            echo "=== Downloading ASR models for hybrid variant ==="
+
+            echo "Downloading Standard Whisper model..."
+            mkdir -p asr-rap/whisper
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper/* asr-rap/whisper/
+
+            echo "Downloading Standard MMS model..."
+            mkdir -p asr-rap/mms-1b-all
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all/* asr-rap/mms-1b-all/
+
+            echo "Downloading RAP model..."
+            mkdir -p asr-rap/rap
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
+
+          # HANDLE SINGLE MODEL DOWNLOADS
+          elif [[ "${{ github.event.inputs.variant }}" == "raw" ]]; then
+            echo "=== Downloading RAW model ==="
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
+          # NEW: HANDLE TTS VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "=== Downloading TTS models ==="
+
+            echo "Downloading female model..."
+            mkdir -p tts-rap/rap/female
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/female/* tts-rap/rap/female/
+
+            echo "Downloading male model..."
+            mkdir -p tts-rap/rap/male
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/male/* tts-rap/rap/male/
+
+          # HANDLE ARN VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "arn" ]]; then
+            echo "=== Downloading ARN model ==="
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
+          else
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
+          fi
+
+          # Verify directory structure
+          echo "=== Final directory structure ==="
+          find . -type d | grep -E "asr-rap|whisper|mms-1b-all|rap" | sort
+
+      - name: Verify model files exist
+        working-directory: Model/
+        run: |
+          # Only verify if we're deploying rap or asr-backup variant
+          if [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+            echo "=== Checking Whisper model files ==="
+            if [ ! -f "asr-rap/whisper/config.json" ]; then
+              echo "ERROR: Whisper config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
+
+            echo "=== Checking MMS model files ==="
+            if [ ! -f "asr-rap/mms-1b-all/config.json" ]; then
+              echo "ERROR: MMS config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
+
+            echo "✅ All required model files present"
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+            echo "=== Checking Whisper bfloat16 model files ==="
+            if [ ! -f "asr-rap/whisper-bfloat16/config.json" ]; then
+              echo "ERROR: Whisper bfloat16 config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
+
+            echo "=== Checking MMS bfloat16 model files ==="
+            if [ ! -f "asr-rap/mms-1b-all-bfloat16/config.json" ]; then
+              echo "ERROR: MMS bfloat16 config.json not found!"
+              echo "Directory contents:"
+              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
+              exit 1
+            fi
+
+            echo "✅ All required bfloat16 model files present"
+          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "=== Checking TTS model files ==="
+            if [ ! -f "tts-rap/rap/female/config.json" ] || [ ! -f "tts-rap/rap/male/config.json" ]; then
+              echo "ERROR: TTS config.json not found for male or female!"
+              exit 1
+            fi
+            echo "✅ All required TTS model files present"
+          else
+            echo "Skipping verification for variant: ${{ github.event.inputs.variant }}"
+          fi
 
       - name: Set Dockerfile path
         id: set-dockerfile
         run: |
           if [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
             echo "dockerfile=Dockerfile.audio" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
+            echo "dockerfile=Dockerfile.asr-bf16" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             echo "dockerfile=Dockerfile.asr" >> $GITHUB_OUTPUT
           else
@@ -84,8 +232,7 @@ jobs:
         working-directory: Model/
         run: |
           echo "Using dockerfile: ${{ steps.set-dockerfile.outputs.dockerfile }}"
-          # Pass the HF token as a build argument when building the ASR model
-          if [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+          if [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" || "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
             docker build \
               --build-arg HF_TOKEN=${{ secrets.HUGGING_FACE_TOKEN }} \
               -t model:${{ github.sha }} \
@@ -94,25 +241,45 @@ jobs:
             docker build -t model:${{ github.sha }} -f ${{ steps.set-dockerfile.outputs.dockerfile }} .
           fi
 
-      - name: Configure Docker Client # aunthenticate to rep
-        run: |-
+      - name: Configure Docker Client
+        run: |
           gcloud auth configure-docker --quiet
           gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
 
       - name: Push Docker Image to Artifact Registry
-        run: |-
-          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ github.event.inputs.model_path }}:${{ github.sha }}
+        run: |
+          # SAFE & EXPLICIT IMAGE TAGGING
+          case "${{ github.event.inputs.variant }}" in
+            asr-bf16)
+              IMAGE_TAG="asr-rap-bf16"
+              ;;
+            rap)
+              IMAGE_TAG="asr-rap"
+              ;;
+            asr-backup)
+              IMAGE_TAG="asr-rap-backup"
+              ;;
+            asr)
+              IMAGE_TAG="asr"
+              ;;
+            tts)
+              IMAGE_TAG="tts"
+              ;;
+            arn|raw)
+              IMAGE_TAG="${{ github.event.inputs.model_path }}"
+              ;;
+            *)
+              IMAGE_TAG="${{ github.event.inputs.model_path }}"
+              ;;
+          esac
+
+          if [[ -z "$IMAGE_TAG" ]]; then
+            echo "ERROR: IMAGE_TAG resolved to empty. Check model_path input."
+            exit 1
+          fi
+
+          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${IMAGE_TAG}:${{ github.sha }}
+
           echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
           docker tag model:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
           docker push $ARTIFACT_REGISTRY_IMAGE_NAME
-
-      # TODO: Uncomment this when we glocud has support for gpu
-      #- name: Deploy to cloud run
-      #  uses: 'google-github-actions/deploy-cloudrun@v2'
-      #  with:
-      #    service: nllb-${{ steps.set-variant.outputs.variant }}
-      #    image: ${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REP_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-      #    project_id: '${{ env.PROJECT_ID }}'
-      #    region: '${{ env.SERVICE_REGION }}'
-      #    timeout: '5m'
-      #    flags:  --network=${{ env.VPC_NAME }} --subnet=${{ env.SUBNET_NAME }} --vpc-egress=all-traffic --no-cpu-throttling --port=8015 --concurrency=4 --cpu=4 --memory=16Gi --max-instances=4 --gpu 1 --gpu-type=nvidia-l4

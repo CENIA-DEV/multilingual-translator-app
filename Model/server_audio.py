@@ -4,10 +4,10 @@ import logging
 
 import numpy as np
 from dotenv import load_dotenv
-from pytriton.decorators import batch  
+from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig, TritonLifecyclePolicy
-from speech_models import MMSTTSWrapper  
+from speech_models import MMSTTSWrapper
 
 load_dotenv()
 

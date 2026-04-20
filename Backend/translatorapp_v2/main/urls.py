@@ -25,10 +25,16 @@ from .views import (
     TranslateViewSet,
     TranslationRequestViewSet,
     UserViewSet,
+    WordInformationViewSet,
+    WordViewSet,
 )
 
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="user")
+router.register(r"words", WordViewSet, basename="word")
+router.register(
+    r"word-information", WordInformationViewSet, basename="word-information"
+)
 router.register(r"invitations", InvitationViewSet, basename="invitation")
 router.register(r"suggestions", SuggestionViewSet, basename="suggestion")
 router.register(r"requests", RequestViewSet, basename="request")
