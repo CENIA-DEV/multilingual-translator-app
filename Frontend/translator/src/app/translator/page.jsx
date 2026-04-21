@@ -35,7 +35,7 @@ import {
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED, WORD_INFORMATION_REQUIRES_AUTH, SEPARATE_GENDERS_REQUIRES_AUTH } from '../constants';
+import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED, WORD_INFORMATION_REQUIRES_AUTH, SEPARATE_GENDERS_REQUIRES_AUTH, MAINTENANCE_MODE } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -102,6 +102,7 @@ export default function Translator() {
   const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
 
   const [showDevModal, setShowDevModal] = useState(true);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(MAINTENANCE_MODE);
   
   // Record modal
   const [showRecordModal, setShowRecordModal] = useState(false);
@@ -1082,6 +1083,27 @@ export default function Translator() {
 
 		  </DialogContent>
 	   </Dialog>
+
+      <Dialog open={showMaintenanceModal} onOpenChange={setShowMaintenanceModal}>
+        <DialogContent className="bg-white rounded-lg shadow-lg p-6 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-semibold text-slate-800">
+              Mantenimiento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="text-center space-y-4">
+            <p className="text-slate-600">
+              El traductor está en mantenimiento por lo que estará fuera servicio por unas horas...
+            </p>
+            <Button
+              onClick={() => setShowMaintenanceModal(false)}
+              className="bg-[#0a8cde] text-white hover:bg-[#067ac1] w-full"
+            >
+              Entendido
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
