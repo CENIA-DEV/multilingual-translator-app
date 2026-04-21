@@ -254,7 +254,7 @@ jobs:
               IMAGE_TAG="asr-rap-bf16"
               ;;
             rap)
-              IMAGE_TAG="asr-rap"
+              IMAGE_TAG="${{ github.event.inputs.model_path }}"
               ;;
             asr-backup)
               IMAGE_TAG="asr-rap-backup"
