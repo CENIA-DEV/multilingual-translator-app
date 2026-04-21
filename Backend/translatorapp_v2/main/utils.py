@@ -118,6 +118,10 @@ def translate(src_text, src_lang, dst_lang):
         f"{settings.APP_SETTINGS.raw_inference_model_name}/infer"
     )
 
+    logger.debug(f"Starting request...")
+    logger.debug(f"Native deployment: {native_deployment}")
+    logger.debug(f"Raw deployment: {raw_deployment}")
+
     logger.debug(f"Translating {src_text} from {src_lang.code} to {dst_lang.code}")
     src_text_paragraphs = src_text.split("\n")
     logger.debug(f"Src text paragraphs: {src_text_paragraphs}")
