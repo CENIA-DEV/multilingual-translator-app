@@ -16,7 +16,7 @@ on:
           - asr-bf16
 
       model_path:
-        description: 'Model path (for single models) or ignored for asr-bf16'
+        description: 'Source model path inside STORAGE_URI (for rap/raw/arn). Example: nllb/rap/nllb-200-3.3b-spa-rap'
         required: false
         type: string
 
@@ -93,17 +93,21 @@ jobs:
           elif [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
             echo "=== Downloading RAP translation model ==="
 
-            TRANSLATION_MODEL_PATH="${{ github.event.inputs.model_path }}"
-            if [[ -z "$TRANSLATION_MODEL_PATH" ]]; then
-              TRANSLATION_MODEL_PATH="nllb-200-3.3b-spa-rap"
+            # Source path in GCS (can be nested). Runtime model folder is fixed
+            # to keep Triton model endpoint stable and slash-free.
+            SOURCE_MODEL_PATH="${{ github.event.inputs.model_path }}"
+            if [[ -z "$SOURCE_MODEL_PATH" ]]; then
+              SOURCE_MODEL_PATH="nllb/rap/nllb-200-3.3b-spa-rap"
             fi
+            RUNTIME_MODEL_NAME="nllb-200-3.3b-spa-rap"
 
-            MODEL_PATH=${{ env.STORAGE_URI }}/$TRANSLATION_MODEL_PATH
-            echo "Using model path: $MODEL_PATH"
-            mkdir -p "$TRANSLATION_MODEL_PATH"
-            gcloud storage cp -r "$MODEL_PATH"/* "$TRANSLATION_MODEL_PATH"/
+            MODEL_PATH=${{ env.STORAGE_URI }}/$SOURCE_MODEL_PATH
+            echo "Using source model path: $MODEL_PATH"
+            echo "Using runtime model folder: $RUNTIME_MODEL_NAME"
+            mkdir -p "$RUNTIME_MODEL_NAME"
+            gcloud storage cp -r "$MODEL_PATH"/* "$RUNTIME_MODEL_NAME"/
             echo "RAP translation model download complete. Contents:"
-            ls -la "$TRANSLATION_MODEL_PATH"/
+            ls -la "$RUNTIME_MODEL_NAME"/
 
           # HANDLE ASR BACKUP VARIANT
           elif [[ "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
@@ -185,14 +189,11 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
             echo "=== Checking RAP translation model files ==="
-            TRANSLATION_MODEL_PATH="${{ github.event.inputs.model_path }}"
-            if [[ -z "$TRANSLATION_MODEL_PATH" ]]; then
-              TRANSLATION_MODEL_PATH="nllb-200-3.3b-spa-rap"
-            fi
-            if [ ! -f "$TRANSLATION_MODEL_PATH/config.json" ]; then
-              echo "ERROR: Translation model config.json not found at $TRANSLATION_MODEL_PATH!"
+            RUNTIME_MODEL_NAME="nllb-200-3.3b-spa-rap"
+            if [ ! -f "$RUNTIME_MODEL_NAME/config.json" ]; then
+              echo "ERROR: Translation model config.json not found at $RUNTIME_MODEL_NAME!"
               echo "Directory contents:"
-              ls -R "$TRANSLATION_MODEL_PATH" || echo "Model directory doesn't exist"
+              ls -R "$RUNTIME_MODEL_NAME" || echo "Model directory doesn't exist"
               exit 1
             fi
 
@@ -283,7 +284,7 @@ jobs:
               IMAGE_TAG="asr-rap-bf16"
               ;;
             rap)
-              IMAGE_TAG="asr-rap"
+              IMAGE_TAG="nllb-200-3.3b-spa-rap"
               ;;
             asr-backup)
               IMAGE_TAG="asr-rap-backup"
