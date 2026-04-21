@@ -59,6 +59,9 @@ export const ASR_ENABLED = VARIANT_LANG === 'rap'; // Only enable ASR for Rapa N
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;
 
+// Maintenance mode
+export const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
+
 
 export const isTranslationRestricted = (currentUser) => {
   return TRANSLATION_REQUIRES_AUTH && !currentUser;
