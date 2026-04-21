@@ -89,8 +89,24 @@ jobs:
               exit 1
             fi
 
-          # HANDLE RAP & BACKUP VARIANT
-          elif [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+          # HANDLE RAP VARIANT (translation model)
+          elif [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
+            echo "=== Downloading RAP translation model ==="
+
+            TRANSLATION_MODEL_PATH="${{ github.event.inputs.model_path }}"
+            if [[ -z "$TRANSLATION_MODEL_PATH" ]]; then
+              TRANSLATION_MODEL_PATH="nllb-200-3.3b-spa-rap"
+            fi
+
+            MODEL_PATH=${{ env.STORAGE_URI }}/$TRANSLATION_MODEL_PATH
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p "$TRANSLATION_MODEL_PATH"
+            gcloud storage cp -r "$MODEL_PATH"/* "$TRANSLATION_MODEL_PATH"/
+            echo "RAP translation model download complete. Contents:"
+            ls -la "$TRANSLATION_MODEL_PATH"/
+
+          # HANDLE ASR BACKUP VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             echo "=== Downloading STANDARD ASR models for variant: ${{ github.event.inputs.variant }} ==="
 
             echo "Downloading Standard Whisper model..."
@@ -162,13 +178,26 @@ jobs:
 
           # Verify directory structure
           echo "=== Final directory structure ==="
-          find . -type d | grep -E "asr-rap|whisper|mms-1b-all|rap" | sort
+          find . -type d | grep -E "asr-rap|whisper|mms-1b-all|tts-rap|nllb" | sort
 
       - name: Verify model files exist
         working-directory: Model/
         run: |
-          # Only verify if we're deploying rap or asr-backup variant
-          if [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+          if [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
+            echo "=== Checking RAP translation model files ==="
+            TRANSLATION_MODEL_PATH="${{ github.event.inputs.model_path }}"
+            if [[ -z "$TRANSLATION_MODEL_PATH" ]]; then
+              TRANSLATION_MODEL_PATH="nllb-200-3.3b-spa-rap"
+            fi
+            if [ ! -f "$TRANSLATION_MODEL_PATH/config.json" ]; then
+              echo "ERROR: Translation model config.json not found at $TRANSLATION_MODEL_PATH!"
+              echo "Directory contents:"
+              ls -R "$TRANSLATION_MODEL_PATH" || echo "Model directory doesn't exist"
+              exit 1
+            fi
+
+            echo "✅ RAP translation model files present"
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             echo "=== Checking Whisper model files ==="
             if [ ! -f "asr-rap/whisper/config.json" ]; then
               echo "ERROR: Whisper config.json not found!"
