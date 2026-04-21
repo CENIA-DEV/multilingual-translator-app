@@ -291,12 +291,15 @@ def generate_tts(src_text, src_lang):
     # Strip script part if present (e.g. "rap_Latn" -> "rap")
     tts_lang_prefix = lang_code.split("_")[0]
 
-    # Map general language code to specific model token if needed (e.g. Rapa Nui)
+    # Map general language code to specific model token if needed (e.g. Rapa Nui).
+    # Use exact matching to avoid treating "female" as "male" due to substring overlap.
     if tts_lang_prefix == "rap":
-        if "male" in lang_code:
+        if lang_code == "rap_male":
             lang_code = "rap_male"
+        elif lang_code == "rap_female":
+            lang_code = "rap_female"
         else:
-            lang_code = "rap_female"  # default to female
+            lang_code = "rap_female"  # default when no gender is provided
 
     native_deployment = (
         f"{settings.APP_SETTINGS.inference_tts_model_url}/v2/models/"
