@@ -1109,6 +1109,13 @@ class WordViewSet(viewsets.ModelViewSet):
     queryset = Word.objects.all().prefetch_related("definitions")
     serializer_class = WordSerializer
 
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
+        else:
+            permission_classes = [AllowAny]
+        return [permission() for permission in permission_classes]
+
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def analyze_sentence(self, request):
         sentence = request.data.get("sentence", "")
