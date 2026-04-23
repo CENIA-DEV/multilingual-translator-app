@@ -49,6 +49,21 @@ on:
         required: true
         type: string
         default: 'asr-model'
+      gemini_ocr_model:
+        description: 'Gemini OCR model name'
+        required: false
+        type: string
+        default: 'gemini-flash-lite-latest'
+      pdf_pages: 
+        description: "Max amount of PDF pages" 
+        required: true 
+        type: number 
+        default: 100 
+      pdf_size_mb: 
+        description: "Max PDF/image size (MB)" 
+        required: true 
+        type: number
+        default: 20
 
 jobs:
   build-push-gcp:
@@ -76,6 +91,8 @@ jobs:
       SERVICE_NAME_RAW_TTS_INFERENCE: ${{ vars.SERVICE_NAME_RAW_TTS_INFERENCE }}
       SERVICE_NAME_ASR_INFERENCE: ${{ vars.SERVICE_NAME_ASR_INFERENCE }}
       SERVICE_NAME_RAW_ASR_INFERENCE: ${{ vars.SERVICE_NAME_RAW_ASR_INFERENCE }}
+      OCR_MAX_PDF_PAGES: ${{ github.event.inputs.pdf_pages }}
+      OCR_MAX_FILE_SIZE_MB: ${{ github.event.inputs.pdf_size_mb }}
 
     steps:
       - name: Set environment
@@ -209,6 +226,9 @@ jobs:
           EOF
           echo "DB_PASSWORD=${{ env.DB_PASSWORD }}" >> .env
           echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
+          echo "GEMINI_OCR_MODEL=${{ github.event.inputs.gemini_ocr_model }}" >> .env
+          echo "OCR_MAX_PDF_PAGES=${{ github.event.inputs.pdf_pages }}" >> .env
+          echo "OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.pdf_size_mb }}" >> .env
           echo "APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}" >> .env
           echo "APP_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.asr_model_name }}" >> .env
           echo "APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}" >> .env
@@ -242,7 +262,7 @@ jobs:
           service: '${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}'
           image: ${{ env.ARTIFACT_REGISTRY_URL }}
           env_vars: |-
-            GOOGLE_APPLICATION_CREDENTIALS_JSON='${{ secrets.GCP_CREDENTIALS }}'
+            GOOGLE_APPLICATION_CREDENTIALS_JSON=${{ secrets.GCP_CREDENTIALS }}
             SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}
             PRODUCTION=${{ steps.set-environment.outputs.environment == 'PRODUCTION' && 'True' || 'False' }}
             TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
@@ -266,6 +286,10 @@ jobs:
             APP_RAW_INFERENCE_ASR_MODEL_NAME=${{ github.event.inputs.raw_asr_model_name }}
             APP_INFERENCE_ASR_MODEL_URL=${{ env.ASR_INFERENCE_URL }}
             APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            GEMINI_OCR_MODEL=${{ github.event.inputs.gemini_ocr_model }}
+            OCR_MAX_PDF_PAGES=${{ github.event.inputs.pdf_pages }}
+            OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.pdf_size_mb }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '10m'

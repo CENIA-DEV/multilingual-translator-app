@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     TRANSLATION: 'api/translate/',
     TEXT_TO_SPEECH: 'api/text-to-speech/',
     SPEECH_TO_TEXT: 'api/speech-to-text/',
+    OCR: 'api/ocr/',
     INVITATIONS: 'api/invitations/',
     USERS: 'api/users/',
     REQUESTS: 'api/requests/',
@@ -49,12 +50,16 @@ export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-reque
 export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
 export const TTS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TTS_REQUIRES_AUTH === 'true';
 export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === 'true';
+export const OCR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_OCR_REQUIRES_AUTH === 'true';
 export const WORD_INFORMATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH === 'true';
 export const SEPARATE_GENDERS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_SEPARATE_GENDERS_REQUIRES_AUTH === 'true';
 
 // Feature availability by variant
 export const TTS_ENABLED = VARIANT_LANG === 'rap'; // Only enable TTS for Rapa Nui
 export const ASR_ENABLED = VARIANT_LANG === 'rap'; // Only enable ASR for Rapa Nui
+export const OCR_ENABLED = process.env.NEXT_PUBLIC_OCR_ENABLED !== 'false'; // Only disable if explicitly set to false
+export const OCR_MAX_PDF_PAGES = Number(process.env.NEXT_PUBLIC_OCR_MAX_PDF_PAGES) || 100;
+export const OCR_MAX_FILE_SIZE_MB = Number(process.env.NEXT_PUBLIC_OCR_MAX_FILE_SIZE_MB) || 20;
 
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;
@@ -74,6 +79,10 @@ export const isTTSRestricted = (currentUser) => {
 export const isASRRestricted = (currentUser) => {
     return !ASR_ENABLED || (ASR_REQUIRES_AUTH && !currentUser);
   
+}
+
+export const isOCRRestricted = (currentUser) => {
+  return !OCR_ENABLED || (OCR_REQUIRES_AUTH && !currentUser);
 }
 
 

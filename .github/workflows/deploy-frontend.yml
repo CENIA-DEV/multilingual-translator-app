@@ -29,6 +29,26 @@ on:
         required: true
         type: boolean
         default: false
+      ocr_enabled:
+        description: 'OCR enabled'
+        required: true
+        type: boolean
+        default: true
+      ocr_requires_auth:
+        description: 'OCR requires authentication'
+        required: true
+        type: boolean
+        default: false
+      ocr_max_pdf_pages:
+        description: 'OCR max PDF pages (frontend preview limit)'
+        required: true
+        type: number
+        default: 100
+      ocr_max_file_size_mb:
+        description: 'OCR max file size in MB (frontend pre-check)'
+        required: true
+        type: number
+        default: 20
       word_information_requires_auth:
         description: 'Word information requires authentication'
         required: true
@@ -114,6 +134,13 @@ jobs:
           echo "NEXT_PUBLIC_TTS_REQUIRES_AUTH=${{ github.event.inputs.tts_requires_auth }}" >> .env.production
           # Set speech-to-text enablement
           echo "NEXT_PUBLIC_ASR_REQUIRES_AUTH=${{ github.event.inputs.asr_requires_auth }}" >> .env.production
+          # Set OCR enablement
+          echo "NEXT_PUBLIC_OCR_ENABLED=${{ github.event.inputs.ocr_enabled }}" >> .env.production
+          # Set OCR auth requirement
+          echo "NEXT_PUBLIC_OCR_REQUIRES_AUTH=${{ github.event.inputs.ocr_requires_auth }}" >> .env.production
+          # Set OCR limits for frontend
+          echo "NEXT_PUBLIC_OCR_MAX_PDF_PAGES=${{ github.event.inputs.ocr_max_pdf_pages }}" >> .env.production
+          echo "NEXT_PUBLIC_OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.ocr_max_file_size_mb }}" >> .env.production
           # Set word information enablement
           echo "NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH=${{ github.event.inputs.word_information_requires_auth }}" >> .env.production
           # Set dictionary enablement

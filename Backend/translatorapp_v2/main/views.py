@@ -13,16 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import base64
+import io
 import logging
+import os
 import re
 from functools import reduce
 from operator import or_
 
 import numpy as np
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+
+from drf_spectacular.utils import extend_schema
+from rest_framework import mixins, viewsets
 from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -31,14 +38,20 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
+
+
+from google.genai import types
+
 
 from .models import (
     CacheTTS,
     GeneralSuggestion,
     InvitationToken,
     Lang,
+    OCRRequest,
+    OCRResult,
     PasswordResetToken,
     RequestAccess,
     SpeechToTextAudio,
@@ -54,6 +67,8 @@ from .serializers import (
     GeneralSuggestionSerializer,
     InvitationSerializer,
     LanguageSerializer,
+    OCRRequestSerializer,
+    OCRResultSerializer,
     ParticipateSerializer,
     PasswordResetSerializer,
     RequestSerializer,
@@ -742,6 +757,322 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         else:
             logger.warning(f"Invalid translation request: {serializer.errors}")
             return Response(serializer.errors, HTTP_400_BAD_REQUEST)
+
+
+class OCRViewSet(viewsets.ModelViewSet):
+    serializer_class = OCRRequestSerializer
+    permission_classes = [TranslationRequiresAuth]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        return OCRRequest.objects.none()
+
+    @extend_schema(
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string", "format": "binary"},
+                    },
+                    "src_languages": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "corners": {
+                        "type": "object",
+                        "properties": {
+                            "x1": {"type": "number"},
+                            "x2": {"type": "number"},
+                            "x3": {"type": "number"},
+                            "x4": {"type": "number"},
+                            "y1": {"type": "number"},
+                            "y2": {"type": "number"},
+                            "y3": {"type": "number"},
+                            "y4": {"type": "number"},
+                        },
+                        "required": ["x1", "x2", "x3", "x4", "y1", "y2", "y3", "y4"],
+                    },
+                },
+                "required": ["files"],
+            }
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        files = self._get_uploaded_files(request)
+        if not files:
+            return Response(
+                {"files": ["This field is required"]},
+                status=HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(
+            data={
+                "files": files,
+                "src_languages": self._get_list_value(request, "src_languages"),
+                "corners": self._get_corners(request),
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+        src_languages = serializer.validated_data["src_languages"]
+
+        try:
+            client = self._get_ocr_client()
+        except Exception as exc:
+            logger.exception("Error initializing OCR client")
+            return Response(
+                {"error": "Error initializing OCR client", "detail": str(exc)},
+                status=HTTP_400_BAD_REQUEST,
+            )
+
+        ocr_request = OCRRequest.objects.create(
+            src_languages=src_languages,
+            tgt_languages=self._get_list_value(
+                request, "tgt_languages", "dst_languages"
+            ),
+            corners=serializer.validated_data.get("corners"),
+            user=request.user if request.user.is_authenticated else None,
+        )
+
+        for uploaded_file in files:
+            try:
+                page_results = self._process_file(client, uploaded_file)
+            except Exception as exc:
+                logger.warning(
+                    "OCR processing failed for %s: %s", uploaded_file.name, exc
+                )
+                page_results = [
+                    {
+                        "page_filename": uploaded_file.name,
+                        "page_image_bytes": b"",
+                        "text": None,
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "error": str(exc),
+                    }
+                ]
+
+            for page in page_results:
+                page_file = ContentFile(
+                    page["page_image_bytes"], name=page["page_filename"]
+                )
+                OCRResult.objects.create(
+                    ocr_request=ocr_request,
+                    uploaded_file=page_file,
+                    original_filename=page["page_filename"],
+                    src_languages=src_languages,
+                    text=page["text"],
+                    input_tokens=page["input_tokens"],
+                    output_tokens=page["output_tokens"],
+                    error=page["error"],
+                )
+
+        results = ocr_request.results.order_by("created_at")
+        return Response(
+            OCRResultSerializer(results, many=True).data,
+            status=HTTP_200_OK,
+        )
+
+    def _get_corners(self, request):
+        _CORNER_FIELDS = ("x1", "x2", "x3", "x4", "y1", "y2", "y3", "y4")
+        data = request.data
+        if not any(f in data for f in _CORNER_FIELDS):
+            return None
+        return {f: data.get(f) for f in _CORNER_FIELDS}
+
+    def _get_uploaded_files(self, request):
+        files = request.FILES.getlist("files")
+        if files:
+            return files
+
+        single_file = request.FILES.get("file")
+        return [single_file] if single_file else []
+
+    def _get_list_value(self, request, *keys):
+        data = request.data
+
+        for key in keys:
+            values = []
+            if hasattr(data, "getlist"):
+                values = data.getlist(key)
+            elif key in data:
+                raw_value = data[key]
+                if isinstance(raw_value, (list, tuple)):
+                    values = list(raw_value)
+                elif raw_value is not None:
+                    values = [raw_value]
+
+            cleaned_values = []
+            for value in values:
+                if value is None:
+                    continue
+
+                if isinstance(value, str):
+                    parts = value.split(",")
+                else:
+                    parts = [value]
+
+                for part in parts:
+                    part = str(part).strip()
+                    if part:
+                        cleaned_values.append(part)
+
+            if cleaned_values:
+                return cleaned_values
+
+        return ["auto"]
+
+    def _get_ocr_client(self):
+        from google import genai
+
+        api_key = os.environ.get("GEMINI_API_KEY")
+        return genai.Client(api_key=api_key) if api_key else genai.Client()
+
+    def _process_file(self, client, uploaded_file):
+        ext = os.path.splitext(uploaded_file.name)[1].lower()
+        if ext not in [".pdf", ".jpg", ".jpeg", ".png"]:
+            raise ValueError(f"Unsupported file type: {ext}")
+
+        max_bytes = settings.OCR_MAX_FILE_SIZE_MB * 1024 * 1024
+        if uploaded_file.size > max_bytes:
+            raise ValueError(
+                f"File exceeds max size of {settings.OCR_MAX_FILE_SIZE_MB} MB"
+            )
+
+        content = uploaded_file.read()
+
+        if ext == ".pdf":
+            stem = os.path.splitext(uploaded_file.name)[0]
+            return self._process_pdf_pages(client, content, stem)
+
+        normalized = self._normalize_image(content)
+        try:
+            text, in_tokens, out_tokens = self._run_ocr_inference(client, normalized)
+        except Exception as exc:
+            return [
+                {
+                    "page_filename": uploaded_file.name,
+                    "page_image_bytes": normalized,
+                    "text": None,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "error": str(exc),
+                }
+            ]
+        return [
+            {
+                "page_filename": uploaded_file.name,
+                "page_image_bytes": normalized,
+                "text": text,
+                "input_tokens": in_tokens,
+                "output_tokens": out_tokens,
+                "error": None,
+            }
+        ]
+
+    def _process_pdf_pages(self, client, pdf_bytes, stem):
+        page_images = self._pdf_to_images(pdf_bytes)
+        results = []
+        for i, image_bytes in enumerate(page_images, start=1):
+            page_filename = f"{stem}/page_{i}.png"
+            normalized = self._normalize_image(image_bytes)
+            try:
+                text, in_tokens, out_tokens = self._run_ocr_inference(
+                    client, normalized
+                )
+                error = None
+            except Exception as exc:
+                logger.warning("OCR inference failed for %s: %s", page_filename, exc)
+                text = None
+                in_tokens = 0
+                out_tokens = 0
+                error = str(exc)
+            results.append(
+                {
+                    "page_filename": page_filename,
+                    "page_image_bytes": normalized,
+                    "text": text,
+                    "input_tokens": in_tokens,
+                    "output_tokens": out_tokens,
+                    "error": error,
+                }
+            )
+        return results
+
+    def _normalize_image(self, image_bytes):
+        from PIL import Image
+
+        image = Image.open(io.BytesIO(image_bytes))
+
+        if image.mode not in ("RGB", "L"):
+            image = image.convert("RGB")
+
+        width, height = image.size
+        scale = min(1.0, 1600 / max(width, height))
+        if scale < 1.0:
+            resized_size = (max(1, int(width * scale)), max(1, int(height * scale)))
+            image = image.resize(resized_size, Image.Resampling.LANCZOS)
+
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def _pdf_to_images(self, pdf_bytes):
+        import fitz
+
+        images = []
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as document:
+            max_pages = min(len(document), settings.OCR_MAX_PDF_PAGES)
+            matrix = fitz.Matrix(2.0, 2.0)
+            for page_number in range(max_pages):
+                page = document.load_page(page_number)
+                pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+                images.append(pixmap.tobytes("png"))
+        return images
+
+    def _run_ocr_inference(self, client, image_bytes):
+
+        model_name = os.environ.get("GEMINI_OCR_MODEL", "gemini-flash-lite-latest")
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[
+                types.Content(
+                    parts=[
+                        types.Part(
+                            text="""
+                        You are an expert in OCR and language preservation. Extract all legible textual content from this image, prioritizing accurate recognition of Indigenous languages such as Rapanui.
+
+                        Instructions:
+                        1. Focus only on textual regions — ignore decorative borders, images, illustrations, stamps, or non-text design elements.
+                        2. Preserve the natural reading order, even in cases of multi-column layout or irregular formatting.
+                        3. Ignore typographic styling, page numbers, footers, headers, and purely visual elements.
+                        4. Output the clean raw text in plain format (no line breaks unless necessary for meaning).
+                        5. Do not infer or auto-correct Indigenous or uncommon words — preserve the original spelling as much as possible.
+                        6. If the page contains multilingual content, maintain the original language order and spelling for each block.
+
+                        This text may contain Spanish, Rapanui, or other Indigenous languages, often with unusual characters or phonetic spellings. Be especially careful not to misinterpret these.
+
+                        Return only the extracted text.
+                        """
+                        ),
+                        types.Part(
+                            inline_data=types.Blob(
+                                mime_type="image/png", data=image_bytes
+                            )
+                        ),
+                    ]
+                )
+            ],
+            config=types.GenerateContentConfig(temperature=0.0),
+        )
+
+        usage = getattr(response, "usage_metadata", None)
+        input_tokens = getattr(usage, "prompt_token_count", 0) or 0
+        output_tokens = getattr(usage, "candidates_token_count", 0) or 0
+        text = (getattr(response, "text", "") or "").strip()
+
+        return text, input_tokens, output_tokens
 
 
 class ParticipateRequestEndpoint(APIView):

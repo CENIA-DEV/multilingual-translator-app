@@ -54,6 +54,8 @@ export default function Card(props) {
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
   const showClearLeft = side === 'left' && !!srcText?.trim();
+  const sideText = side === 'left' ? srcText : dstText;
+  const showWordInfoButton = wordInformationEnabled && !!sideText?.trim();
   const [wordInfo, setWordInfo] = useState([]);
 
   useEffect(() => {
@@ -145,7 +147,7 @@ export default function Card(props) {
   };
 
   const renderInfoPopover = () => {
-    if (!wordInformationEnabled || wordInfo.length === 0) return null;
+    if (!showWordInfoButton) return null;
     const infoTooltipClassName = side === 'left'
       ? 'rounded-full'
       : 'bg-default border-white text-white rounded-full border-2';
@@ -211,6 +213,7 @@ export default function Card(props) {
       <div className={`flex h-[70px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
         side === 'left' ? 'max-[850px]:h-[25px]' : 'w-full max-[850px]:h-[12px]'
       }`}>
+
         {side === 'left' ?
           <Image
             src={`/logo-${VARIANT_LANG}.png`}
@@ -218,7 +221,7 @@ export default function Card(props) {
             priority={false}
             width={100}
             height={100}
-            className="m-[15px_30px] h-[50px] object-contain"
+            className="m-[15px_30px] h-[50px] w-auto object-contain"
           />
           :
           <></>
@@ -264,7 +267,7 @@ export default function Card(props) {
               />
             </div>
 
-            {(showSpeaker || showClearLeft || wordInformationEnabled) && (
+            {(showSpeaker || showClearLeft || showWordInfoButton) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 
@@ -371,7 +374,7 @@ export default function Card(props) {
               {dstText?.endsWith('\n') ? <br /> : null}
             </div>
 
-            {((dstText && dstText.length > 0) || wordInformationEnabled) && (
+            {((dstText && dstText.length > 0) || showWordInfoButton) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 

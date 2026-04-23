@@ -5,6 +5,8 @@
 /Backend/translatorapp_v2/cache
 /Backend/chroma_db
 /Backend/translatorapp_v2/secrets
+/Backend/translatorapp_v2/*.md
+/Backend/translatorapp_v2/*.json
 .env
 *.pyc
 /Backend/translatorapp_v2/data/*
@@ -14,6 +16,9 @@ package-lock.json
 *.log
 Model/key.json
 Model/_tmp_tokenizer
+*.md
+.codex
+/Backend/translatorapp_v2/main/tests/test_ocr.py
 Scripts/RECORDED_AUDIOS
 Scripts/RECORDED_AUDIOS_CLONE
 Scripts/proxy-sql-service-account.json
