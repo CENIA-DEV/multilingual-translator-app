@@ -14,7 +14,6 @@
 'use client'
 import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
-import { TypeAnimation } from "react-type-animation";
 import Image from "next/image";
 import { VARIANT_LANG, LANG_TITLE } from "@/app/constants";
 import { Button } from "@/components/ui/button"
@@ -68,7 +67,7 @@ export default function Card(props) {
               priority={false} 
               width={100} 
               height={100} 
-              className="m-[15px_30px] h-[50px] object-contain"
+              className="m-[15px_30px] h-[50px] w-auto object-contain"
             />
             :
             <></>
@@ -154,10 +153,6 @@ export default function Card(props) {
           <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white">
             <Textarea readOnly 
               key={dstText}
-              wrapper="span"
-              cursor={false}
-              speed={70}
-              deletionSpeed={70}
               value={dstText}
               className="w-full h-full border-none resize-none bg-transparent outline-none text-white text-lg font-light focus-visible:ring-0 scrollbar-white-thumb"
             />

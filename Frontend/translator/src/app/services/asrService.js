@@ -89,3 +89,15 @@ function writeString(view, offset, string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+export const validateTranscriptionApi = async (asrId, text) => {
+  try {
+    const response = await api.post(
+      `${API_ENDPOINTS.SPEECH_TO_TEXT}${asrId}/validate_transcription/`,
+      { text }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Failed to validate transcription:', error);
+    throw error;
+  }
+};

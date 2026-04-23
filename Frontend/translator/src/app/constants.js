@@ -45,6 +45,7 @@ export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === '
 // Feature availability by variant
 export const TTS_ENABLED = VARIANT_LANG === 'rap'; // Only enable TTS for Rapa Nui
 export const ASR_ENABLED = VARIANT_LANG === 'rap'; // Only enable ASR for Rapa Nui
+export const OCR_ENABLED = process.env.NEXT_PUBLIC_OCR_ENABLED !== 'false'; // Only disable if explicitly set to false
 
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;

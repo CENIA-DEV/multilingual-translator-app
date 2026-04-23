@@ -19,4 +19,18 @@ module.exports = {
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
+  webpack: (config) => {
+    // pdfjs-dist can pull Node-only canvas bindings in some bundles.
+    // Disable canvas resolution for browser builds.
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      canvas: false,
+    };
+    config.resolve.fallback = {
+      ...(config.resolve.fallback || {}),
+      canvas: false,
+    };
+
+    return config;
+  },
 };
