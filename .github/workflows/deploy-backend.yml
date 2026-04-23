@@ -250,18 +250,29 @@ jobs:
           ${{ env.ENV_FILE_BACK }}
           EOF
 
-          set -a
-          . ./.env.runtime
-          set +a
+          python - <<'PY'
+          import os
 
-          {
-            echo "DB_USER=$DB_USER"
-            echo "DB_PORT=${DB_PORT:-5432}"
-            echo "EMAIL_USER=$EMAIL_USER"
-            echo "EMAIL_KEY=$EMAIL_KEY"
-            echo "SUPPORT_EMAIL=$SUPPORT_EMAIL"
-            echo "INVITATION_GUIDE_URL=${FRONTEND_URL:-$INVITATION_GUIDE_URL}"
-          } >> $GITHUB_ENV
+          values = {}
+          with open('.env.runtime', encoding='utf-8') as env_file:
+            for raw_line in env_file:
+              line = raw_line.strip()
+              if not line or line.startswith('#') or '=' not in line:
+                continue
+              key, value = line.split('=', 1)
+              value = value.strip()
+              if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                value = value[1:-1]
+              values[key.strip()] = value
+
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as github_env:
+            github_env.write(f"DB_USER={values.get('DB_USER', '')}\n")
+            github_env.write(f"DB_PORT={values.get('DB_PORT', '5432')}\n")
+            github_env.write(f"EMAIL_USER={values.get('EMAIL_USER', '')}\n")
+            github_env.write(f"EMAIL_KEY={values.get('EMAIL_KEY', '')}\n")
+            github_env.write(f"SUPPORT_EMAIL={values.get('SUPPORT_EMAIL', '')}\n")
+            github_env.write(f"INVITATION_GUIDE_URL={values.get('INVITATION_GUIDE_URL', os.environ.get('FRONTEND_URL', ''))}\n")
+          PY
 
           rm -f .env.runtime
 
