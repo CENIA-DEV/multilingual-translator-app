@@ -19,3 +19,6 @@ Model/_tmp_tokenizer
 *.md
 .codex
 /Backend/translatorapp_v2/main/tests/test_ocr.py
+Scripts/RECORDED_AUDIOS
+Scripts/RECORDED_AUDIOS_CLONE
+Scripts/proxy-sql-service-account.json

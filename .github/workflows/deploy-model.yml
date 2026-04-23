@@ -16,7 +16,7 @@ on:
           - asr-bf16
 
       model_path:
-        description: 'Model path (for single models) or ignored for asr-bf16'
+        description: 'Source model path inside STORAGE_URI (for rap/raw/arn). Example: nllb/rap/nllb-200-3.3b-spa-rap'
         required: false
         type: string
 
@@ -89,8 +89,28 @@ jobs:
               exit 1
             fi
 
-          # HANDLE RAP & BACKUP VARIANT
-          elif [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+          # HANDLE RAP VARIANT (translation model)
+          elif [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
+            echo "=== Downloading RAP translation model ==="
+
+            # Source path in GCS (can be nested). Runtime model folder is fixed
+            # to keep Triton model endpoint stable and slash-free.
+            SOURCE_MODEL_PATH="${{ github.event.inputs.model_path }}"
+            if [[ -z "$SOURCE_MODEL_PATH" ]]; then
+              SOURCE_MODEL_PATH="nllb/rap/nllb-200-3.3b-spa-rap"
+            fi
+            RUNTIME_MODEL_NAME="nllb-200-3.3b-spa-rap"
+
+            MODEL_PATH=${{ env.STORAGE_URI }}/$SOURCE_MODEL_PATH
+            echo "Using source model path: $MODEL_PATH"
+            echo "Using runtime model folder: $RUNTIME_MODEL_NAME"
+            mkdir -p "$RUNTIME_MODEL_NAME"
+            gcloud storage cp -r "$MODEL_PATH"/* "$RUNTIME_MODEL_NAME"/
+            echo "RAP translation model download complete. Contents:"
+            ls -la "$RUNTIME_MODEL_NAME"/
+
+          # HANDLE ASR BACKUP VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             echo "=== Downloading STANDARD ASR models for variant: ${{ github.event.inputs.variant }} ==="
 
             echo "Downloading Standard Whisper model..."
@@ -128,6 +148,31 @@ jobs:
             gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
 
           # HANDLE SINGLE MODEL DOWNLOADS
+          elif [[ "${{ github.event.inputs.variant }}" == "raw" ]]; then
+            echo "=== Downloading RAW model ==="
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
+          # NEW: HANDLE TTS VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "=== Downloading TTS models ==="
+
+            echo "Downloading female model..."
+            mkdir -p tts-rap/rap/female
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/female/* tts-rap/rap/female/
+
+            echo "Downloading male model..."
+            mkdir -p tts-rap/rap/male
+            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/male/* tts-rap/rap/male/
+
+          # HANDLE ARN VARIANT
+          elif [[ "${{ github.event.inputs.variant }}" == "arn" ]]; then
+            echo "=== Downloading ARN model ==="
+            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
+            echo "Using model path: $MODEL_PATH"
+            mkdir -p ${{ github.event.inputs.model_path }}
+            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
           else
             MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
             echo "Using model path: $MODEL_PATH"
@@ -137,13 +182,23 @@ jobs:
 
           # Verify directory structure
           echo "=== Final directory structure ==="
-          find . -type d | grep -E "asr-rap|whisper|mms-1b-all|rap" | sort
+          find . -type d | grep -E "asr-rap|whisper|mms-1b-all|tts-rap|nllb" | sort
 
       - name: Verify model files exist
         working-directory: Model/
         run: |
-          # Only verify if we're deploying rap or asr-backup variant
-          if [[ "${{ github.event.inputs.variant }}" == "rap" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
+          if [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
+            echo "=== Checking RAP translation model files ==="
+            RUNTIME_MODEL_NAME="nllb-200-3.3b-spa-rap"
+            if [ ! -f "$RUNTIME_MODEL_NAME/config.json" ]; then
+              echo "ERROR: Translation model config.json not found at $RUNTIME_MODEL_NAME!"
+              echo "Directory contents:"
+              ls -R "$RUNTIME_MODEL_NAME" || echo "Model directory doesn't exist"
+              exit 1
+            fi
+
+            echo "✅ RAP translation model files present"
+          elif [[ "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
             echo "=== Checking Whisper model files ==="
             if [ ! -f "asr-rap/whisper/config.json" ]; then
               echo "ERROR: Whisper config.json not found!"
@@ -179,6 +234,13 @@ jobs:
             fi
 
             echo "✅ All required bfloat16 model files present"
+          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
+            echo "=== Checking TTS model files ==="
+            if [ ! -f "tts-rap/rap/female/config.json" ] || [ ! -f "tts-rap/rap/male/config.json" ]; then
+              echo "ERROR: TTS config.json not found for male or female!"
+              exit 1
+            fi
+            echo "✅ All required TTS model files present"
           else
             echo "Skipping verification for variant: ${{ github.event.inputs.variant }}"
           fi
@@ -222,7 +284,7 @@ jobs:
               IMAGE_TAG="asr-rap-bf16"
               ;;
             rap)
-              IMAGE_TAG="asr-rap"
+              IMAGE_TAG="nllb-200-3.3b-spa-rap"
               ;;
             asr-backup)
               IMAGE_TAG="asr-rap-backup"

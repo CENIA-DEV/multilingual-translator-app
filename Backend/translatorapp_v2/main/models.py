@@ -417,6 +417,7 @@ class CacheTTS(models.Model):
 
     text = models.TextField(max_length=5000)
     language = models.ForeignKey("Lang", on_delete=models.CASCADE)
+    gender = models.CharField(max_length=15, default="female")
 
     # Store the generated audio in base64
     audio_data = models.TextField()  # Base64 encoded audio
@@ -424,10 +425,10 @@ class CacheTTS(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["text", "language"]),
+            models.Index(fields=["text", "language", "gender"]),
         ]
         # Ensure uniqueness for same text + language + model
-        unique_together = [["text", "language"]]
+        unique_together = [["text", "language", "gender"]]
 
     def get_audio_bytes(self):
         """Decode base64 audio data back to bytes"""
@@ -491,3 +492,29 @@ class TranslationRequest(models.Model):
 
     def __str__(self):
         return f"{self.src_lang.code} → {self.dst_lang.code} | {self.created_at}"
+
+
+class Word(models.Model):
+    text = models.CharField(max_length=100, unique=True, db_index=True)
+
+    def __str__(self):
+        return self.text
+
+
+class Definition(models.Model):
+    word = models.ForeignKey(Word, related_name="definitions", on_delete=models.CASCADE)
+    meaning = models.TextField()
+
+    def __str__(self):
+        return f"{self.word.text}: {self.meaning[:20]}..."
+
+
+class WordInformation(models.Model):
+    word = models.OneToOneField(
+        Word, related_name="information", on_delete=models.CASCADE
+    )
+    other_ways_to_say = models.JSONField(default=list, blank=True, null=True)
+    additional_explanation = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Info for {self.word.text}"

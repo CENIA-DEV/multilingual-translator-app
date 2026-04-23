@@ -49,6 +49,26 @@ on:
         required: true
         type: number
         default: 20
+      word_information_requires_auth:
+        description: 'Word information requires authentication'
+        required: true
+        type: boolean
+        default: false
+      dictionary_enabled:
+        description: 'Enable dictionary feature'
+        required: true
+        type: boolean
+        default: true
+      separate_genders_requires_auth:
+        description: 'Separate gender selection requires authentication (false = default to female for non-auth)'
+        required: true
+        type: boolean
+        default: false
+      maintenance_mode:
+        description: 'Enable maintenance mode'
+        required: true
+        type: boolean
+        default: false
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -121,6 +141,14 @@ jobs:
           # Set OCR limits for frontend
           echo "NEXT_PUBLIC_OCR_MAX_PDF_PAGES=${{ github.event.inputs.ocr_max_pdf_pages }}" >> .env.production
           echo "NEXT_PUBLIC_OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.ocr_max_file_size_mb }}" >> .env.production
+          # Set word information enablement
+          echo "NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH=${{ github.event.inputs.word_information_requires_auth }}" >> .env.production
+          # Set dictionary enablement
+          echo "NEXT_PUBLIC_DICTIONARY_ENABLED=${{ github.event.inputs.dictionary_enabled }}" >> .env.production
+          # Set separate gender selection (when false, non-auth users get female voice by default)
+          echo "NEXT_PUBLIC_SEPARATE_GENDERS_REQUIRES_AUTH=${{ github.event.inputs.separate_genders_requires_auth }}" >> .env.production
+          # Set maintenance mode
+          echo "NEXT_PUBLIC_MAINTENANCE_MODE=${{ github.event.inputs.maintenance_mode }}" >> .env.production
 
           # if not production, set the api url to the backend url so we dont use relative path
           if [ "${{ steps.set-environment.outputs.environment }}" != "PRODUCTION" ]; then
