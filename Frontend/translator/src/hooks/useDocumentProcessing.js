@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { runOCR } from '../app/services/ocrService';
+import { OCR_MAX_FILE_SIZE_MB, OCR_MAX_PDF_PAGES } from '../app/constants';
 
 
 const DOCUMENT_LANGUAGE_OPTIONS = [
@@ -451,6 +452,15 @@ export function useDocumentProcessing() {
 
   const handleDocumentPicked = useCallback(async (file) => {
     if (!file) return;
+
+    const maxFileSizeBytes = OCR_MAX_FILE_SIZE_MB * 1024 * 1024;
+    if (file.size > maxFileSizeBytes) {
+      toast('Archivo demasiado grande', {
+        description: `El archivo supera ${OCR_MAX_FILE_SIZE_MB} MB.`,
+      });
+      return;
+    }
+
     if (!isSupportedDocument(file)) {
       toast('Formato no soportado', {
         description: 'Sube un archivo PDF, JPG, JPEG o PNG.',
@@ -485,7 +495,7 @@ export function useDocumentProcessing() {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await loadPdfDocument(pdfjsLib, arrayBuffer);
         const pageImages = [];
-        const maxPages = Math.min(pdf.numPages, 10);
+        const maxPages = Math.min(pdf.numPages, OCR_MAX_PDF_PAGES);
 
         for (let i = 1; i <= maxPages; i++) {
           const page = await pdf.getPage(i);

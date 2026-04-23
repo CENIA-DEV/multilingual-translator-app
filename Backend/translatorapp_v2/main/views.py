@@ -26,6 +26,7 @@ from django.core.files.base import ContentFile
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.authtoken.models import Token
@@ -37,6 +38,10 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
+
+
+from google.genai import types
+
 
 from .models import (
     CacheTTS,
@@ -1021,7 +1026,6 @@ class OCRViewSet(viewsets.ModelViewSet):
         return images
 
     def _run_ocr_inference(self, client, image_bytes):
-        from google.genai import types
 
         model_name = os.environ.get("GEMINI_OCR_MODEL", "gemini-flash-lite-latest")
         response = client.models.generate_content(
@@ -1029,7 +1033,23 @@ class OCRViewSet(viewsets.ModelViewSet):
             contents=[
                 types.Content(
                     parts=[
-                        types.Part(text="extract text from this image:"),
+                        types.Part(
+                            text="""
+                        You are an expert in OCR and language preservation. Extract all legible textual content from this image, prioritizing accurate recognition of Indigenous languages such as Rapanui.
+
+                        Instructions:
+                        1. Focus only on textual regions — ignore decorative borders, images, illustrations, stamps, or non-text design elements.
+                        2. Preserve the natural reading order, even in cases of multi-column layout or irregular formatting.
+                        3. Ignore typographic styling, page numbers, footers, headers, and purely visual elements.
+                        4. Output the clean raw text in plain format (no line breaks unless necessary for meaning).
+                        5. Do not infer or auto-correct Indigenous or uncommon words — preserve the original spelling as much as possible.
+                        6. If the page contains multilingual content, maintain the original language order and spelling for each block.
+
+                        This text may contain Spanish, Rapanui, or other Indigenous languages, often with unusual characters or phonetic spellings. Be especially careful not to misinterpret these.
+
+                        Return only the extracted text.
+                        """
+                        ),
                         types.Part(
                             inline_data=types.Blob(
                                 mime_type="image/png", data=image_bytes

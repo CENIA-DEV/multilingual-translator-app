@@ -34,6 +34,21 @@ on:
         required: true
         type: boolean
         default: true
+      ocr_requires_auth:
+        description: 'OCR requires authentication'
+        required: true
+        type: boolean
+        default: false
+      ocr_max_pdf_pages:
+        description: 'OCR max PDF pages (frontend preview limit)'
+        required: true
+        type: number
+        default: 100
+      ocr_max_file_size_mb:
+        description: 'OCR max file size in MB (frontend pre-check)'
+        required: true
+        type: number
+        default: 20
 jobs:
   build-push-gcp:
     name: Build and Push to GCP
@@ -101,6 +116,11 @@ jobs:
           echo "NEXT_PUBLIC_ASR_REQUIRES_AUTH=${{ github.event.inputs.asr_requires_auth }}" >> .env.production
           # Set OCR enablement
           echo "NEXT_PUBLIC_OCR_ENABLED=${{ github.event.inputs.ocr_enabled }}" >> .env.production
+          # Set OCR auth requirement
+          echo "NEXT_PUBLIC_OCR_REQUIRES_AUTH=${{ github.event.inputs.ocr_requires_auth }}" >> .env.production
+          # Set OCR limits for frontend
+          echo "NEXT_PUBLIC_OCR_MAX_PDF_PAGES=${{ github.event.inputs.ocr_max_pdf_pages }}" >> .env.production
+          echo "NEXT_PUBLIC_OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.ocr_max_file_size_mb }}" >> .env.production
 
           # if not production, set the api url to the backend url so we dont use relative path
           if [ "${{ steps.set-environment.outputs.environment }}" != "PRODUCTION" ]; then
