@@ -24,6 +24,7 @@ import {
   faArrowRight,
   faLock,
   faVolumeHigh,
+  faFileArrowUp,
   faStop,
   faSpinner,
   faMicrophone,
@@ -155,7 +156,6 @@ export default function Translator() {
 
   // ASR helpers - only if ASR_ENABLED
   const isASRLang = (l) => ASR_ENABLED && (isES(l) || isRAP(l)); // ASR works for Spanish and Rapa Nui
-  const isASRSourceAllowed = (l) => ASR_ENABLED && isES(l); // Upload audio only available for Spanish source
 
   // --- dinamics flags ---
 
@@ -175,7 +175,7 @@ export default function Translator() {
 
   // ASR buttons: show if language is supported
   const ASR_MIC_VISIBLE_D = isASRLang(srcLang) || isASRLang(dstLang);
-  const ASR_UPLOAD_VISIBLE_D = !OCRRestricted && isASRSourceAllowed(srcLang);
+  const OCR_UPLOAD_VISIBLE_D = !OCRRestricted;
 
   const getLangs = async (code, script, dialect) => {
     try {
@@ -624,6 +624,11 @@ export default function Translator() {
     setShowSrcTextMessage(false);
   };
 
+  const handleOpenDocumentOCR = () => {
+    const ocrOpenButton = document.getElementById('document-ocr-open-btn');
+    ocrOpenButton?.click();
+  };
+
   const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
   return (
@@ -698,19 +703,31 @@ export default function Translator() {
           {/* LEFT: Document OCR tools */}
           <div className="absolute left-4 bottom-4 z-[3] flex gap-2 items-center max-[850px]:left-3 max-[850px]:bottom-14 max-[480px]:flex-col">
             <DocumentOCRTools
-              visible={ASR_UPLOAD_VISIBLE_D}
+              visible={OCR_UPLOAD_VISIBLE_D}
               translationRestricted={translationRestricted}
               onRestricted={() => setTranslationRestrictedDialogOpen(true)}
             />
           </div>
 
           {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
-            <div className=" absolute right-4 bottom-4 z-[40] flex items-center gap-2 max-[850px]:fixed max-[850px]:inset-x-0 max-[850px]:bottom-0 max-[850px]:justify-center max-[850px]:gap-4 max-[850px]:bg-[#f3f4f6] max-[850px]:py-3 max-[850px]:px-6 max-[850px]:rounded-tl-[2rem] max-[850px]:rounded-tr-[2rem] max-[850px]:border-t max-[850px]:border-slate-200 max-[850px]:shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-[850px]:pb-[env(safe-area-inset-bottom)]">
+            <div className=" absolute right-4 bottom-4 z-[40] flex items-center gap-2 max-[850px]:fixed max-[850px]:inset-x-0 max-[850px]:bottom-0 max-[850px]:justify-center max-[850px]:gap-3 max-[850px]:bg-[#f3f4f6] max-[850px]:py-3 max-[850px]:px-6 max-[850px]:rounded-tl-[2rem] max-[850px]:rounded-tr-[2rem] max-[850px]:border-t max-[850px]:border-slate-200 max-[850px]:shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-[850px]:pb-[calc(env(safe-area-inset-bottom)+4px)]">
+
+            {OCR_UPLOAD_VISIBLE_D && (
+              <button
+                type="button"
+                className="hidden max-[850px]:inline-flex box-content w-[44px] h-[44px] rounded-full justify-center items-center bg-white z-[3] cursor-pointer border-[6px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110"
+                onClick={handleOpenDocumentOCR}
+                aria-label="Subir documento"
+                title="Subir documento"
+              >
+                <FontAwesomeIcon icon={faFileArrowUp} className="text-[1.1em]" color="#0a8cde" />
+              </button>
+            )}
             
             {/* Mic button (center-bottom) */}
             {ASR_MIC_VISIBLE_D && (
               <div
-                className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
+                className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:w-[44px] max-[850px]:h-[44px] max-[850px]:border-[6px] ${showRecordModal ? 'hidden' : ''}`}
                 onClick={async () => {
                   if (ASRRestricted) {
                     setTranslationRestrictedDialogOpen(true);

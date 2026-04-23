@@ -54,6 +54,8 @@ export default function Card(props) {
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
   const showClearLeft = side === 'left' && !!srcText?.trim();
+  const sideText = side === 'left' ? srcText : dstText;
+  const showWordInfoButton = wordInformationEnabled && !!sideText?.trim();
   const [wordInfo, setWordInfo] = useState([]);
 
   useEffect(() => {
@@ -145,7 +147,7 @@ export default function Card(props) {
   };
 
   const renderInfoPopover = () => {
-    if (!wordInformationEnabled || wordInfo.length === 0) return null;
+    if (!showWordInfoButton) return null;
     const infoTooltipClassName = side === 'left'
       ? 'rounded-full'
       : 'bg-default border-white text-white rounded-full border-2';
@@ -265,7 +267,7 @@ export default function Card(props) {
               />
             </div>
 
-            {(showSpeaker || showClearLeft || wordInformationEnabled) && (
+            {(showSpeaker || showClearLeft || showWordInfoButton) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 
@@ -372,7 +374,7 @@ export default function Card(props) {
               {dstText?.endsWith('\n') ? <br /> : null}
             </div>
 
-            {((dstText && dstText.length > 0) || wordInformationEnabled) && (
+            {((dstText && dstText.length > 0) || showWordInfoButton) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 

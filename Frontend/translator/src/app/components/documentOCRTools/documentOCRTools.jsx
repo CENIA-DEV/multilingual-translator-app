@@ -78,6 +78,7 @@ export default function DocumentOCRTools({
     <>
       {visible && (
         <button
+          id="document-ocr-open-btn"
           type="button"
           className="max-[850px]:hidden box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110"
           title="Subir documento"
@@ -89,7 +90,7 @@ export default function DocumentOCRTools({
       )}
 
       <Dialog open={showDocumentModal} onOpenChange={onDocumentModalOpenChange}>
-        <DialogContent className="w-[min(1100px,96vw)] max-w-none p-0 overflow-hidden bg-white border border-slate-200">
+        <DialogContent className="w-[min(1100px,96vw)] max-w-none p-0 overflow-hidden bg-white border border-slate-200 max-[850px]:w-[96vw] max-[850px]:max-h-[90dvh] max-[850px]:overflow-y-auto max-[850px]:rounded-2xl">
           <div className="px-5 pt-5 pb-2 text-[#0f172a]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-semibold text-[#0a8cde]">Extraccion de documento</DialogTitle>
@@ -100,7 +101,7 @@ export default function DocumentOCRTools({
             <p className="text-sm text-slate-500 mt-1">Sube un PDF o imagen para extraer su contenido.</p>
           </div>
 
-          <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-[1.05fr_1fr] gap-4">
+          <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-[1.05fr_1fr] gap-4 max-[850px]:px-3 max-[850px]:pb-3 max-[850px]:gap-3">
             <div
               className={`rounded-3xl border-2 border-dashed min-h-[420px] bg-[#f8fbff] transition relative overflow-hidden ${
                 documentDragActive ? 'border-[#0a8cde] bg-[#eef7ff]' : 'border-[#cfe6f8]'
