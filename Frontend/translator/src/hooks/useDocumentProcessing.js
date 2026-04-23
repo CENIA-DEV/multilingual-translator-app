@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { runOCR } from '../app/services/ocrService';
+
 
 const DOCUMENT_LANGUAGE_OPTIONS = [
-  { code: 'eng', label: 'English' },
-  { code: 'spa', label: 'Spanish' },
-  { code: 'fra', label: 'French' },
-  { code: 'deu', label: 'German' },
-  { code: 'auto', label: 'Auto Detect' },
+  { code: 'spa', label: 'Español' },
+  { code: 'rap', label: 'Rapa Nui' },
 ];
 
 function revokeBlobUrl(url) {
@@ -19,6 +18,19 @@ function revokeBlobUrl(url) {
 
 function dedupeUrls(urls) {
   return Array.from(new Set((urls || []).filter(Boolean)));
+}
+
+function getFileBaseName(fileName, fallback = 'document') {
+  if (!fileName || typeof fileName !== 'string') return fallback;
+  return fileName.replace(/\.[^/.]+$/, '') || fallback;
+}
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function round6(value) {
+  return Number(value.toFixed(6));
 }
 
 export function useDocumentProcessing() {
@@ -38,9 +50,10 @@ export function useDocumentProcessing() {
   const [documentPanDragging, setDocumentPanDragging] = useState(false);
   const [documentPageHistory, setDocumentPageHistory] = useState({});
   const [documentOcrByPage, setDocumentOcrByPage] = useState({});
+  const [documentCornersByPage, setDocumentCornersByPage] = useState({});
   const [documentIsRunning, setDocumentIsRunning] = useState(false);
   const [documentProcessingFiles, setDocumentProcessingFiles] = useState(false);
-  const [documentTargetLanguages, setDocumentTargetLanguages] = useState([]);
+  const [documentSourceLanguage, setDocumentSourceLanguage] = useState('spa');
 
   const docInputRef = useRef(null);
   const documentViewportRef = useRef(null);
@@ -102,9 +115,10 @@ export function useDocumentProcessing() {
     documentPanStartRef.current = null;
     setDocumentPageHistory({});
     setDocumentOcrByPage({});
+    setDocumentCornersByPage({});
     setDocumentIsRunning(false);
     setDocumentProcessingFiles(false);
-    setDocumentTargetLanguages([]);
+    setDocumentSourceLanguage('spa');
     if (docInputRef.current) docInputRef.current.value = '';
   }, [revokeAllKnownBlobUrls]);
 
@@ -185,6 +199,11 @@ export function useDocumentProcessing() {
       setDocumentRotation(0);
       setDocumentCropSelection(null);
       setDocumentCropMode(false);
+      setDocumentCornersByPage((prev) => {
+        const next = { ...prev };
+        delete next[documentPageIndex];
+        return next;
+      });
       setDocumentPan({ x: 0, y: 0 });
       setDocumentPanDragging(false);
       documentPanStartRef.current = null;
@@ -220,6 +239,11 @@ export function useDocumentProcessing() {
     setDocumentCropSelection(null);
     setDocumentCropDragging(false);
     setDocumentCropStart(null);
+    setDocumentCornersByPage((prev) => {
+      const next = { ...prev };
+      delete next[documentPageIndex];
+      return next;
+    });
     setDocumentPan({ x: 0, y: 0 });
     setDocumentPanDragging(false);
     documentPanStartRef.current = null;
@@ -255,6 +279,23 @@ export function useDocumentProcessing() {
       const sy = Math.floor(syView * scaleY);
       const sWidth = Math.floor(widthView * scaleX);
       const sHeight = Math.floor(heightView * scaleY);
+      const right = sx + sWidth;
+      const bottom = sy + sHeight;
+
+      if (!imgEl.naturalWidth || !imgEl.naturalHeight) {
+        throw new Error('No se pudieron calcular las esquinas del recorte.');
+      }
+
+      const normalizedCorners = {
+        x1: round6(clamp01(sx / imgEl.naturalWidth)),
+        y1: round6(clamp01(sy / imgEl.naturalHeight)),
+        x2: round6(clamp01(right / imgEl.naturalWidth)),
+        y2: round6(clamp01(sy / imgEl.naturalHeight)),
+        x3: round6(clamp01(right / imgEl.naturalWidth)),
+        y3: round6(clamp01(bottom / imgEl.naturalHeight)),
+        x4: round6(clamp01(sx / imgEl.naturalWidth)),
+        y4: round6(clamp01(bottom / imgEl.naturalHeight)),
+      };
 
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, sWidth);
@@ -279,6 +320,10 @@ export function useDocumentProcessing() {
       setDocumentCropSelection(null);
       setDocumentCropDragging(false);
       setDocumentCropStart(null);
+      setDocumentCornersByPage((prev) => ({
+        ...prev,
+        [documentPageIndex]: normalizedCorners,
+      }));
       setDocumentPan({ x: 0, y: 0 });
       setDocumentPanDragging(false);
       documentPanStartRef.current = null;
@@ -428,6 +473,7 @@ export function useDocumentProcessing() {
     documentPanStartRef.current = null;
     setDocumentPageHistory({});
     setDocumentOcrByPage({});
+    setDocumentCornersByPage({});
     setDocumentPages([]);
     setDocumentPageIndex(0);
 
@@ -500,26 +546,91 @@ export function useDocumentProcessing() {
     setShowDocumentModal(true);
   }, [closeDocumentModal]);
 
+  const buildCurrentPageFile = useCallback(async () => {
+    if (!currentDocumentPageUrl || isPdfObjectFallback) {
+      return documentFile;
+    }
+
+    const response = await fetch(currentDocumentPageUrl);
+    const blob = await response.blob();
+    const mimeType = blob.type || 'image/png';
+    const extension = mimeType.includes('jpeg') ? 'jpg' : 'png';
+    const baseName = getFileBaseName(documentFile?.name, 'document');
+    const fileName = `${baseName}_page_${documentPageIndex + 1}.${extension}`;
+
+    return new File([blob], fileName, { type: mimeType });
+  }, [currentDocumentPageUrl, documentFile, documentPageIndex, isPdfObjectFallback]);
+
   const runDocumentOCR = useCallback(async () => {
     if (!documentFile) {
       toast('No hay documento', { description: 'Sube un documento antes de ejecutar OCR.' });
       return;
     }
 
-    setDocumentIsRunning(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setDocumentOcrByPage((prev) => ({
-      ...prev,
-      [documentPageIndex]: `No se encontro texto en pagina ${documentPageIndex + 1}.`,
-    }));
-    setDocumentIsRunning(false);
-  }, [documentFile, documentPageIndex]);
+    const sourceLanguage = documentSourceLanguage || 'spa';
+    const corners = documentCornersByPage[documentPageIndex] || null;
 
-  const toggleDocumentLang = useCallback((code) => {
-    setDocumentTargetLanguages((prev) =>
-      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
-    );
-  }, []);
+    setDocumentIsRunning(true);
+    try {
+      const fileForOCR = await buildCurrentPageFile();
+      if (!fileForOCR) {
+        throw new Error('No se pudo preparar el archivo para OCR.');
+      }
+
+      const formData = new FormData();
+      formData.append('files', fileForOCR, fileForOCR.name);
+      formData.append('src_languages', sourceLanguage);
+
+      if (corners) {
+        Object.entries(corners).forEach(([key, value]) => {
+          formData.append(key, String(value));
+        });
+      }
+
+      const results = await runOCR(formData);
+      const validResults = Array.isArray(results) ? results : [];
+      const extractedText = validResults
+        .map((result) => (result?.text || '').trim())
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
+
+      const firstError = validResults.find((result) => result?.error)?.error;
+      const emptyMessage = `No se encontro texto en pagina ${documentPageIndex + 1}.`;
+
+      setDocumentOcrByPage((prev) => ({
+        ...prev,
+        [documentPageIndex]: extractedText || emptyMessage,
+      }));
+
+      if (extractedText) {
+        toast('OCR completado');
+      } else if (firstError) {
+        toast('OCR completado con errores', {
+          description: firstError,
+        });
+      } else {
+        toast('No se detecto texto en la pagina actual.');
+      }
+    } catch (error) {
+      console.error('Document OCR failed:', error);
+      const apiError =
+        error?.response?.data?.error ||
+        error?.response?.data?.detail ||
+        'Intenta nuevamente con otro archivo o formato.';
+      toast('No se pudo ejecutar OCR', {
+        description: apiError,
+      });
+    } finally {
+      setDocumentIsRunning(false);
+    }
+  }, [
+    buildCurrentPageFile,
+    documentCornersByPage,
+    documentFile,
+    documentPageIndex,
+    documentSourceLanguage,
+  ]);
 
   return {
     DOCUMENT_LANGUAGE_OPTIONS,
@@ -537,9 +648,10 @@ export function useDocumentProcessing() {
     documentPanDragging,
     documentPageHistory,
     documentOcrByPage,
+    documentCornersByPage,
     documentIsRunning,
     documentProcessingFiles,
-    documentTargetLanguages,
+    documentSourceLanguage,
     docInputRef,
     documentViewportRef,
     documentImageRef,
@@ -553,13 +665,13 @@ export function useDocumentProcessing() {
     setDocumentCropDragging,
     setDocumentCropStart,
     setDocumentOcrByPage,
+    setDocumentSourceLanguage,
 
     openDocumentUploadModal,
     closeDocumentModal,
     onDocumentModalOpenChange,
     handleDocumentPicked,
     runDocumentOCR,
-    toggleDocumentLang,
     goToDocumentPage,
     handleDocumentZoomIn,
     handleDocumentZoomOut,

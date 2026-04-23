@@ -19,6 +19,7 @@ export default function DocumentOCRTools({
   onRestricted,
 }) {
   const {
+    DOCUMENT_LANGUAGE_OPTIONS,
     showDocumentModal,
     documentDragActive,
     documentFile,
@@ -31,8 +32,10 @@ export default function DocumentOCRTools({
     documentPan,
     documentPanDragging,
     documentPageHistory,
+    documentCornersByPage,
     documentIsRunning,
     documentProcessingFiles,
+    documentSourceLanguage,
     docInputRef,
     documentViewportRef,
     documentImageRef,
@@ -45,6 +48,7 @@ export default function DocumentOCRTools({
     setDocumentCropDragging,
     setDocumentCropStart,
     setDocumentOcrByPage,
+    setDocumentSourceLanguage,
     openDocumentUploadModal,
     onDocumentModalOpenChange,
     handleDocumentPicked,
@@ -67,6 +71,8 @@ export default function DocumentOCRTools({
     }
     openDocumentUploadModal();
   };
+
+  const hasCropOnCurrentPage = Boolean(documentCornersByPage?.[documentPageIndex]);
 
   return (
     <>
@@ -326,17 +332,43 @@ export default function DocumentOCRTools({
             </div>
 
             <div className="rounded-3xl overflow-hidden bg-white border border-slate-200 min-h-[420px]">
-              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 bg-[#f8fafc]">
-                <p className="text-sm font-semibold text-slate-700">
-                  Escaner Pagina {documentPages.length ? documentPageIndex + 1 : 0}
-                </p>
-                <Button
-                  className="bg-[#0a8cde] text-white hover:bg-[#0a8cde]"
-                  onClick={runDocumentOCR}
-                  disabled={!documentFile || documentIsRunning || documentProcessingFiles}
-                >
-                  {documentIsRunning ? 'Escaneando...' : 'Escanear documento'}
-                </Button>
+              <div className="px-5 py-4 border-b border-slate-200 bg-[#f8fafc]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">
+                      Escaner Pagina {documentPages.length ? documentPageIndex + 1 : 0}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {hasCropOnCurrentPage ? 'Recorte activo: se enviaran esquinas al backend.' : 'Sin recorte guardado para esta pagina.'}
+                    </p>
+                  </div>
+                  <Button
+                    className="bg-[#0a8cde] text-white hover:bg-[#0a8cde]"
+                    onClick={runDocumentOCR}
+                    disabled={!documentFile || documentIsRunning || documentProcessingFiles}
+                  >
+                    {documentIsRunning ? 'Escaneando...' : 'Escanear documento'}
+                  </Button>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <label htmlFor="ocr-src-language" className="text-xs font-medium text-slate-600">
+                    Idioma OCR:
+                  </label>
+                  <select
+                    id="ocr-src-language"
+                    className="rounded-md border border-[#b7d8f4] bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#9dd2f5]"
+                    value={documentSourceLanguage}
+                    onChange={(e) => setDocumentSourceLanguage(e.target.value)}
+                    disabled={documentIsRunning || documentProcessingFiles}
+                  >
+                    {DOCUMENT_LANGUAGE_OPTIONS.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="h-[calc(100%-4rem)] p-6">

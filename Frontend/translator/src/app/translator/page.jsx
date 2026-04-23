@@ -35,7 +35,7 @@ import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
 import DocumentOCRTools from '../components/documentOCRTools/documentOCRTools.jsx';
-import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED, OCR_ENABLED } from '../constants';
+import { isTranslationRestricted, isASRRestricted, isTTSRestricted, isOCRRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED } from '../constants';
 import { VARIANT_LANG } from "@/app/constants";
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -128,6 +128,7 @@ export default function Translator() {
   // Check if ASR and TTS are restricted for current user
   const ASRRestricted = isASRRestricted(currentUser);
   const TTSRestricted = isTTSRestricted(currentUser);
+  const OCRRestricted = isOCRRestricted(currentUser);
 
   // --- Language helpers for button visibility---
   const codeOf = (l) => (l?.code || '').toLowerCase(); // 'spa_Latn','eng_Latn','rap_Latn',…
@@ -155,7 +156,7 @@ export default function Translator() {
 
   // ASR buttons: show if language is supported
   const ASR_MIC_VISIBLE_D = isASRLang(srcLang) || isASRLang(dstLang);
-  const ASR_UPLOAD_VISIBLE_D = OCR_ENABLED && isASRSourceAllowed(srcLang);
+  const ASR_UPLOAD_VISIBLE_D = !OCRRestricted && isASRSourceAllowed(srcLang);
 
   const getLangs = async (code, script, dialect) => {
     try {

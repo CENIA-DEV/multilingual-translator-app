@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     TRANSLATION: 'api/translate/',
     TEXT_TO_SPEECH: 'api/text-to-speech/',
     SPEECH_TO_TEXT: 'api/speech-to-text/',
+    OCR: 'api/ocr/',
     INVITATIONS: 'api/invitations/',
     USERS: 'api/users/',
     REQUESTS: 'api/requests/',
@@ -41,6 +42,7 @@ export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-reque
 export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
 export const TTS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TTS_REQUIRES_AUTH === 'true';
 export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === 'true';
+export const OCR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_OCR_REQUIRES_AUTH === 'true';
 
 // Feature availability by variant
 export const TTS_ENABLED = VARIANT_LANG === 'rap'; // Only enable TTS for Rapa Nui
@@ -62,6 +64,10 @@ export const isTTSRestricted = (currentUser) => {
 export const isASRRestricted = (currentUser) => {
     return !ASR_ENABLED || (ASR_REQUIRES_AUTH && !currentUser);
   
+}
+
+export const isOCRRestricted = (currentUser) => {
+  return !OCR_ENABLED || (OCR_REQUIRES_AUTH && !currentUser);
 }
 
 
