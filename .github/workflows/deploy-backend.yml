@@ -63,7 +63,9 @@ on:
         
       pdf_size_mb: 
         description: "Max PDF/image size (MB)" 
-        required: true type: number default: 20
+        required: true 
+        type: number 
+        default: 20
         
 
 jobs:
@@ -292,7 +294,7 @@ jobs:
             GEMINI_OCR_MODEL=${{ github.event.inputs.gemini_ocr_model }}
             OCR_MAX_PDF_PAGES=${{ github.event.inputs.pdf_pages }}
             OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.pdf_size_mb }}
-            
+
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '10m'
