@@ -225,10 +225,10 @@ jobs:
           ${{ env.ENV_FILE_BACK }}
           EOF
           echo "DB_PASSWORD='${{ env.DB_PASSWORD }}'" >> .env
-          echo "MAX_WORDS_TRANSLATION='${{ env.MAX_WORDS_TRANSLATION }}'" >> .env
+          echo "MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env
           echo "GEMINI_OCR_MODEL='${{ github.event.inputs.gemini_ocr_model }}'" >> .env
-          echo "OCR_MAX_PDF_PAGES='${{ github.event.inputs.pdf_pages }}'" >> .env
-          echo "OCR_MAX_FILE_SIZE_MB='${{ github.event.inputs.pdf_size_mb }}'" >> .env
+          echo "OCR_MAX_PDF_PAGES=${{ github.event.inputs.pdf_pages }}" >> .env
+          echo "OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.pdf_size_mb }}" >> .env
           echo "APP_INFERENCE_ASR_MODEL_URL='${{ env.ASR_INFERENCE_URL }}'" >> .env
           echo "APP_INFERENCE_ASR_MODEL_NAME='${{ github.event.inputs.asr_model_name }}'" >> .env
           echo "APP_RAW_INFERENCE_ASR_MODEL_URL='${{ env.RAW_ASR_INFERENCE_URL }}'" >> .env
@@ -288,8 +288,8 @@ jobs:
             APP_RAW_INFERENCE_ASR_MODEL_URL=${{ env.RAW_ASR_INFERENCE_URL }}
             GEMINI_API_KEY='${{ secrets.GEMINI_API_KEY }}'
             GEMINI_OCR_MODEL='${{ github.event.inputs.gemini_ocr_model }}'
-            OCR_MAX_PDF_PAGES='${{ github.event.inputs.pdf_pages }}'
-            OCR_MAX_FILE_SIZE_MB='${{ github.event.inputs.pdf_size_mb }}'
+            OCR_MAX_PDF_PAGES=${{ github.event.inputs.pdf_pages }}
+            OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.pdf_size_mb }}
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '10m'
