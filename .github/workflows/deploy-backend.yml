@@ -64,8 +64,7 @@ on:
       pdf_size_mb: 
         description: "Max PDF/image size (MB)" 
         required: true 
-        type: number 
-        default: 20
+        type: number default: 20
         
 
 jobs:
@@ -243,39 +242,6 @@ jobs:
           echo "=== Total lines in .env ==="
           wc -l .env || true
 
-      - name: Load backend runtime env vars
-        working-directory: Backend/translatorapp_v2/
-        run: |
-          cat > .env.runtime << 'EOF'
-          ${{ env.ENV_FILE_BACK }}
-          EOF
-
-          python - <<'PY'
-          import os
-
-          values = {}
-          with open('.env.runtime', encoding='utf-8') as env_file:
-            for raw_line in env_file:
-              line = raw_line.strip()
-              if not line or line.startswith('#') or '=' not in line:
-                continue
-              key, value = line.split('=', 1)
-              value = value.strip()
-              if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
-                value = value[1:-1]
-              values[key.strip()] = value
-
-          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as github_env:
-            github_env.write(f"DB_USER={values.get('DB_USER', '')}\n")
-            github_env.write(f"DB_PORT={values.get('DB_PORT', '5432')}\n")
-            github_env.write(f"EMAIL_USER={values.get('EMAIL_USER', '')}\n")
-            github_env.write(f"EMAIL_KEY={values.get('EMAIL_KEY', '')}\n")
-            github_env.write(f"SUPPORT_EMAIL={values.get('SUPPORT_EMAIL', '')}\n")
-            github_env.write(f"INVITATION_GUIDE_URL={values.get('INVITATION_GUIDE_URL', os.environ.get('FRONTEND_URL', ''))}\n")
-          PY
-
-          rm -f .env.runtime
-
       - name: Build Docker Image
         working-directory: Backend/translatorapp_v2/
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
@@ -299,21 +265,17 @@ jobs:
           service: '${{ vars.SERVICE_NAME_BACKEND }}-${{ steps.set-variant.outputs.variant }}'
           image: ${{ env.ARTIFACT_REGISTRY_URL }}
           env_vars: |-
+            GOOGLE_APPLICATION_CREDENTIALS_JSON='${{ secrets.GCP_CREDENTIALS }}'
             SECRET_KEY=${{ env.DJANGO_SECRET_KEY }}
             PRODUCTION=${{ steps.set-environment.outputs.environment == 'PRODUCTION' && 'True' || 'False' }}
             TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.translation_requires_auth }}
             VARIANT=${{ steps.set-variant.outputs.variant }}
             DB_HOST=${{ env.DB_HOST }}
-            DB_PORT=${{ env.DB_PORT }}
-            DB_USER=${{ env.DB_USER }}
             DB_PASSWORD=${{ env.DB_PASSWORD }}
             APP_FRONTEND_URL=${{ env.FRONTEND_URL }}
             APP_BACKEND_URL=${{ env.BACKEND_URL }}
             DB_NAME=${{ steps.set-variant.outputs.variant }}
             INVITATION_GUIDE_URL=${{ env.FRONTEND_URL }}
-            SUPPORT_EMAIL=${{ env.SUPPORT_EMAIL }}
-            EMAIL_USER=${{ env.EMAIL_USER }}
-            EMAIL_KEY=${{ env.EMAIL_KEY }}
             INSTANCE_CONNECTION_NAME=${{ env.PROJECT_ID }}:${{ env.DB_REGION }}:${{ env.INSTANCE_NAME }}
             APP_INFERENCE_MODEL_NAME=${{ github.event.inputs.model_name }}
             APP_RAW_INFERENCE_MODEL_NAME=${{ github.event.inputs.raw_model_name }}
@@ -331,7 +293,7 @@ jobs:
             GEMINI_OCR_MODEL=${{ github.event.inputs.gemini_ocr_model }}
             OCR_MAX_PDF_PAGES=${{ github.event.inputs.pdf_pages }}
             OCR_MAX_FILE_SIZE_MB=${{ github.event.inputs.pdf_size_mb }}
-
+            
           region: '${{ env.SERVICE_REGION }}'
           project_id: '${{ env.PROJECT_ID }}'
           timeout: '10m'

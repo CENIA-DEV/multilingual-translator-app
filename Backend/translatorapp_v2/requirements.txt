@@ -33,3 +33,4 @@ soundfile
 librosa
 ffmpeg-python
 django-storages[google]
+drf_spectacular
