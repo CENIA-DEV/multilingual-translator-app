@@ -48,6 +48,8 @@ export default function Card(props) {
   const isSpeaking = props.isSpeaking;
   const isLoadingAudio = props.isLoadingAudio;
   const wordInformationEnabled = !!props.wordInformationEnabled;
+  const isRapaNuiLanguage = (lang?.code || '').toLowerCase().startsWith('rap');
+  const isWordInformationActive = wordInformationEnabled && isRapaNuiLanguage;
   const separateGendersAllowed = props.separateGendersAllowed !== false; // default to true if not specified
   const onSpeak = props.onSpeak;
   const onStop = props.onStop;
@@ -57,7 +59,7 @@ export default function Card(props) {
   const [wordInfo, setWordInfo] = useState([]);
 
   useEffect(() => {
-    if (!wordInformationEnabled) {
+    if (!isWordInformationActive) {
       setWordInfo([]);
       return;
     }
@@ -80,7 +82,7 @@ export default function Card(props) {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [srcText, dstText, side, wordInformationEnabled]);
+  }, [srcText, dstText, side, isWordInformationActive]);
 
   // Close options if clicked outside
   useEffect(() => {
@@ -101,7 +103,7 @@ export default function Card(props) {
   const renderHighlightedText = (text, textColorClass) => {
     if (!text) return null;
 
-    if (!wordInformationEnabled) {
+    if (!isWordInformationActive) {
       return <span className={textColorClass}>{text}</span>;
     }
 
@@ -145,7 +147,7 @@ export default function Card(props) {
   };
 
   const renderInfoPopover = () => {
-    if (!wordInformationEnabled || wordInfo.length === 0) return null;
+    if (!isWordInformationActive || wordInfo.length === 0) return null;
     const infoTooltipClassName = side === 'left'
       ? 'rounded-full'
       : 'bg-default border-white text-white rounded-full border-2';
@@ -246,7 +248,7 @@ export default function Card(props) {
                 ref={leftOverlayRef}
                 className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide"
               >
-                {renderHighlightedText(srcText, "text-transparent")}
+                {renderHighlightedText(srcText, "text-black")}
                 {srcText?.endsWith('\n') ? <br /> : null}
               </div>
               <Textarea
@@ -259,12 +261,12 @@ export default function Card(props) {
                 autoCapitalize="off"
                 autoComplete="off"
                 data-gramm="false"
-                style={{ color: '#000000', caretColor: '#000000', padding: '8px 14px' }}
-                className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? 'border-red-500 focus-visible:ring-red-500' : 'border-transparent focus-visible:ring-0'} resize-none bg-transparent outline-none text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]`}
+                style={{ color: 'transparent', WebkitTextFillColor: 'transparent', caretColor: '#000000' }}
+                className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? 'border-red-500 focus-visible:ring-red-500' : 'border-transparent focus-visible:ring-0'} resize-none bg-transparent outline-none px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap placeholder:text-black overflow-y-auto scrollbar-hide animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]`}
               />
             </div>
 
-            {(showSpeaker || showClearLeft || wordInformationEnabled) && (
+            {(showSpeaker || showClearLeft || isWordInformationActive) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 
@@ -371,7 +373,7 @@ export default function Card(props) {
               {dstText?.endsWith('\n') ? <br /> : null}
             </div>
 
-            {((dstText && dstText.length > 0) || wordInformationEnabled) && (
+            {((dstText && dstText.length > 0) || isWordInformationActive) && (
               <div className="ml-2 flex flex-col items-center justify-start gap-2 pt-[10px] w-9 shrink-0" ref={containerRef}>
                 {renderInfoPopover()}
 
