@@ -32,6 +32,9 @@ import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
   const [showGenderOptions, setShowGenderOptions] = useState(false);
+  const [isLeftFocused, setIsLeftFocused] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
   const containerRef = useRef(null);
 
   const side = props.side;
@@ -50,7 +53,7 @@ export default function Card(props) {
   const wordInformationEnabled = !!props.wordInformationEnabled;
   const isRapaNuiLanguage = (lang?.code || '').toLowerCase().startsWith('rap');
   const isWordInformationActive = wordInformationEnabled && isRapaNuiLanguage;
-  const separateGendersAllowed = props.separateGendersAllowed !== false; // default to true if not specified
+  const separateGendersAllowed = props.separateGendersAllowed !== false; 
   const onSpeak = props.onSpeak;
   const onStop = props.onStop;
   const speakerColor = side === 'left' ? "#0a8cde" : "#ffffff";
@@ -84,7 +87,6 @@ export default function Card(props) {
     return () => clearTimeout(timeoutId);
   }, [srcText, dstText, side, isWordInformationActive]);
 
-  // Close options if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -95,10 +97,39 @@ export default function Card(props) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close options if text changes
   useEffect(() => {
     setShowGenderOptions(false);
   }, [srcText, dstText]);
+
+  // Clean up typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, []);
+
+  const handleLeftFocus = () => {
+    setIsLeftFocused(true);
+    setIsTyping(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 1000);
+  };
+
+  const handleLeftBlur = () => {
+    setIsLeftFocused(false);
+    setIsTyping(false);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  };
+
+  const handleLeftTextChange = (e) => {
+    handleSrcText(e.target.value);
+    setIsTyping(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 1000);
+  };
+
+  // The overlay shows if Rapa Nui word info is active AND the user is not actively typing
+  const showLeftOverlay = isWordInformationActive && (!isLeftFocused || !isTyping);
 
   const renderHighlightedText = (text, textColorClass) => {
     if (!text) return null;
@@ -244,24 +275,34 @@ export default function Card(props) {
         <>
           <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative">
             <div className="relative flex-1 h-full min-w-0">
-              <div
-                ref={leftOverlayRef}
-                className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide"
-              >
-                {renderHighlightedText(srcText, "text-black")}
-                {srcText?.endsWith('\n') ? <br /> : null}
-              </div>
+              
+              {showLeftOverlay && (
+                <div
+                  ref={leftOverlayRef}
+                  className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide text-black"
+                >
+                  {renderHighlightedText(srcText, "text-black")}
+                  {srcText?.endsWith('\n') ? <br /> : null}
+                </div>
+              )}
+
               <Textarea
+                onFocus={handleLeftFocus}
+                onBlur={handleLeftBlur}
                 onScroll={handleLeftScroll}
                 value={srcText}
-                placeholder={lang.code === "rap_Latn" ? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" : 'Escriba aquí el texto a traducir'}
-                onChange={e => handleSrcText(e.target.value)}
+                placeholder={lang?.code === "rap_Latn" ? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri" : 'Escriba aquí el texto a traducir'}
+                onChange={handleLeftTextChange}
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
                 autoComplete="off"
                 data-gramm="false"
-                style={{ color: 'transparent', WebkitTextFillColor: 'transparent', caretColor: '#000000' }}
+                style={{ 
+                  color: showLeftOverlay ? 'transparent' : '#000000', 
+                  WebkitTextFillColor: showLeftOverlay ? 'transparent' : '#000000', 
+                  caretColor: '#000000' 
+                }}
                 className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? 'border-red-500 focus-visible:ring-red-500' : 'border-transparent focus-visible:ring-0'} resize-none bg-transparent outline-none px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap placeholder:text-black overflow-y-auto scrollbar-hide animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]`}
               />
             </div>
