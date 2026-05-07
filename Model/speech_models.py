@@ -53,7 +53,7 @@ class SpeechModelWrapper(ABC):
                 try:
                     # low_cpu_mem_usage=True speeds up loading significantly
                     SpeechModelWrapper._model_cache[lang] = VitsModel.from_pretrained(
-                        model_path, low_cpu_mem_usage=True, torch_dtype="auto"
+                        model_path, low_cpu_mem_usage=True, torch_dtype=torch.float32
                     ).to(self._device)
 
                     SpeechModelWrapper._tokenizer_cache[lang] = (
@@ -63,6 +63,8 @@ class SpeechModelWrapper(ABC):
                 except Exception as e:
                     self.logger.error(f"✗ Failed to load {lang}: {str(e)}")
 
+        self.log_model_summary()
+
     @property
     def models(self):
         return SpeechModelWrapper._model_cache
@@ -70,11 +72,15 @@ class SpeechModelWrapper(ABC):
     @property
     def tokenizers(self):
         return SpeechModelWrapper._tokenizer_cache
+
+    def log_model_summary(self):
         self.logger.info("=== MODEL LOADING SUMMARY ===")
         for lang in nllb_language_token_map.values():
             config_path = None
-            if hasattr(self.models[lang], "config") and hasattr(
-                self.models[lang].config, "_name_or_path"
+            if (
+                lang in self.models
+                and hasattr(self.models[lang], "config")
+                and hasattr(self.models[lang].config, "_name_or_path")
             ):
                 config_path = self.models[lang].config._name_or_path
             self.logger.info(f"Model for {lang} loaded from: {config_path}")
