@@ -71,6 +71,7 @@ from .utils import (
     find_cached_tts_normalized,
     generate_asr,
     generate_tts,
+    get_word_candidates,
     send_invite_email,
     send_participate_email,
     send_recovery_email,
@@ -1126,18 +1127,7 @@ class WordViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Keep unicode words and make matching tolerant to leading apostrophes
-        # used in Rapa Nui orthography: Iorana, 'Iorana, ’Iorana.
-        tokens = re.findall(r"[^\W_]+(?:['’][^\W_]+)*", sentence.lower(), re.UNICODE)
-        candidates = set()
-
-        for token in tokens:
-            base = token.strip("'’")
-            if not base:
-                continue
-            candidates.add(base)
-            candidates.add("'" + base)
-            candidates.add("’" + base)
+        candidates = get_word_candidates(sentence)
 
         if not candidates:
             return Response(
