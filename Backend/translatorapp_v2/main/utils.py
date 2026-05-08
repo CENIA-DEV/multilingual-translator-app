@@ -20,6 +20,8 @@ import logging
 import re
 import unicodedata
 from datetime import datetime, timezone
+from functools import reduce
+from operator import or_
 from pathlib import Path
 
 import ffmpeg
@@ -690,12 +692,36 @@ def get_hashed_token(token):
     return hashed_token
 
 
-def get_definitions_for_sentence(sentence):
-    clean_words = re.findall(r"\b\w+\b", sentence.lower())
+def get_word_candidates(sentence, max_n=5):
+    if not sentence:
+        return set()
 
-    found_words = Word.objects.filter(text__in=clean_words).prefetch_related(
-        "definitions"
-    )
+    # Keep unicode words and make matching tolerant to leading apostrophes
+    # and hyphenated words.
+    # used in Rapa Nui orthography: Iorana, 'Iorana, ’Iorana, riva-riva.
+    # Strict matching: if an apostrophe is present, it must match exactly.
+    tokens = re.findall(r"['’]?[^\W_]+(?:[-'’][^\W_]+)*", sentence.lower(), re.UNICODE)
+
+    candidates = set(tokens)
+
+    # Generate n-grams (multi-word phrases)
+    # This allows detecting phrases like "como eta" or "'como eta"
+    for n in range(2, max_n + 1):
+        for i in range(len(tokens) - n + 1):
+            phrase = " ".join(tokens[i : i + n])
+            candidates.add(phrase)
+
+    return candidates
+
+
+def get_definitions_for_sentence(sentence):
+    candidates = get_word_candidates(sentence)
+
+    if not candidates:
+        return {}
+
+    query = reduce(or_, [Q(text__iexact=word) for word in candidates])
+    found_words = Word.objects.filter(query).prefetch_related("definitions")
 
     result = {}
     for word in found_words:

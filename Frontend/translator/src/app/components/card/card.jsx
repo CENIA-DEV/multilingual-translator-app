@@ -140,41 +140,51 @@ export default function Card(props) {
 
     const wordsWithInfo = wordInfo
       .filter(w => w.information?.other_ways_to_say?.length > 0 || w.information?.additional_explanation)
-      .map(w => w.text.toLowerCase());
+      .map(w => w.text.toLowerCase())
+      .sort((a, b) => b.length - a.length); // Longest first to match phrases before single words
+
+    if (wordsWithInfo.length === 0) {
+      return <span className={textColorClass}>{text}</span>;
+    }
 
     const dotColor = side === 'left' ? '#000000' : '#ffffff';
-    const parts = text.split(/(\s+)/);
 
-    const elements = parts.map((word, idx) => {
-      if (word.match(/^\s+$/)) {
-        return <span key={idx}>{word}</span>;
-      }
+    // Escape special regex characters in words
+    const escapedWords = wordsWithInfo.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    // Match any of the words/phrases, but only as "whole words" relative to punctuation/spaces
+    // Using positive lookahead/lookbehind or word boundaries if appropriate,
+    // but here we want to match exact text as returned by backend.
+    const regex = new RegExp(`(${escapedWords.join('|')})`, 'gi');
 
-      const baseWord = word.replace(/^[.,!?;:—\-()[\]{}""']+|[.,!?;:—\-()[\]{}""']+$/g, '').toLowerCase();
-      const candidates = [baseWord, "'" + baseWord, "'" + baseWord, baseWord.replace(/^['']/, "")].filter(Boolean);
-      const hasInfo = candidates.some(c => wordsWithInfo.includes(c));
+    const parts = text.split(regex);
 
-      if (hasInfo) {
-        return (
-          <span
-            key={idx}
-            className={textColorClass}
-            style={{
-              backgroundImage: `radial-gradient(circle, ${dotColor} 2px, transparent 2px)`,
-              backgroundRepeat: 'repeat-x',
-              backgroundSize: '8px 3px',
-              backgroundPosition: '0 100%',
-              paddingBottom: '5px',
-            }}
-          >
-            {word}
-          </span>
-        );
-      }
-      return <span key={idx} className={textColorClass}>{word}</span>;
-    });
+    return (
+      <>
+        {parts.map((part, idx) => {
+          if (!part) return null;
+          const isMatch = wordsWithInfo.includes(part.toLowerCase());
 
-    return <>{elements}</>;
+          if (isMatch) {
+            return (
+              <span
+                key={idx}
+                className={textColorClass}
+                style={{
+                  backgroundImage: `radial-gradient(circle, ${dotColor} 2px, transparent 2px)`,
+                  backgroundRepeat: 'repeat-x',
+                  backgroundSize: '8px 3px',
+                  backgroundPosition: '0 100%',
+                  paddingBottom: '5px',
+                }}
+              >
+                {part}
+              </span>
+            );
+          }
+          return <span key={idx} className={textColorClass}>{part}</span>;
+        })}
+      </>
+    );
   };
 
   const renderInfoPopover = () => {
