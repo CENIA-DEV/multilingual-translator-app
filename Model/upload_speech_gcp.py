@@ -1,9 +1,10 @@
 import os
 import tempfile
 
+import torch
 from dotenv import load_dotenv
 from google.cloud import storage
-from tqdm import tqdm
+from google.cloud.storage import transfer_manager
 from transformers import AutoTokenizer, VitsModel
 
 load_dotenv()
@@ -37,7 +38,7 @@ def get_model_name(lang):
 
 def download_model(lang, temp_dir):
     """Download model and tokenizer from Hugging Face."""
-    print(f"Downloading model for {lang}...")
+    print(f"Downloading model for {lang} in bf16...")
     model_name = get_model_name(lang)
 
     # Create language directory
@@ -45,32 +46,49 @@ def download_model(lang, temp_dir):
     os.makedirs(lang_dir, exist_ok=True)
 
     # Download and save model and tokenizer
-    model = VitsModel.from_pretrained(model_name, token=HF_TOKEN)
+    # Using safe_serialization=True for faster loading and security
+    # Loading in bfloat16 for L40 GPU optimization
+    model = VitsModel.from_pretrained(
+        model_name, token=HF_TOKEN, torch_dtype=torch.bfloat16
+    )
     tokenizer = AutoTokenizer.from_pretrained(model_name, token=HF_TOKEN)
 
-    model.save_pretrained(lang_dir)
+    print(f"Saving model to {lang_dir} with safetensors (bf16)...")
+    model.save_pretrained(lang_dir, safe_serialization=True)
     tokenizer.save_pretrained(lang_dir)
 
     return lang_dir
 
 
 def upload_to_gcp(local_dir, lang):
-    """Upload model files to GCP bucket in the appropriate folder."""
-    # Get all files in the directory
+    """Upload model files to GCP bucket in parallel using transfer_manager."""
     files_to_upload = []
+    base_path = local_dir
+
     for root, _, files in os.walk(local_dir):
         for file in files:
             local_path = os.path.join(root, file)
-            # Calculate relative path for GCP
-            rel_path = os.path.relpath(local_path, local_dir)
-            gcp_path = f"{base_folder}/{lang}/{rel_path}"
-            files_to_upload.append((local_path, gcp_path))
+            rel_path = os.path.relpath(local_path, base_path)
+            files_to_upload.append(rel_path)
 
-    # Upload files with progress bar
-    for local_path, gcp_path in tqdm(files_to_upload, desc=f"Uploading {lang} model"):
-        blob = bucket.blob(gcp_path)
-        blob.upload_from_filename(local_path)
-        print(f"Uploaded {local_path} to gs://{bucket_name}/{gcp_path}")
+    print(f"Uploading {len(files_to_upload)} files for {lang} in parallel...")
+
+    # Use transfer_manager for parallel uploads
+    results = transfer_manager.upload_many_from_filenames(
+        bucket,
+        files_to_upload,
+        source_directory=local_dir,
+        blob_name_prefix=f"{base_folder}/{lang}/",
+        max_workers=8,
+    )
+
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            print(f"Failed to upload {files_to_upload[i]}: {result}")
+        else:
+            pass  # Success
+
+    print(f"Completed parallel upload for {lang}")
 
 
 def main():

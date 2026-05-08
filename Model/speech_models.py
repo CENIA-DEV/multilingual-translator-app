@@ -14,9 +14,13 @@ nllb_language_token_map = {"rap_female": "rap/female", "rap_male": "rap/male"}
 
 class SpeechModelWrapper(ABC):
     """
-    Abstract base class for speech models, similar to ModelWrapper.
-    Preloads models in __init__ to avoid reloading on each inference.
+    Abstract base class for speech models.
+    Uses a CLASS-LEVEL cache to ensure models are only loaded from disk ONCE
+    even if multiple copies of the wrapper are created.
     """
+
+    _model_cache = {}
+    _tokenizer_cache = {}
 
     def __init__(
         self, logger: logging.Logger, gpu: bool = True, model_base_path: str = None
@@ -25,58 +29,58 @@ class SpeechModelWrapper(ABC):
         self._device = torch.device(
             "cuda" if gpu and torch.cuda.is_available() else "cpu"
         )
-        self.models = {}  # Cache for loaded models
-        self.tokenizers = {}  # Cache for loaded tokenizers
         self.model_base_path = model_base_path
-        self._preload_models()  # Preload all supported models
+        self._preload_models()
 
     def _preload_models(self):
-        """Preload models for all supported languages."""
+        """Preload models for all supported languages with caching."""
         self.logger.info("=== STARTING MODEL LOADING ===")
-        self.logger.info(f"Device: {self._device}")
-        self.logger.info(f"Model base path: {self.model_base_path}")
 
-        # Check if we're in a container with downloaded models
+        # Check local directory (common in Docker)
         tts_rap_dir = os.path.join(os.getcwd(), "tts-rap")
-        if os.path.exists(tts_rap_dir) and os.path.isdir(tts_rap_dir):
-            self.logger.info(f"Found local tts-rap directory at {tts_rap_dir}")
-
-            # List contents to verify what's available
-            contents = os.listdir(tts_rap_dir)
-            self.logger.info(f"Contents of tts-rap directory: {contents}")
-
-            # Use this local path instead of the provided model_base_path
+        if os.path.exists(tts_rap_dir):
             self.model_base_path = os.path.dirname(tts_rap_dir)
-            self.logger.info(f"Using local model path: {self.model_base_path}")
 
         for lang_code, lang in nllb_language_token_map.items():
-            if self.model_base_path:
-                # Load from local path - models are already downloaded by the workflow
-                model_path = os.path.join(self.model_base_path, "tts-rap", lang)
-                self.logger.info(f"ATTEMPTING TO LOAD FROM LOCAL PATH: {model_path}")
+            if lang in SpeechModelWrapper._model_cache:
+                self.logger.info(f"Using cached model for {lang}")
+                continue
 
-                # Check if directory exists
-                if not os.path.exists(model_path):
-                    self.logger.warning(f"Path does not exist: {model_path}")
-                    # Try to list parent directory to see what's available
-                    parent_dir = os.path.dirname(model_path)
-                    if os.path.exists(parent_dir):
-                        self.logger.info(f"{parent_dir}: {os.listdir(parent_dir)}")
+            if self.model_base_path:
+                model_path = os.path.join(self.model_base_path, "tts-rap", lang)
+                self.logger.info(f"LOADING FROM DISK: {model_path}")
 
                 try:
-                    self.models[lang] = VitsModel.from_pretrained(model_path).to(
-                        self._device
-                    )
-                    self.tokenizers[lang] = AutoTokenizer.from_pretrained(model_path)
-                    self.logger.info(f"{lang} loaded from: {model_path}")
-                except Exception as e:
-                    self.logger.error(f"✗{lang} from {model_path}: {str(e)}")
+                    # low_cpu_mem_usage=True speeds up loading significantly
+                    SpeechModelWrapper._model_cache[lang] = VitsModel.from_pretrained(
+                        model_path, low_cpu_mem_usage=True, torch_dtype=torch.float32
+                    ).to(self._device)
 
+                    SpeechModelWrapper._tokenizer_cache[lang] = (
+                        AutoTokenizer.from_pretrained(model_path)
+                    )
+                    self.logger.info(f"✓ {lang} loaded successfully.")
+                except Exception as e:
+                    self.logger.error(f"✗ Failed to load {lang}: {str(e)}")
+
+        self.log_model_summary()
+
+    @property
+    def models(self):
+        return SpeechModelWrapper._model_cache
+
+    @property
+    def tokenizers(self):
+        return SpeechModelWrapper._tokenizer_cache
+
+    def log_model_summary(self):
         self.logger.info("=== MODEL LOADING SUMMARY ===")
         for lang in nllb_language_token_map.values():
             config_path = None
-            if hasattr(self.models[lang], "config") and hasattr(
-                self.models[lang].config, "_name_or_path"
+            if (
+                lang in self.models
+                and hasattr(self.models[lang], "config")
+                and hasattr(self.models[lang].config, "_name_or_path")
             ):
                 config_path = self.models[lang].config._name_or_path
             self.logger.info(f"Model for {lang} loaded from: {config_path}")
