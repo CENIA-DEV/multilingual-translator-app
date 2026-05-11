@@ -4,7 +4,7 @@ import logging
 import os
 
 import numpy as np
-from asr_models import BackupASRWrapper, HybridASRWrapper, MMSASRWrapper
+from asr_models import OptimizedASRWrapper
 from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig
@@ -178,47 +178,22 @@ def main():
 
     use_tf32 = args.use_tf32 and not args.no_tf32
 
-    # Instantiate the appropriate ASR wrapper based on model_type
-    logger.info(f"Loading {args.model_type} ASR model...")
-    if args.model_type == "mms":
-        asr_wrapper = MMSASRWrapper(
-            logger=logger,
-            gpu=args.gpu,
-            model_base_path=args.model_base_path,
-        )
-        if args.gpu:  # TODO: review later
-            asr_wrapper.optimize(tf32=use_tf32)
+    # Check for BF16 in environment variables as well
+    env_use_bf16 = os.getenv("ASR_USE_BF16", "false").lower() == "true"
+    use_bf16 = args.use_bf16 or env_use_bf16
 
-    elif args.model_type == "hybrid":
-        if not args.rap_model_path or not args.rap_vocab_path:
-            raise ValueError(
-                "For hybrid model, --rap-model-path and --rap-vocab-path are required."
-            )
-        asr_wrapper = HybridASRWrapper(
-            logger=logger,
-            gpu=args.gpu,
-            model_base_path=args.model_base_path,
-            rap_model_path=args.rap_model_path,
-            rap_vocab_path=args.rap_vocab_path,
-            mms_base_path=args.mms_base_path,
-            hf_token=hf_token,
-        )
-        # TODO: review later
-        if args.gpu:
-            asr_wrapper.optimize(tf32=use_tf32)
-
-    elif args.model_type == "backup":
-        asr_wrapper = BackupASRWrapper(
-            logger=logger,
-            gpu=args.gpu,
-            model_base_path=args.model_base_path,
-            mms_base_path=args.mms_base_path,
-            use_bf16=args.use_bf16,
-            use_tf32=use_tf32,
-            hf_token=hf_token,
-        )
-    else:
-        raise ValueError(f"Invalid model type: {args.model_type}")
+    # Instantiate the consolidated and optimized ASR wrapper
+    logger.info(f"Loading Optimized ASR model (bf16: {use_bf16})...")
+    asr_wrapper = OptimizedASRWrapper(
+        logger=logger,
+        gpu=args.gpu,
+        model_base_path=args.model_base_path,
+        mms_base_path=args.mms_base_path,
+        rap_adapter_path=args.rap_model_path,
+        use_bf16=use_bf16,
+        use_tf32=use_tf32,
+        hf_token=hf_token,
+    )
 
     logger.info("ASR model loaded successfully!")
 

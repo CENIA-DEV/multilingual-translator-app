@@ -3,10 +3,15 @@ import os
 import sys
 import tempfile
 
+import torch
 from dotenv import load_dotenv
 from google.cloud import storage
-from tqdm import tqdm
-from transformers import WhisperForConditionalGeneration, WhisperProcessor
+from transformers import (
+    AutoModelForCTC,
+    AutoProcessor,
+    WhisperForConditionalGeneration,
+    WhisperProcessor,
+)
 
 print("=== Script starting ===")
 print(f"Current working directory: {os.getcwd()}")
@@ -23,7 +28,11 @@ credentials_file = (
 )
 if not os.path.exists(credentials_file):
     print(f"ERROR: GCP credentials file '{credentials_file}' not found!")
-    sys.exit(1)
+    # Fallback to check if it's in the current dir
+    if os.path.exists("key.json"):
+        credentials_file = "key.json"
+    else:
+        sys.exit(1)
 
 print(f"Setting GOOGLE_APPLICATION_CREDENTIALS to: {credentials_file}")
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_file
@@ -42,149 +51,129 @@ base_folder = "asr-rap"
 print(f"Attempting to access bucket: {bucket_name}")
 try:
     bucket = storage_client.bucket(bucket_name)
-    # Check if bucket exists
-    if not bucket.exists():
-        print(f"ERROR: Bucket {bucket_name} does not exist!")
-        sys.exit(1)
-    print(f"Successfully accessed bucket: {bucket_name}")
+    # Attempt a soft check. If this fails due to 403, we proceed anyway
+    # because object-level permissions might still allow uploads.
+    try:
+        if not bucket.exists():
+            print(f"ERROR: Bucket {bucket_name} does not exist!")
+            sys.exit(1)
+        print(f"Successfully verified bucket: {bucket_name}")
+    except Exception as e:
+        print(f"Warning: Could not verify bucket existence ({e}).")
+        print("Proceeding anyway assuming object-level permissions are sufficient...")
 except Exception as e:
-    print(f"ERROR accessing bucket: {str(e)}")
+    print(f"ERROR accessing bucket object: {str(e)}")
     sys.exit(1)
 
-# Language mappings
-languages = {
-    "rap_Latn": {"code": "rap", "whisper_code": None},  # Rapa Nui uses custom model
-    "spa_Latn": {"code": "spa", "whisper_code": "es"},  # Spanish
-    "eng_Latn": {"code": "eng", "whisper_code": "en"},  # English
-}
-
 whisper_model_id = "openai/whisper-base"
+mms_model_id = "facebook/mms-1b-all"
 
 
-def upload_rap_model_directly(rap_model_path, rap_vocab_path):
+def upload_mms_model_directly(use_bf16=False):
     """
-    Upload Rapa Nui model files directly from source to GCP.
+    Download MMS base model and upload to GCP.
     """
-    print(f"Preparing to upload Rapa Nui model from {rap_model_path}...")
-    print(f"  - Model path exists: {os.path.exists(rap_model_path)}")
-    print(f"  - Model path is directory: {os.path.isdir(rap_model_path)}")
-    print(f"  - Vocab path exists: {os.path.exists(rap_vocab_path)}")
-    print(f"  - Vocab path is file: {os.path.isfile(rap_vocab_path)}")
+    print(f"Processing MMS model: {mms_model_id} (bf16: {use_bf16})...")
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            processor = AutoProcessor.from_pretrained(mms_model_id, token=HF_TOKEN)
+            processor.save_pretrained(os.path.join(temp_dir, "mms_processor"))
 
-    # Upload model files directly
-    model_files = []
-    print(f"Scanning model directory: {rap_model_path}")
-    for root, _, files in os.walk(rap_model_path):
-        print(f"Found {len(files)} files in {root}")
-        for file in files:
-            local_path = os.path.join(root, file)
-            rel_path = os.path.relpath(local_path, rap_model_path)
-            gcp_path = f"{base_folder}/rap/model/{rel_path}"
-            model_files.append((local_path, gcp_path))
+            dtype = torch.bfloat16 if use_bf16 else torch.float32
+            model = AutoModelForCTC.from_pretrained(
+                mms_model_id,
+                token=HF_TOKEN,
+                torch_dtype=dtype,
+            )
+            model.save_pretrained(
+                os.path.join(temp_dir, "mms_model"), safe_serialization=True
+            )
 
-    # Upload vocabulary file
-    vocab_gcp_path = f"{base_folder}/rap/vocab.json"
-    print(f"Will upload vocab file to: gs://{bucket_name}/{vocab_gcp_path}")
-    model_files.append((rap_vocab_path, vocab_gcp_path))
-
-    # Upload all files
-    print(f"Uploading {len(model_files)} Rapa Nui model files...")
-    for local_path, gcp_path in tqdm(model_files, desc="Uploading Rapa Nui files"):
-        try:
-            print(f"Uploading {local_path} to gs://{bucket_name}/{gcp_path}")
-            blob = bucket.blob(gcp_path)
-            blob.upload_from_filename(local_path)
-            print(f"Successfully uploaded {local_path}")
-        except Exception as e:
-            print(f"ERROR uploading {local_path}: {str(e)}")
-            return False
-
-    print("All Rapa Nui model files uploaded successfully")
-    return True
+            sub_folder = "mms-bf16" if use_bf16 else "mms"
+            for folder_name in ["mms_processor", "mms_model"]:
+                folder_path = os.path.join(temp_dir, folder_name)
+                for root, _, files in os.walk(folder_path):
+                    for file in files:
+                        local_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(local_path, folder_path)
+                        gcp_path = f"{base_folder}/{sub_folder}/{rel_path}"
+                        blob = bucket.blob(gcp_path)
+                        blob.upload_from_filename(local_path)
+        return True
+    except Exception as e:
+        print(f"ERROR processing MMS model: {e}")
+        return False
 
 
-def upload_whisper_model_directly():
+def upload_whisper_model_directly(use_bf16=False):
     """
     Download Whisper model from Hugging Face and upload directly to GCP.
     """
-    print(f"Processing Whisper model: {whisper_model_id}...")
-
+    print(f"Processing Whisper model: {whisper_model_id} (bf16: {use_bf16})...")
     try:
-        # Create a small temporary directory just for metadata files
         with tempfile.TemporaryDirectory() as temp_dir:
-            print(f"Created temporary directory for metadata: {temp_dir}")
-
-            # First download the processor config - this is small
-            print("Downloading Whisper processor config...")
             processor = WhisperProcessor.from_pretrained(
                 whisper_model_id, token=HF_TOKEN
             )
+            processor.save_pretrained(os.path.join(temp_dir, "processor"))
 
-            # Save processor config only (small files)
-            print(f"Saving processor config to {temp_dir}")
-            processor_path = os.path.join(temp_dir, "processor")
-            processor.save_pretrained(processor_path)
-
-            # Upload processor files
-            print("Uploading processor files to GCP...")
-            for root, _, files in os.walk(processor_path):
-                for file in files:
-                    local_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(local_path, processor_path)
-                    gcp_path = f"{base_folder}/whisper/{rel_path}"
-
-                    print(f"{local_path} to gs://{bucket_name}/{gcp_path}")
-                    blob = bucket.blob(gcp_path)
-                    blob.upload_from_filename(local_path)
-
-            # Now get model config (metadata only at first)
-            print("Downloading Whisper model config...")
+            dtype = torch.bfloat16 if use_bf16 else torch.float32
             model = WhisperForConditionalGeneration.from_pretrained(
                 whisper_model_id,
                 token=HF_TOKEN,
-                low_cpu_mem_usage=True,
-                torch_dtype="auto",
+                torch_dtype=dtype,
+            )
+            model.save_pretrained(
+                os.path.join(temp_dir, "model"), safe_serialization=True
             )
 
-            # Save model
-            print("Saving model to temporary directory...")
-            model_path = os.path.join(temp_dir, "model")
-            model.save_pretrained(model_path)
-
-            # Upload model files
-            print("Uploading model files to GCP...")
-            for root, _, files in os.walk(model_path):
-                for file in files:
-                    local_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(local_path, model_path)
-                    gcp_path = f"{base_folder}/whisper/{rel_path}"
-
-                    print(f"{local_path} to gs://{bucket_name}/{gcp_path}")
-                    blob = bucket.blob(gcp_path)
-                    blob.upload_from_filename(local_path)
-
-        print("All Whisper model files uploaded successfully")
+            sub_folder = "whisper-bf16" if use_bf16 else "whisper"
+            for folder_name in ["processor", "model"]:
+                folder_path = os.path.join(temp_dir, folder_name)
+                for root, _, files in os.walk(folder_path):
+                    for file in files:
+                        local_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(local_path, folder_path)
+                        gcp_path = f"{base_folder}/{sub_folder}/{rel_path}"
+                        blob = bucket.blob(gcp_path)
+                        blob.upload_from_filename(local_path)
         return True
     except Exception as e:
-        print(f"ERROR processing Whisper model: {str(e)}")
-        import traceback
+        print(f"ERROR processing Whisper model: {e}")
+        return False
 
-        traceback.print_exc()
+
+def upload_rap_adapter_directly(adapter_path):
+    """
+    Upload Rapa Nui adapter file directly to GCP.
+    """
+    print(f"Preparing to upload Rapa Nui adapter from {adapter_path}...")
+    gcp_path = f"{base_folder}/mms/adapter.rap.bin"
+    try:
+        blob = bucket.blob(gcp_path)
+        blob.upload_from_filename(adapter_path)
+        print("Successfully uploaded adapter.")
+        return True
+    except Exception as e:
+        print(f"ERROR uploading adapter: {e}")
         return False
 
 
 def parse_args():
-    print("Parsing command line arguments...")
     parser = argparse.ArgumentParser(description="Upload ASR models to GCP")
     parser.add_argument(
-        "--rap-model-path", required=True, help="Path to Rapa Nui model directory"
+        "--rap-adapter-path", required=True, help="Path to rap-adapter.bin file"
     )
     parser.add_argument(
-        "--rap-vocab-path", required=True, help="Path to Rapa Nui vocabulary file"
+        "--bf16", action="store_true", help="Save models in bfloat16 before uploading"
     )
-    args = parser.parse_args()
-    print(f"Arguments received: {args}")
-    return args
+    parser.add_argument(
+        "--skip-whisper", action="store_true", help="Skip Whisper model upload"
+    )
+    parser.add_argument(
+        "--skip-mms", action="store_true", help="Skip MMS base model upload"
+    )
+    return parser.parse_args()
 
 
 def main():
@@ -192,55 +181,34 @@ def main():
     try:
         args = parse_args()
 
-        # Validate input paths
-        print("Validating input paths...")
-        if not os.path.exists(args.rap_model_path):
-            print(f"ERROR: Rap model path does not exist: {args.rap_model_path}")
-            sys.exit(1)
-        if not os.path.isdir(args.rap_model_path):
-            print(f"ERROR: Rap model path is not a directory: {args.rap_model_path}")
-            sys.exit(1)
-        if not os.path.exists(args.rap_vocab_path):
-            print(f"ERROR: Rap vocab path does not exist: {args.rap_vocab_path}")
-            sys.exit(1)
-        if not os.path.isfile(args.rap_vocab_path):
-            print(f"ERROR: Rap vocab path is not a file: {args.rap_vocab_path}")
+        if not os.path.exists(args.rap_adapter_path):
+            print(f"ERROR: Rap adapter path does not exist: {args.rap_adapter_path}")
             sys.exit(1)
 
-        print("Input paths validated successfully")
-
-        # Upload Rapa Nui model files directly
-        print("\n--- Uploading Rapa Nui model ---")
-        rap_success = upload_rap_model_directly(
-            args.rap_model_path, args.rap_vocab_path
-        )
-        if not rap_success:
-            print("ERROR: Failed to upload Rapa Nui model files")
+        # 1. Upload Rapa Nui adapter
+        print("\n--- Uploading Rapa Nui adapter ---")
+        if not upload_rap_adapter_directly(args.rap_adapter_path):
             sys.exit(1)
 
-        # Upload Whisper model files directly
-        print("\n--- Uploading Whisper model ---")
-        whisper_success = upload_whisper_model_directly()
-        if not whisper_success:
-            print("ERROR: Failed to upload Whisper model")
-            sys.exit(1)
+        # 2. Upload Whisper model
+        if not args.skip_whisper:
+            print("\n--- Uploading Whisper model ---")
+            if not upload_whisper_model_directly(use_bf16=args.bf16):
+                sys.exit(1)
+
+        # 3. Upload MMS base model
+        if not args.skip_mms:
+            print("\n--- Uploading MMS base model ---")
+            if not upload_mms_model_directly(use_bf16=args.bf16):
+                sys.exit(1)
 
         print(
             f"\nAll models uploaded successfully to gs://{bucket_name}/{base_folder}/"
         )
-        print("Use these paths in your deployment:")
-        print(f"  - Rap model path: gs://{bucket_name}/{base_folder}/rap/model")
-        print(f"  - Rap vocab path: gs://{bucket_name}/{base_folder}/rap/vocab.json")
-        print(f"  - Whisper model: gs://{bucket_name}/{base_folder}/whisper")
 
     except Exception as e:
         print(f"CRITICAL ERROR: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
         sys.exit(1)
-
-    print("=== Script completed successfully ===")
 
 
 if __name__ == "__main__":
