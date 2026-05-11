@@ -205,8 +205,12 @@ class OptimizedASRWrapper(ASRModelWrapper):
             audio = audio.astype(np.float32, copy=False)
 
         if lang == "rap":
+            self.logger.info(
+                f"Inference: Invoking MMS model for Rapa Nui (lang: {lang})"
+            )
             return self._transcribe_rap(audio, sampling_rate)
         else:
+            self.logger.info(f"Inference: Invoking Whisper model (lang: {lang})")
             return self._transcribe_whisper(audio, sampling_rate, lang)
 
     def _transcribe_rap(self, audio, sampling_rate):
