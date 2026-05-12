@@ -143,6 +143,18 @@ export default function Translator() {
   const isASRLang = (l) => ASR_ENABLED && (isES(l) || isRAP(l)); // ASR works for Spanish and Rapa Nui
   const isASRSourceAllowed = (l) => ASR_ENABLED && isES(l); // Upload audio only available for Spanish source
 
+  function getHintForLang(l) {
+    const c = (l?.code || '').toLowerCase();
+    if (c.includes('spa')) return 'spa_Latn';
+    if (c.includes('rap')) return 'rap_Latn';
+    return null; // not transcribable
+  }
+
+  const srcHint = getHintForLang(srcLang);
+  const dstHint = getHintForLang(dstLang);
+  const srcDisplay = srcLang?.name || 'Fuente';
+  const dstDisplay = dstLang?.name || 'Destino';
+
   // --- dinamics flags ---
 
   // TTS buttons: only show if not restricted OR user is logged in
@@ -346,7 +358,7 @@ export default function Translator() {
     
     // NEW: Trigger ASR warmup when user starts typing (if ASR is available)
     if (text.length > 0 && (isASRLang(srcLang) || isASRLang(dstLang))) {
-      triggerASRWarmupIfNeeded();
+      triggerASRWarmupIfNeeded(srcHint);
     }
     
     // if the text is longer than the max words, limit the text to the max words
@@ -518,18 +530,6 @@ export default function Translator() {
     return 'spa_Latn';
   }
   
-  function getHintForLang(l) {
-    const c = (l?.code || '').toLowerCase();
-    if (c.includes('spa')) return 'spa_Latn';
-    if (c.includes('rap')) return 'rap_Latn';
-    return null; // not transcribable
-  }
-  
-  const srcHint = getHintForLang(srcLang);
-  const dstHint = getHintForLang(dstLang);
-  const srcDisplay = srcLang?.name || 'Fuente';
-  const dstDisplay = dstLang?.name || 'Destino';
-
   const [isSubmittingValidation, setIsSubmittingValidation] = useState(false);
 
   // Function to validate transcription
@@ -734,7 +734,7 @@ export default function Translator() {
                       
                       // If duration is valid, proceed to transcribe
                       setAsrStatus('uploading');
-                      handleTranscribeBlob(file, file.name || 'audio.subido').catch(err => {
+                      handleTranscribeBlob(file, srcHint, file.name || 'audio.subido').catch(err => {
                         console.error(err);
                         setAsrStatus('error');
                         toast('No se pudo procesar el archivo.');
@@ -774,7 +774,7 @@ export default function Translator() {
 				  }
 				  
 				  // Trigger warmup only if needed (smart check)
-				  triggerASRWarmupIfNeeded();
+				  triggerASRWarmupIfNeeded(srcHint || dstHint);
 				  
 				  // Open modal in "ready" state (do NOT start recording yet)
 				  setTranscribeChoice(srcHint ? 'source' : (dstHint ? 'target' : 'source'));
@@ -927,7 +927,7 @@ export default function Translator() {
 			  <div className="space-y-5">
 				<div className="flex items-center gap-4">
 				  <button
-					onClick={startRecording}
+					onClick={() => startRecording({ hintChosen: transcribeChoice === 'source' ? srcHint : dstHint })}
 					className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0a8cde] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
 					title="Iniciar grabación"
 					aria-label="Iniciar grabación"
@@ -937,7 +937,7 @@ export default function Translator() {
 				  </button>
 				  <div>
 					<button
-					  onClick={startRecording}
+					  onClick={() => startRecording({ hintChosen: transcribeChoice === 'source' ? srcHint : dstHint })}
 					  className="text-[#0a8cde] font-medium"
 					>
 					  Iniciar grabación
