@@ -3,6 +3,7 @@ import argparse
 import logging
 
 import numpy as np
+import torch
 from dotenv import load_dotenv
 from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
@@ -49,7 +50,8 @@ class _TTSInferFuncWrapper:
         # Call TTS predict
         waveform = self._tts_wrapper.predict(text, lang_code)
         # Convert torch tensor to numpy
-        waveform_np = waveform.cpu().numpy()
+        # Cast to float32 because numpy doesn't support bfloat16
+        waveform_np = waveform.to(torch.float32).cpu().numpy()
 
         return {"waveform": waveform_np}
 
@@ -109,8 +111,8 @@ def _parse_args():
         "--gpu",
         "-c",
         action="store_true",
-        help="If use CPU",
-        default=False,
+        help="Enable GPU acceleration (default: True for L40)",
+        default=True,
     )
 
     parser.add_argument(
