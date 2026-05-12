@@ -87,7 +87,8 @@ export default function Translator() {
     asrWarmupDoneRef, lastAsrActivityRef,
     startRecording, stopRecording, cancelTranscription, resetAudioState, handleTranscribeBlob,
     transcribeForReview, triggerASRWarmupIfNeeded, getPreferredMime, waitForTrackUnmute,
-    waitForInputEnergy, safeUnloadReviewAudio, stopMicTracksNow, getBlobDuration
+    waitForInputEnergy, safeUnloadReviewAudio, stopMicTracksNow, getBlobDuration,
+    skipWait
   } = useASR({ getAudioContext, trackEvent });
 
   const [langModalMode, setLangModalMode] = useState(false);
@@ -1000,6 +1001,14 @@ export default function Translator() {
                   <p className="text-lg font-semibold text-slate-800">Conectando micrófono...</p>
                   <p className="text-sm text-slate-500 mt-1">Por favor, espera un momento antes de hablar</p>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                  onClick={() => skipWait()}
+                >
+                  Empezar ahora
+                </Button>
               </div>
             )}
 

@@ -84,6 +84,8 @@ export function useASR({ getAudioContext, trackEvent }) {
     });
   }
 
+  const skipWaitRef = useRef(false);
+
   async function waitForInputEnergy(stream, threshold = 0.008, windowMs = 800, stepMs = 80) {
     try {
       const ctx = await getAudioContext();
@@ -96,6 +98,7 @@ export function useASR({ getAudioContext, trackEvent }) {
       const data = new Uint8Array(analyser.fftSize);
       const steps = Math.max(1, Math.floor(windowMs / stepMs));
       for (let i = 0; i < steps; i++) {
+        if (skipWaitRef.current) break;
         analyser.getByteTimeDomainData(data);
         let sum = 0;
         for (let j = 0; j < data.length; j++) {
@@ -104,9 +107,7 @@ export function useASR({ getAudioContext, trackEvent }) {
         }
         const rms = Math.sqrt(sum / data.length);
         if (rms >= threshold) {
-          try { source.disconnect(); } catch {}
-          try { analyser.disconnect && analyser.disconnect(); } catch {}
-          return;
+          break;
         }
         await new Promise(r => setTimeout(r, stepMs));
       }
@@ -362,9 +363,12 @@ export function useASR({ getAudioContext, trackEvent }) {
       mediaStreamRef.current = stream;
 
       const track = stream.getAudioTracks()[0];
-      await waitForTrackUnmute(track, 1500);
-      await waitForInputEnergy(stream, 0.008, 800, 80);
-      await new Promise(r => setTimeout(r, 150));
+      await waitForTrackUnmute(track, 2000);
+      // Reset skip flag
+      skipWaitRef.current = false;
+      // Wait up to 10 seconds for energy, so we stay in "Preparing" until mic is alive
+      await waitForInputEnergy(stream, 0.004, 10000, 100);
+      await new Promise(r => setTimeout(r, 200));
 
       const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 160000 });
       chunksRef.current = [];
@@ -537,6 +541,7 @@ export function useASR({ getAudioContext, trackEvent }) {
     asrWarmupDoneRef, lastAsrActivityRef,
     startRecording, stopRecording, cancelTranscription, resetAudioState, handleTranscribeBlob,
     transcribeForReview, triggerASRWarmupIfNeeded, getPreferredMime, waitForTrackUnmute,
-    waitForInputEnergy, safeUnloadReviewAudio, stopMicTracksNow, getBlobDuration, validateTranscription
+    waitForInputEnergy, safeUnloadReviewAudio, stopMicTracksNow, getBlobDuration, validateTranscription,
+    skipWait: () => { skipWaitRef.current = true; }
   };
 }
