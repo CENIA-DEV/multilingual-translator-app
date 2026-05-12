@@ -198,7 +198,7 @@ export function useASR({ getAudioContext, trackEvent }) {
   }
 
   const resetAudioState = (onResetCallback) => {
-    if (onResetCallback) onResetCallback();
+    if (typeof onResetCallback === 'function') onResetCallback();
 
     if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
 
@@ -268,7 +268,7 @@ export function useASR({ getAudioContext, trackEvent }) {
 
         const transcript = data?.text || '';
         
-        if (onSuccess) onSuccess(transcript);
+        if (typeof onSuccess === 'function') onSuccess(transcript);
         toast('Transcripción lista.');
       } catch (err) {
         clearTimeout(timeoutId);
@@ -283,7 +283,7 @@ export function useASR({ getAudioContext, trackEvent }) {
       } finally {
         asrAbortRef.current = null;
         await new Promise(r => setTimeout(r, COOLDOWN_MS));
-        if (asrStatus !== 'idle' && onReset) onReset();
+        if (asrStatus !== 'idle' && typeof onReset === 'function') onReset();
       }
   }
 
@@ -511,7 +511,7 @@ export function useASR({ getAudioContext, trackEvent }) {
       
       // Delay track stopping slightly to allow recorder to flush
       setTimeout(() => {
-        if (onStopMic) onStopMic();
+        if (typeof onStopMic === 'function') onStopMic();
         else stopMicTracksNow();
       }, 100);
 	  

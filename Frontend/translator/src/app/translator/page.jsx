@@ -927,7 +927,10 @@ export default function Translator() {
 			  <div className="space-y-5">
 				<div className="flex items-center gap-4">
 				  <button
-					onClick={() => startRecording({ hintChosen: transcribeChoice === 'source' ? srcHint : dstHint })}
+					onClick={() => startRecording({ 
+						hintChosen: transcribeChoice === 'source' ? srcHint : dstHint,
+						onStopWaveformVisualization: stopWaveformVisualization
+					})}
 					className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0a8cde] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
 					title="Iniciar grabación"
 					aria-label="Iniciar grabación"
@@ -937,7 +940,10 @@ export default function Translator() {
 				  </button>
 				  <div>
 					<button
-					  onClick={() => startRecording({ hintChosen: transcribeChoice === 'source' ? srcHint : dstHint })}
+					  onClick={() => startRecording({ 
+						  hintChosen: transcribeChoice === 'source' ? srcHint : dstHint,
+						  onStopWaveformVisualization: stopWaveformVisualization
+					  })}
 					  className="text-[#0a8cde] font-medium"
 					>
 					  Iniciar grabación
