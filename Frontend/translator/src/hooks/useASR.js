@@ -375,6 +375,9 @@ export function useASR({ getAudioContext, trackEvent }) {
       };
 
       recorder.onstop = async () => {
+        // Safety: If recorder was nulled or replaced, ignore this event
+        if (!mediaRecorderRef.current || mediaRecorderRef.current !== recorder) return;
+
         if (onShowModal) onShowModal();
         if (onStopWaveformVisualization) onStopWaveformVisualization();
         if (onStopMicTracksNow) onStopMicTracksNow();
@@ -505,12 +508,16 @@ export function useASR({ getAudioContext, trackEvent }) {
       setIsRecording(false);
       setAsrStatus('processing');
       r.stop();
-	  if (onStopMic) onStopMic();
-      else stopMicTracksNow();
+      
+      // Delay track stopping slightly to allow recorder to flush
+      setTimeout(() => {
+        if (onStopMic) onStopMic();
+        else stopMicTracksNow();
+      }, 100);
 	  
       if (stopSafeguardRef.current) clearTimeout(stopSafeguardRef.current);
       stopSafeguardRef.current = setTimeout(() => {
-        if (asrStatus === 'processing') {
+        if (asrStatus === 'processing' || asrStatus === 'recording') {
           console.warn('MediaRecorder onstop did not fire, forcing reset.');
           resetAudioState();
         }
