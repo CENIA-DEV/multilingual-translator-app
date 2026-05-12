@@ -334,6 +334,7 @@ export function useASR({ getAudioContext, trackEvent }) {
 
     try {
       setIsRecording(false);
+      setAsrStatus('preparing');
       if (onShowModal) onShowModal();
 	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {

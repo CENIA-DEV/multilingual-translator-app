@@ -986,6 +986,23 @@ export default function Translator() {
 			  </div>
 			)}
 
+            {/* PREPARING VIEW: spinner + helper */}
+            {asrStatus === 'preparing' && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4 animate-in fade-in zoom-in duration-300">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-[#0a8cde] animate-spin" />
+                  <FontAwesomeIcon 
+                    icon={faMicrophone} 
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#0a8cde] text-xl" 
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-semibold text-slate-800">Conectando micrófono...</p>
+                  <p className="text-sm text-slate-500 mt-1">Por favor, espera un momento antes de hablar</p>
+                </div>
+              </div>
+            )}
+
 
 			{/* RECORDING VIEW: live waveform */}
             {isRecording && (
