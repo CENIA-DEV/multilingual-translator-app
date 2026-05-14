@@ -104,9 +104,7 @@ export function useASR({ getAudioContext, trackEvent }) {
         }
         const rms = Math.sqrt(sum / data.length);
         if (rms >= threshold) {
-          try { source.disconnect(); } catch {}
-          try { analyser.disconnect && analyser.disconnect(); } catch {}
-          return;
+          break;
         }
         await new Promise(r => setTimeout(r, stepMs));
       }
@@ -198,7 +196,7 @@ export function useASR({ getAudioContext, trackEvent }) {
   }
 
   const resetAudioState = (onResetCallback) => {
-    if (onResetCallback) onResetCallback();
+    if (typeof onResetCallback === 'function') onResetCallback();
 
     if (stopSafeguardRef.current) { clearTimeout(stopSafeguardRef.current); stopSafeguardRef.current = null; }
 
@@ -268,7 +266,7 @@ export function useASR({ getAudioContext, trackEvent }) {
 
         const transcript = data?.text || '';
         
-        if (onSuccess) onSuccess(transcript);
+        if (typeof onSuccess === 'function') onSuccess(transcript);
         toast('Transcripción lista.');
       } catch (err) {
         clearTimeout(timeoutId);
@@ -283,7 +281,7 @@ export function useASR({ getAudioContext, trackEvent }) {
       } finally {
         asrAbortRef.current = null;
         await new Promise(r => setTimeout(r, COOLDOWN_MS));
-        if (asrStatus !== 'idle' && onReset) onReset();
+        if (asrStatus !== 'idle' && typeof onReset === 'function') onReset();
       }
   }
 
@@ -334,6 +332,7 @@ export function useASR({ getAudioContext, trackEvent }) {
 
     try {
       setIsRecording(false);
+      setAsrStatus('preparing');
       if (onShowModal) onShowModal();
 	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -361,9 +360,10 @@ export function useASR({ getAudioContext, trackEvent }) {
       mediaStreamRef.current = stream;
 
       const track = stream.getAudioTracks()[0];
-      await waitForTrackUnmute(track, 1500);
-      await waitForInputEnergy(stream, 0.008, 800, 80);
-      await new Promise(r => setTimeout(r, 150));
+      await waitForTrackUnmute(track, 2000);
+      // Wait up to 10 seconds for energy, so we stay in "Preparing" until mic is alive
+      await waitForInputEnergy(stream, 0.004, 10000, 100);
+      await new Promise(r => setTimeout(r, 200));
 
       const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 160000 });
       chunksRef.current = [];
@@ -375,6 +375,9 @@ export function useASR({ getAudioContext, trackEvent }) {
       };
 
       recorder.onstop = async () => {
+        // Safety: If recorder was nulled or replaced, ignore this event
+        if (!mediaRecorderRef.current || mediaRecorderRef.current !== recorder) return;
+
         if (onShowModal) onShowModal();
         if (onStopWaveformVisualization) onStopWaveformVisualization();
         if (onStopMicTracksNow) onStopMicTracksNow();
@@ -505,12 +508,16 @@ export function useASR({ getAudioContext, trackEvent }) {
       setIsRecording(false);
       setAsrStatus('processing');
       r.stop();
-	  if (onStopMic) onStopMic();
-      else stopMicTracksNow();
+      
+      // Delay track stopping slightly to allow recorder to flush
+      setTimeout(() => {
+        if (typeof onStopMic === 'function') onStopMic();
+        else stopMicTracksNow();
+      }, 100);
 	  
       if (stopSafeguardRef.current) clearTimeout(stopSafeguardRef.current);
       stopSafeguardRef.current = setTimeout(() => {
-        if (asrStatus === 'processing') {
+        if (asrStatus === 'processing' || asrStatus === 'recording') {
           console.warn('MediaRecorder onstop did not fire, forcing reset.');
           resetAudioState();
         }
