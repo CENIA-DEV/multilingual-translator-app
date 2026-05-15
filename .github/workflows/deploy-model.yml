@@ -61,20 +61,19 @@ jobs:
           case "$VARIANT" in
             asr-bf16 | asr-standard)
               SUB_FOLDER=$([[ "$VARIANT" == "asr-bf16" ]] && echo "bf16" || echo "")
-              WHISPER_GCS_PATH="asr-rap/whisper$([[ -n "$SUB_FOLDER" ]] && echo "-$SUB_FOLDER" || echo "")"
               MMS_GCS_PATH="asr-rap/mms$([[ -n "$SUB_FOLDER" ]] && echo "-$SUB_FOLDER" || echo "")"
-              ADAPTER_GCS_PATH="asr-rap/mms/adapter.rap.bin"
-
-              echo "Downloading Whisper ($VARIANT)..."
-              mkdir -p whisper
-              gcloud storage cp -r ${{ env.STORAGE_URI }}/$WHISPER_GCS_PATH/* whisper/
+              RAP_ADAPTER_GCS_PATH="asr-rap/mms/adapter.rap.bin"
+              SPA_ADAPTER_GCS_PATH="asr-rap/mms/adapter.spa.bin"
 
               echo "Downloading MMS ($VARIANT)..."
               mkdir -p mms
               gcloud storage cp -r ${{ env.STORAGE_URI }}/$MMS_GCS_PATH/* mms/
 
               echo "Downloading Rapa Nui Adapter..."
-              gcloud storage cp ${{ env.STORAGE_URI }}/$ADAPTER_GCS_PATH mms/adapter.rap.bin
+              gcloud storage cp ${{ env.STORAGE_URI }}/$RAP_ADAPTER_GCS_PATH mms/adapter.rap.bin
+
+              echo "Downloading Spanish Adapter..."
+              gcloud storage cp ${{ env.STORAGE_URI }}/$SPA_ADAPTER_GCS_PATH mms/adapter.spa.bin
 
               echo "dockerfile=Dockerfile.asr" >> $GITHUB_ENV
               echo "image_tag=asr-rap$([[ -n "$SUB_FOLDER" ]] && echo "-$SUB_FOLDER" || echo "")" >> $GITHUB_ENV

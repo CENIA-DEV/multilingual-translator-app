@@ -28,7 +28,6 @@ WORKDIR /home/app/src
 
 # Copy model files (prepared by GH Actions or local script)
 # We expect these directories in the build context
-COPY whisper/ /app/models/whisper/
 COPY mms/ /app/models/mms/
 
 # Copy application code
@@ -40,11 +39,11 @@ ENV HF_HOME=/app/.cache/huggingface
 EXPOSE 8017
 
 # Default command uses the OptimizedASRWrapper
-# The rap-adapter.bin should be placed inside /app/models/mms/
+# The adapters should be placed inside /app/models/mms/
 ENTRYPOINT ["python3", "server_asr.py"]
 CMD [ \
     "--gpu", \
-    "--model-base-path=/app/models/whisper", \
     "--mms-base-path=/app/models/mms", \
-    "--rap-model-path=/app/models/mms/adapter.rap.bin" \
+    "--rap-model-path=/app/models/mms/adapter.rap.bin", \
+    "--spa-model-path=/app/models/mms/adapter.spa.bin" \
 ]

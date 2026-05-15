@@ -99,34 +99,21 @@ def _parse_args():
     )
 
     parser.add_argument(
-        "--model-base-path",
+        "--mms-base-path",
         default=None,
-        help="Base path to the Whisper model directory",
-    )
-
-    parser.add_argument(
-        "--model-type",
-        choices=["mms", "hybrid", "backup"],
-        default="mms",
-        help="Type of ASR model to use (mms, hybrid, or backup)",
+        help="Path to MMS-1b-all base checkpoint",
     )
 
     parser.add_argument(
         "--rap-model-path",
         default=None,
-        help="Path to specialized Rapa Nui model (for hybrid model type)",
+        help="Path to specialized Rapa Nui adapter",
     )
 
     parser.add_argument(
-        "--rap-vocab-path",
+        "--spa-model-path",
         default=None,
-        help="Path to Rapa Nui vocabulary file (for hybrid model type)",
-    )
-
-    parser.add_argument(
-        "--mms-base-path",  # ✅ New argument
-        default=None,
-        help="Path to MMS-1b-all base checkpoint (for hybrid model type)",
+        help="Path to specialized Spanish adapter",
     )
 
     parser.add_argument(
@@ -187,9 +174,9 @@ def main():
     asr_wrapper = OptimizedASRWrapper(
         logger=logger,
         gpu=args.gpu,
-        model_base_path=args.model_base_path,
-        mms_base_path=args.mms_base_path,
+        model_base_path=args.mms_base_path,
         rap_adapter_path=args.rap_model_path,
+        spa_adapter_path=args.spa_model_path,
         use_bf16=use_bf16,
         use_tf32=use_tf32,
         hf_token=hf_token,

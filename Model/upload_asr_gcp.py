@@ -6,12 +6,8 @@ import tempfile
 import torch
 from dotenv import load_dotenv
 from google.cloud import storage
-from transformers import (
-    AutoModelForCTC,
-    AutoProcessor,
-    WhisperForConditionalGeneration,
-    WhisperProcessor,
-)
+from huggingface_hub import hf_hub_download
+from transformers import AutoModelForCTC, AutoProcessor
 
 print("=== Script starting ===")
 print(f"Current working directory: {os.getcwd()}")
@@ -65,7 +61,6 @@ except Exception as e:
     print(f"ERROR accessing bucket object: {str(e)}")
     sys.exit(1)
 
-whisper_model_id = "openai/whisper-base"
 mms_model_id = "facebook/mms-1b-all"
 
 
@@ -105,44 +100,6 @@ def upload_mms_model_directly(use_bf16=False):
         return False
 
 
-def upload_whisper_model_directly(use_bf16=False):
-    """
-    Download Whisper model from Hugging Face and upload directly to GCP.
-    """
-    print(f"Processing Whisper model: {whisper_model_id} (bf16: {use_bf16})...")
-    try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            processor = WhisperProcessor.from_pretrained(
-                whisper_model_id, token=HF_TOKEN
-            )
-            processor.save_pretrained(os.path.join(temp_dir, "processor"))
-
-            dtype = torch.bfloat16 if use_bf16 else torch.float32
-            model = WhisperForConditionalGeneration.from_pretrained(
-                whisper_model_id,
-                token=HF_TOKEN,
-                torch_dtype=dtype,
-            )
-            model.save_pretrained(
-                os.path.join(temp_dir, "model"), safe_serialization=True
-            )
-
-            sub_folder = "whisper-bf16" if use_bf16 else "whisper"
-            for folder_name in ["processor", "model"]:
-                folder_path = os.path.join(temp_dir, folder_name)
-                for root, _, files in os.walk(folder_path):
-                    for file in files:
-                        local_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(local_path, folder_path)
-                        gcp_path = f"{base_folder}/{sub_folder}/{rel_path}"
-                        blob = bucket.blob(gcp_path)
-                        blob.upload_from_filename(local_path)
-        return True
-    except Exception as e:
-        print(f"ERROR processing Whisper model: {e}")
-        return False
-
-
 def upload_rap_adapter_directly(adapter_path):
     """
     Upload Rapa Nui adapter file directly to GCP.
@@ -152,10 +109,30 @@ def upload_rap_adapter_directly(adapter_path):
     try:
         blob = bucket.blob(gcp_path)
         blob.upload_from_filename(adapter_path)
-        print("Successfully uploaded adapter.")
+        print("Successfully uploaded Rapa Nui adapter.")
         return True
     except Exception as e:
-        print(f"ERROR uploading adapter: {e}")
+        print(f"ERROR uploading Rapa Nui adapter: {e}")
+        return False
+
+
+def upload_spa_adapter_directly():
+    """
+    Download Spanish adapter from HF and upload directly to GCP.
+    """
+    print("Preparing to upload Spanish adapter for MMS...")
+    gcp_path = f"{base_folder}/mms/adapter.spa.bin"
+    try:
+        print(f"Downloading adapter.spa.bin from {mms_model_id}...")
+        local_path = hf_hub_download(
+            repo_id=mms_model_id, filename="adapter.spa.bin", token=HF_TOKEN
+        )
+        blob = bucket.blob(gcp_path)
+        blob.upload_from_filename(local_path)
+        print("Successfully uploaded Spanish adapter.")
+        return True
+    except Exception as e:
+        print(f"ERROR uploading Spanish adapter: {e}")
         return False
 
 
@@ -168,10 +145,10 @@ def parse_args():
         "--bf16", action="store_true", help="Save models in bfloat16 before uploading"
     )
     parser.add_argument(
-        "--skip-whisper", action="store_true", help="Skip Whisper model upload"
+        "--skip-mms", action="store_true", help="Skip MMS base model upload"
     )
     parser.add_argument(
-        "--skip-mms", action="store_true", help="Skip MMS base model upload"
+        "--skip-spa-adapter", action="store_true", help="Skip Spanish adapter upload"
     )
     return parser.parse_args()
 
@@ -190,10 +167,10 @@ def main():
         if not upload_rap_adapter_directly(args.rap_adapter_path):
             sys.exit(1)
 
-        # 2. Upload Whisper model
-        if not args.skip_whisper:
-            print("\n--- Uploading Whisper model ---")
-            if not upload_whisper_model_directly(use_bf16=args.bf16):
+        # 2. Upload Spanish adapter
+        if not args.skip_spa_adapter:
+            print("\n--- Uploading Spanish adapter ---")
+            if not upload_spa_adapter_directly():
                 sys.exit(1)
 
         # 3. Upload MMS base model

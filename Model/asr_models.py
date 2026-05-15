@@ -5,12 +5,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import torch
 from dotenv import load_dotenv
-from transformers import (
-    AutoProcessor,
-    Wav2Vec2ForCTC,
-    WhisperForConditionalGeneration,
-    WhisperProcessor,
-)
+from transformers import AutoProcessor, Wav2Vec2ForCTC
 
 load_dotenv()
 
@@ -81,8 +76,7 @@ class ASRModelWrapper(ABC):
 class OptimizedASRWrapper(ASRModelWrapper):
     """
     Consolidated and optimized ASR wrapper.
-    Uses Whisper for English and Spanish (spa, eng).
-    Uses MMS with Language Adapters for Rapa Nui (rap).
+    Uses MMS with Language Adapters for Rapa Nui (rap) and Spanish (spa).
     Supports bfloat16 and TensorFloat32 for enhanced performance.
     """
 
@@ -90,69 +84,37 @@ class OptimizedASRWrapper(ASRModelWrapper):
         self,
         logger: logging.Logger,
         gpu: bool = True,
-        model_base_path: str = None,  # Whisper path
-        mms_base_path: str = None,  # MMS-1b-all path
+        model_base_path: str = None,  # MMS-1b-all path (compatibility)
         rap_adapter_path: str = None,  # Path to rap-adapter.bin
+        spa_adapter_path: str = None,  # Path to spa-adapter.bin
         use_bf16: bool = False,
         use_tf32: bool = True,
-        whisper_model_id: str = "openai/whisper-base",
         hf_token: str = None,
     ):
-        self.mms_base_path = mms_base_path or "facebook/mms-1b-all"
+        self.mms_base_path = model_base_path or "facebook/mms-1b-all"
         self.rap_adapter_path = rap_adapter_path
+        self.spa_adapter_path = spa_adapter_path
         self.use_bf16 = use_bf16 and gpu and torch.cuda.is_available()
         self.use_tf32 = use_tf32
-        self.whisper_model_id = whisper_model_id
         self.hf_token = hf_token
 
         # Internal state
-        self.whisper_model = None
-        self.whisper_processor = None
-        self.rap_model = None
-        self.rap_processor = None
+        self.mms_model = None
+        self.mms_processor = None
 
         super().__init__(logger, gpu, model_base_path)
 
     def _preload_models(self):
-        self.logger.info("=== STARTING OPTIMIZED ASR MODEL LOADING ===")
+        self.logger.info("=== STARTING OPTIMIZED MMS ASR MODEL LOADING ===")
         self.logger.info(f"Device: {self._device}, bf16: {self.use_bf16}")
 
-        # 1. Load Whisper for Spanish and English
-        self._load_whisper()
-
-        # 2. Load MMS with Rapa Nui Adapter
-        self._load_mms_rap()
+        # Load MMS for all supported languages (spa, rap)
+        self._load_mms()
 
         self.logger.info("=== OPTIMIZED ASR MODEL LOADING COMPLETE ===")
         self.optimize(tf32=self.use_tf32)
 
-    def _load_whisper(self):
-        try:
-            whisper_path = self.model_base_path or self.whisper_model_id
-            self.logger.info(f"Loading Whisper model from: {whisper_path}")
-            local_files_only = (
-                os.path.exists(whisper_path) if isinstance(whisper_path, str) else False
-            )
-
-            self.whisper_processor = WhisperProcessor.from_pretrained(
-                whisper_path, token=self.hf_token, local_files_only=local_files_only
-            )
-
-            dtype = torch.bfloat16 if self.use_bf16 else torch.float32
-            self.whisper_model = WhisperForConditionalGeneration.from_pretrained(
-                whisper_path,
-                token=self.hf_token,
-                local_files_only=local_files_only,
-                torch_dtype=dtype,
-            ).to(self._device)
-
-            self.whisper_model.eval()
-            self.logger.info(f"Whisper model ({dtype}) loaded successfully.")
-        except Exception as e:
-            self.logger.error(f"Failed to load Whisper model: {e}")
-            raise
-
-    def _load_mms_rap(self):
+    def _load_mms(self):
         try:
             self.logger.info(f"Loading MMS base model from: {self.mms_base_path}")
             local_files_only = (
@@ -161,35 +123,89 @@ class OptimizedASRWrapper(ASRModelWrapper):
                 else False
             )
 
-            self.rap_processor = AutoProcessor.from_pretrained(
-                self.mms_base_path, local_files_only=local_files_only
+            self.mms_processor = AutoProcessor.from_pretrained(
+                self.mms_base_path,
+                local_files_only=local_files_only,
+                token=self.hf_token,
             )
 
             dtype = torch.bfloat16 if self.use_bf16 else torch.float32
-            self.rap_model = Wav2Vec2ForCTC.from_pretrained(
-                self.mms_base_path, local_files_only=local_files_only, torch_dtype=dtype
-            ).to(self._device)
 
-            # Set Rapa Nui target
-            self.rap_processor.tokenizer.set_target_lang("rap")
+            # Use low_cpu_mem_usage and device_map for faster loading
+            device_map = {"": self._device} if self._device.type == "cuda" else None
+            self.mms_model = Wav2Vec2ForCTC.from_pretrained(
+                self.mms_base_path,
+                local_files_only=local_files_only,
+                torch_dtype=dtype,
+                token=self.hf_token,
+                low_cpu_mem_usage=True,
+                device_map=device_map,
+            )
 
-            # Load Adapter
-            # load_adapter expects 'adapter.rap.bin' in the model directory.
-            # If rap_adapter_path is provided, we check if it's already there.
-            if self.rap_adapter_path and os.path.exists(self.rap_adapter_path):
-                # We assume the user knows what they are doing if they passed a path.
-                # However, load_adapter("rap") is the standard way for MMS.
+            # Load Adapters
+            self.logger.info("Loading Rapa Nui adapter...")
+            try:
+                self.mms_model.load_adapter("rap")
+                self.logger.info("MMS Rapa Nui adapter loaded.")
+            except Exception as e:
+                self.logger.warning(f"Could not load rap adapter: {e}")
+
+            self.logger.info("Loading Spanish adapter...")
+            try:
+                self.mms_model.load_adapter("spa")
+                self.logger.info("MMS Spanish adapter loaded.")
+            except Exception as e:
+                self.logger.warning(f"Could not load spa adapter: {e}")
+
+            self.mms_model.eval()
+
+            # Apply torch.compile for faster inference if available (PyTorch 2.0+)
+            if hasattr(torch, "compile") and self._device.type == "cuda":
                 self.logger.info(
-                    f"Using Rapa Nui adapter from: {self.rap_adapter_path}"
+                    "Compiling MMS model with torch.compile for maximum "
+                    "inference speed..."
                 )
+                try:
+                    # Using 'reduce-overhead' can give better results for ASR models
+                    self.mms_model = torch.compile(
+                        self.mms_model, mode="reduce-overhead"
+                    )
+                    self.logger.info("torch.compile applied successfully.")
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to compile model: {e}. Proceeding without compilation."
+                    )
 
-            self.rap_model.load_adapter("rap")
+            # Warmup the model to avoid latency on the first real request
+            self._warmup()
 
-            self.rap_model.eval()
-            self.logger.info("MMS Rapa Nui (adapter) loaded successfully.")
+            self.logger.info("MMS model initialized and warmed up successfully.")
         except Exception as e:
-            self.logger.error(f"Failed to load MMS Rapa Nui model: {e}")
+            self.logger.error(f"Failed to load MMS model: {e}")
             raise
+
+    def _warmup(self):
+        """Perform a dummy inference to warm up CUDA and compilation kernels."""
+        try:
+            self.logger.info("Warming up MMS model...")
+            dummy_audio = np.zeros(16000, dtype=np.float32)
+            # Use 'spa' as default warmup lang
+            self.mms_processor.tokenizer.set_target_lang("spa")
+            if hasattr(self.mms_model, "set_adapter"):
+                self.mms_model.set_adapter("spa")
+
+            processed = self.mms_processor(
+                dummy_audio, sampling_rate=16000, return_tensors="pt"
+            )
+            input_values = processed.input_values.to(self._device)
+            if self.use_bf16:
+                input_values = input_values.to(torch.bfloat16)
+
+            with torch.no_grad():
+                _ = self.mms_model(input_values).logits
+            self.logger.info("Warmup complete.")
+        except Exception as e:
+            self.logger.warning(f"Warmup failed: {e}")
 
     def process_audio(self, audio, sampling_rate: int):
         return {"audio": audio, "sampling_rate": sampling_rate}
@@ -204,17 +220,18 @@ class OptimizedASRWrapper(ASRModelWrapper):
                 audio = np.nan_to_num(audio)
             audio = audio.astype(np.float32, copy=False)
 
-        if lang == "rap":
-            self.logger.info(
-                f"Inference: Invoking MMS model for Rapa Nui (lang: {lang})"
-            )
-            return self._transcribe_rap(audio, sampling_rate)
-        else:
-            self.logger.info(f"Inference: Invoking Whisper model (lang: {lang})")
-            return self._transcribe_whisper(audio, sampling_rate, lang)
+        self.logger.info(f"Inference: Invoking MMS model for {lang}")
 
-    def _transcribe_rap(self, audio, sampling_rate):
-        processed = self.rap_processor(
+        # Set target language for tokenizer
+        self.mms_processor.tokenizer.set_target_lang(lang)
+
+        # Set active adapter for model
+        try:
+            self.mms_model.set_adapter(lang)
+        except Exception as e:
+            self.logger.warning(f"Could not set adapter to {lang}: {e}")
+
+        processed = self.mms_processor(
             audio, sampling_rate=sampling_rate, return_tensors="pt"
         )
         input_values = processed.input_values.to(self._device)
@@ -223,27 +240,7 @@ class OptimizedASRWrapper(ASRModelWrapper):
             input_values = input_values.to(torch.bfloat16)
 
         with torch.no_grad():
-            logits = self.rap_model(input_values).logits
+            logits = self.mms_model(input_values).logits
 
         pred_ids = torch.argmax(logits, dim=-1)
-        return self.rap_processor.batch_decode(pred_ids)[0]
-
-    def _transcribe_whisper(self, audio, sampling_rate, lang):
-        whisper_lang_map = {"spa": "es", "eng": "en"}
-        input_features = self.whisper_processor(
-            audio, sampling_rate=sampling_rate, return_tensors="pt"
-        ).input_features.to(self._device)
-
-        if self.use_bf16:
-            input_features = input_features.to(torch.bfloat16)
-
-        with torch.no_grad():
-            predicted_ids = self.whisper_model.generate(
-                input_features,
-                task="transcribe",
-                language=whisper_lang_map.get(lang, "es"),
-            )
-
-        return self.whisper_processor.batch_decode(
-            predicted_ids, skip_special_tokens=True
-        )[0]
+        return self.mms_processor.batch_decode(pred_ids)[0]
