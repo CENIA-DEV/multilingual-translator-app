@@ -348,18 +348,13 @@ export default function Translator() {
     return text.slice(0, i);
   }
 
-  // MODIFY: handleSrcText to trigger warmup on first typing
+  // Source text input handler
   const handleSrcText = (text) => {
     console.log(text);
     console.log(text.trim().split(/\n+/).length);
     const textList = text.trim().split(/\s+/).filter(word => word.length > 0);
     const wordCount = textList.length;
     console.log(wordCount);
-    
-    // NEW: Trigger ASR warmup when user starts typing (if ASR is available)
-    if (text.length > 0 && (isASRLang(srcLang) || isASRLang(dstLang))) {
-      triggerASRWarmupIfNeeded(srcHint);
-    }
     
     // if the text is longer than the max words, limit the text to the max words
     // while preserving the structure (newlines)
