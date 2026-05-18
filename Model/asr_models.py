@@ -145,16 +145,14 @@ class OptimizedASRWrapper(ASRModelWrapper):
             # Load Adapters
             self.logger.info("Loading Rapa Nui adapter...")
             try:
-                # self.mms_model.load_adapter("rap")
-                self.mms_model.load_adapter(self.rap_adapter_path, adapter_name="rap")
+                self.mms_model.load_adapter("rap")
                 self.logger.info("MMS Rapa Nui adapter loaded.")
             except Exception as e:
                 self.logger.warning(f"Could not load rap adapter: {e}")
 
             self.logger.info("Loading Spanish adapter...")
             try:
-                # self.mms_model.load_adapter("spa")
-                self.mms_model.load_adapter(self.spa_adapter_path, adapter_name="spa")
+                self.mms_model.load_adapter("spa")
                 self.logger.info("MMS Spanish adapter loaded.")
             except Exception as e:
                 self.logger.warning(f"Could not load spa adapter: {e}")
@@ -162,7 +160,7 @@ class OptimizedASRWrapper(ASRModelWrapper):
             self.mms_model.eval()
 
             # Apply torch.compile for faster inference if available (PyTorch 2.0+)
-            if hasattr(torch, "compile") and self._device.type == "cuda":
+            if False and hasattr(torch, "compile") and self._device.type == "cuda":
                 self.logger.info(
                     "Compiling MMS model with torch.compile for maximum "
                     "inference speed..."
