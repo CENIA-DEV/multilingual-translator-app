@@ -4,10 +4,14 @@ import logging
 import os
 
 import numpy as np
-from asr_models import BackupASRWrapper, HybridASRWrapper, MMSASRWrapper
+import torch
+from asr_models import OptimizedASRWrapper
 from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig
+
+logging.info(f"CUDA IS AVAILABLE: {torch.cuda.is_available()}")
+logging.info(f"CUDA DEVICE COUNT: {torch.cuda.device_count()}")
 
 
 class _ASRInferFuncWrapper:
@@ -59,7 +63,7 @@ def _asr_infer_function_factory(num_copies, logger, asr_wrapper):
     """
     infer_fns = []
     for i in range(num_copies):
-        logger.info(f"Creating inference function copy {i+1}/{num_copies}")
+        logger.info(f"Creating inference function copy {i + 1}/{num_copies}")
         infer_fns.append(_ASRInferFuncWrapper(asr_wrapper=asr_wrapper, logger=logger))
 
     return infer_fns
@@ -99,34 +103,21 @@ def _parse_args():
     )
 
     parser.add_argument(
-        "--model-base-path",
+        "--mms-base-path",
         default=None,
-        help="Base path to the Whisper model directory",
-    )
-
-    parser.add_argument(
-        "--model-type",
-        choices=["mms", "hybrid", "backup"],
-        default="mms",
-        help="Type of ASR model to use (mms, hybrid, or backup)",
+        help="Path to MMS-1b-all base checkpoint",
     )
 
     parser.add_argument(
         "--rap-model-path",
         default=None,
-        help="Path to specialized Rapa Nui model (for hybrid model type)",
+        help="Path to specialized Rapa Nui adapter",
     )
 
     parser.add_argument(
-        "--rap-vocab-path",
+        "--spa-model-path",
         default=None,
-        help="Path to Rapa Nui vocabulary file (for hybrid model type)",
-    )
-
-    parser.add_argument(
-        "--mms-base-path",  # ✅ New argument
-        default=None,
-        help="Path to MMS-1b-all base checkpoint (for hybrid model type)",
+        help="Path to specialized Spanish adapter",
     )
 
     parser.add_argument(
@@ -178,47 +169,22 @@ def main():
 
     use_tf32 = args.use_tf32 and not args.no_tf32
 
-    # Instantiate the appropriate ASR wrapper based on model_type
-    logger.info(f"Loading {args.model_type} ASR model...")
-    if args.model_type == "mms":
-        asr_wrapper = MMSASRWrapper(
-            logger=logger,
-            gpu=args.gpu,
-            model_base_path=args.model_base_path,
-        )
-        if args.gpu:  # TODO: review later
-            asr_wrapper.optimize(tf32=use_tf32)
+    # Check for BF16 in environment variables as well
+    env_use_bf16 = os.getenv("ASR_USE_BF16", "false").lower() == "true"
+    use_bf16 = args.use_bf16 or env_use_bf16
 
-    elif args.model_type == "hybrid":
-        if not args.rap_model_path or not args.rap_vocab_path:
-            raise ValueError(
-                "For hybrid model, --rap-model-path and --rap-vocab-path are required."
-            )
-        asr_wrapper = HybridASRWrapper(
-            logger=logger,
-            gpu=args.gpu,
-            model_base_path=args.model_base_path,
-            rap_model_path=args.rap_model_path,
-            rap_vocab_path=args.rap_vocab_path,
-            mms_base_path=args.mms_base_path,
-            hf_token=hf_token,
-        )
-        # TODO: review later
-        if args.gpu:
-            asr_wrapper.optimize(tf32=use_tf32)
-
-    elif args.model_type == "backup":
-        asr_wrapper = BackupASRWrapper(
-            logger=logger,
-            gpu=args.gpu,
-            model_base_path=args.model_base_path,
-            mms_base_path=args.mms_base_path,
-            use_bf16=args.use_bf16,
-            use_tf32=use_tf32,
-            hf_token=hf_token,
-        )
-    else:
-        raise ValueError(f"Invalid model type: {args.model_type}")
+    # Instantiate the consolidated and optimized ASR wrapper
+    logger.info(f"Loading Optimized ASR model (bf16: {use_bf16})...")
+    asr_wrapper = OptimizedASRWrapper(
+        logger=logger,
+        gpu=args.gpu,
+        model_base_path=args.mms_base_path,
+        rap_adapter_path=args.rap_model_path,
+        spa_adapter_path=args.spa_model_path,
+        use_bf16=use_bf16,
+        use_tf32=use_tf32,
+        hf_token=hf_token,
+    )
 
     logger.info("ASR model loaded successfully!")
 

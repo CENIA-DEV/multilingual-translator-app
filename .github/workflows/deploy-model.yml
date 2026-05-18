@@ -3,20 +3,19 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: 'Variant language for deployment'
+        description: 'Variant language/task for deployment'
         required: true
         type: choice
         options:
-          - rap
-          - arn
-          - raw
-          - tts
-          - asr
-          - asr-backup
           - asr-bf16
+          - asr-standard
+          - translation-rap
+          - translation-arn
+          - tts
+          - raw
 
       model_path:
-        description: 'Source model path inside STORAGE_URI (for rap/raw/arn). Example: nllb/rap/nllb-200-3.3b-spa-rap'
+        description: 'Source model path inside STORAGE_URI (for translation/raw). Example: nllb/rap/nllb-200-3.3b-spa-rap'
         required: false
         type: string
 
@@ -32,7 +31,7 @@ jobs:
       STORAGE_URI: ${{ vars.STORAGE_URI }}
 
     steps:
-      - name: Free Disk Space (Ubuntu)
+      - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
@@ -40,8 +39,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            Model/
+          sparse-checkout: Model/
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
@@ -54,262 +52,92 @@ jobs:
         with:
           version: '>= 416.0.0'
 
-      - name: Download model(s)
+      - name: Download models and prepare build context
         working-directory: Model/
         run: |
-          echo "=== Deploying variant: ${{ github.event.inputs.variant }} ==="
+          VARIANT="${{ github.event.inputs.variant }}"
+          echo "=== Processing variant: $VARIANT ==="
 
-          # HANDLE BFLOAT16 VARIANT
-          if [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
-            echo "=== Downloading BFLOAT16 ASR models ==="
+          case "$VARIANT" in
+            asr-bf16 | asr-standard)
+              SUB_FOLDER=$([[ "$VARIANT" == "asr-bf16" ]] && echo "bf16" || echo "")
+              MMS_GCS_PATH="asr-rap/mms$([[ -n "$SUB_FOLDER" ]] && echo "-$SUB_FOLDER" || echo "")"
+              RAP_ADAPTER_GCS_PATH="asr-rap/mms/adapter.rap.bin"
+              SPA_ADAPTER_GCS_PATH="asr-rap/mms/adapter.spa.bin"
 
-            echo "Checking if whisper-bfloat16 exists in GCS..."
-            if gcloud storage ls ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/ &>/dev/null; then
-              echo "Downloading Whisper bfloat16 model..."
-              mkdir -p asr-rap/whisper-bfloat16
-              gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/* asr-rap/whisper-bfloat16/
-              echo "Whisper bfloat16 download complete. Contents:"
-              ls -la asr-rap/whisper-bfloat16/
-            else
-              echo "ERROR: whisper-bfloat16 directory not found in GCS!"
-              echo "Please upload bfloat16 models to: ${{ env.STORAGE_URI }}/asr-rap/whisper-bfloat16/"
-              exit 1
-            fi
+              echo "Downloading MMS ($VARIANT)..."
+              mkdir -p mms
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/$MMS_GCS_PATH/* mms/
 
-            echo "Checking if mms-1b-all-bfloat16 exists in GCS..."
-            if gcloud storage ls ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/ &>/dev/null; then
-              echo "Downloading MMS bfloat16 model..."
-              mkdir -p asr-rap/mms-1b-all-bfloat16
-              gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/* asr-rap/mms-1b-all-bfloat16/
-              echo "MMS bfloat16 download complete. Contents:"
-              ls -la asr-rap/mms-1b-all-bfloat16/
-            else
-              echo "ERROR: mms-1b-all-bfloat16 directory not found in GCS!"
-              echo "Please upload bfloat16 models to: ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all-bfloat16/"
-              exit 1
-            fi
+              echo "Downloading Rapa Nui Adapter..."
+              gcloud storage cp ${{ env.STORAGE_URI }}/$RAP_ADAPTER_GCS_PATH mms/adapter.rap.bin
 
-          # HANDLE RAP VARIANT (translation model)
-          elif [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
-            echo "=== Downloading RAP translation model ==="
+              echo "Downloading Spanish Adapter..."
+              gcloud storage cp ${{ env.STORAGE_URI }}/$SPA_ADAPTER_GCS_PATH mms/adapter.spa.bin
 
-            # Source path in GCS (can be nested). Runtime model folder is fixed
-            # to keep Triton model endpoint stable and slash-free.
-            SOURCE_MODEL_PATH="${{ github.event.inputs.model_path }}"
-            if [[ -z "$SOURCE_MODEL_PATH" ]]; then
-              SOURCE_MODEL_PATH="nllb/rap/nllb-200-3.3b-spa-rap"
-            fi
-            RUNTIME_MODEL_NAME="nllb-200-3.3b-spa-rap"
+              echo "dockerfile=Dockerfile.asr" >> $GITHUB_ENV
+              echo "image_tag=asr-rap$([[ -n "$SUB_FOLDER" ]] && echo "-$SUB_FOLDER" || echo "")" >> $GITHUB_ENV
+              [[ "$VARIANT" == "asr-bf16" ]] && echo "ASR_USE_BF16=true" >> $GITHUB_ENV
+              ;;
 
-            MODEL_PATH=${{ env.STORAGE_URI }}/$SOURCE_MODEL_PATH
-            echo "Using source model path: $MODEL_PATH"
-            echo "Using runtime model folder: $RUNTIME_MODEL_NAME"
-            mkdir -p "$RUNTIME_MODEL_NAME"
-            gcloud storage cp -r "$MODEL_PATH"/* "$RUNTIME_MODEL_NAME"/
-            echo "RAP translation model download complete. Contents:"
-            ls -la "$RUNTIME_MODEL_NAME"/
+            translation-rap | translation-arn)
+              SOURCE_PATH="${{ github.event.inputs.model_path }}"
+              if [[ -z "$SOURCE_PATH" ]]; then
+                if [[ "$VARIANT" == "translation-rap" ]]; then SOURCE_PATH="nllb/rap/nllb-200-3.3b-spa-rap"; else SOURCE_PATH="nllb/arn/model"; fi
+              fi
+              RUNTIME_NAME="translation_model"
 
-          # HANDLE ASR BACKUP VARIANT
-          elif [[ "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
-            echo "=== Downloading STANDARD ASR models for variant: ${{ github.event.inputs.variant }} ==="
+              echo "Downloading translation model from $SOURCE_PATH..."
+              mkdir -p "$RUNTIME_NAME"
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/$SOURCE_PATH/* "$RUNTIME_NAME"/
 
-            echo "Downloading Standard Whisper model..."
-            mkdir -p asr-rap/whisper
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper/* asr-rap/whisper/
-            echo "Whisper download complete. Contents:"
-            ls -la asr-rap/whisper/
+              echo "dockerfile=Dockerfile" >> $GITHUB_ENV
+              echo "image_tag=$VARIANT" >> $GITHUB_ENV
+              ;;
 
-            echo "Downloading Standard MMS model..."
-            mkdir -p asr-rap/mms-1b-all
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all/* asr-rap/mms-1b-all/
-            echo "MMS download complete. Contents:"
-            ls -la asr-rap/mms-1b-all/
+            tts)
+              echo "Downloading TTS models..."
+              mkdir -p tts-rap/rap/female tts-rap/rap/male
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/female/* tts-rap/rap/female/
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/male/* tts-rap/rap/male/
 
-            echo "Downloading RAP model..."
-            mkdir -p asr-rap/rap
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
-            echo "RAP model download complete. Contents:"
-            ls -la asr-rap/rap/
+              echo "dockerfile=Dockerfile.audio" >> $GITHUB_ENV
+              echo "image_tag=tts" >> $GITHUB_ENV
+              ;;
 
-          # HANDLE ASR VARIANT (hybrid without backup)
-          elif [[ "${{ github.event.inputs.variant }}" == "asr" ]]; then
-            echo "=== Downloading ASR models for hybrid variant ==="
+            raw)
+              SOURCE_PATH="${{ github.event.inputs.model_path }}"
+              echo "Downloading raw model from $SOURCE_PATH..."
+              mkdir -p raw_model
+              gcloud storage cp -r ${{ env.STORAGE_URI }}/$SOURCE_PATH/* raw_model/
 
-            echo "Downloading Standard Whisper model..."
-            mkdir -p asr-rap/whisper
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/whisper/* asr-rap/whisper/
-
-            echo "Downloading Standard MMS model..."
-            mkdir -p asr-rap/mms-1b-all
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/mms-1b-all/* asr-rap/mms-1b-all/
-
-            echo "Downloading RAP model..."
-            mkdir -p asr-rap/rap
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/asr-rap/rap/* asr-rap/rap/
-
-          # HANDLE SINGLE MODEL DOWNLOADS
-          elif [[ "${{ github.event.inputs.variant }}" == "raw" ]]; then
-            echo "=== Downloading RAW model ==="
-            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
-            echo "Using model path: $MODEL_PATH"
-            mkdir -p ${{ github.event.inputs.model_path }}
-            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
-          # NEW: HANDLE TTS VARIANT
-          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
-            echo "=== Downloading TTS models ==="
-
-            echo "Downloading female model..."
-            mkdir -p tts-rap/rap/female
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/female/* tts-rap/rap/female/
-
-            echo "Downloading male model..."
-            mkdir -p tts-rap/rap/male
-            gcloud storage cp -r ${{ env.STORAGE_URI }}/tts-rap/rap/male/* tts-rap/rap/male/
-
-          # HANDLE ARN VARIANT
-          elif [[ "${{ github.event.inputs.variant }}" == "arn" ]]; then
-            echo "=== Downloading ARN model ==="
-            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
-            echo "Using model path: $MODEL_PATH"
-            mkdir -p ${{ github.event.inputs.model_path }}
-            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
-          else
-            MODEL_PATH=${{ env.STORAGE_URI }}/${{ github.event.inputs.model_path }}
-            echo "Using model path: $MODEL_PATH"
-            mkdir -p ${{ github.event.inputs.model_path }}
-            gcloud storage cp -r $MODEL_PATH/* ${{ github.event.inputs.model_path }}
-          fi
-
-          # Verify directory structure
-          echo "=== Final directory structure ==="
-          find . -type d | grep -E "asr-rap|whisper|mms-1b-all|tts-rap|nllb" | sort
-
-      - name: Verify model files exist
-        working-directory: Model/
-        run: |
-          if [[ "${{ github.event.inputs.variant }}" == "rap" ]]; then
-            echo "=== Checking RAP translation model files ==="
-            RUNTIME_MODEL_NAME="nllb-200-3.3b-spa-rap"
-            if [ ! -f "$RUNTIME_MODEL_NAME/config.json" ]; then
-              echo "ERROR: Translation model config.json not found at $RUNTIME_MODEL_NAME!"
-              echo "Directory contents:"
-              ls -R "$RUNTIME_MODEL_NAME" || echo "Model directory doesn't exist"
-              exit 1
-            fi
-
-            echo "✅ RAP translation model files present"
-          elif [[ "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
-            echo "=== Checking Whisper model files ==="
-            if [ ! -f "asr-rap/whisper/config.json" ]; then
-              echo "ERROR: Whisper config.json not found!"
-              echo "Directory contents:"
-              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
-              exit 1
-            fi
-
-            echo "=== Checking MMS model files ==="
-            if [ ! -f "asr-rap/mms-1b-all/config.json" ]; then
-              echo "ERROR: MMS config.json not found!"
-              echo "Directory contents:"
-              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
-              exit 1
-            fi
-
-            echo "✅ All required model files present"
-          elif [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
-            echo "=== Checking Whisper bfloat16 model files ==="
-            if [ ! -f "asr-rap/whisper-bfloat16/config.json" ]; then
-              echo "ERROR: Whisper bfloat16 config.json not found!"
-              echo "Directory contents:"
-              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
-              exit 1
-            fi
-
-            echo "=== Checking MMS bfloat16 model files ==="
-            if [ ! -f "asr-rap/mms-1b-all-bfloat16/config.json" ]; then
-              echo "ERROR: MMS bfloat16 config.json not found!"
-              echo "Directory contents:"
-              ls -R asr-rap/ || echo "asr-rap directory doesn't exist"
-              exit 1
-            fi
-
-            echo "✅ All required bfloat16 model files present"
-          elif [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
-            echo "=== Checking TTS model files ==="
-            if [ ! -f "tts-rap/rap/female/config.json" ] || [ ! -f "tts-rap/rap/male/config.json" ]; then
-              echo "ERROR: TTS config.json not found for male or female!"
-              exit 1
-            fi
-            echo "✅ All required TTS model files present"
-          else
-            echo "Skipping verification for variant: ${{ github.event.inputs.variant }}"
-          fi
-
-      - name: Set Dockerfile path
-        id: set-dockerfile
-        run: |
-          if [[ "${{ github.event.inputs.variant }}" == "tts" ]]; then
-            echo "dockerfile=Dockerfile.audio" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
-            echo "dockerfile=Dockerfile.asr-bf16" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" ]]; then
-            echo "dockerfile=Dockerfile.asr" >> $GITHUB_OUTPUT
-          else
-            echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
-          fi
+              echo "dockerfile=Dockerfile" >> $GITHUB_ENV
+              echo "image_tag=raw-model" >> $GITHUB_ENV
+              ;;
+          esac
 
       - name: Build Docker Image
         working-directory: Model/
         run: |
-          echo "Using dockerfile: ${{ steps.set-dockerfile.outputs.dockerfile }}"
-          if [[ "${{ github.event.inputs.variant }}" == "asr" || "${{ github.event.inputs.variant }}" == "asr-backup" || "${{ github.event.inputs.variant }}" == "asr-bf16" ]]; then
-            docker build \
-              --build-arg HF_TOKEN=${{ secrets.HUGGING_FACE_TOKEN }} \
-              -t model:${{ github.sha }} \
-              -f ${{ steps.set-dockerfile.outputs.dockerfile }} .
-          else
-            docker build -t model:${{ github.sha }} -f ${{ steps.set-dockerfile.outputs.dockerfile }} .
-          fi
+          echo "Building with Dockerfile: $dockerfile"
+          docker build \
+            --build-arg HF_TOKEN=${{ secrets.HUGGING_FACE_TOKEN }} \
+            --build-arg ASR_USE_BF16=${{ env.ASR_USE_BF16 || 'false' }} \
+            -t model:${{ github.sha }} \
+            -f $dockerfile .
 
-      - name: Configure Docker Client
+      - name: Configure Docker
         run: |
-          gcloud auth configure-docker --quiet
           gcloud auth configure-docker ${{ env.ARTIFACT_REGION }}-docker.pkg.dev --quiet
 
-      - name: Push Docker Image to Artifact Registry
+      - name: Push Docker Image
         run: |
-          # SAFE & EXPLICIT IMAGE TAGGING
-          case "${{ github.event.inputs.variant }}" in
-            asr-bf16)
-              IMAGE_TAG="asr-rap-bf16"
-              ;;
-            rap)
-              IMAGE_TAG="nllb-200-3.3b-spa-rap"
-              ;;
-            asr-backup)
-              IMAGE_TAG="asr-rap-backup"
-              ;;
-            asr)
-              IMAGE_TAG="asr"
-              ;;
-            tts)
-              IMAGE_TAG="tts"
-              ;;
-            arn|raw)
-              IMAGE_TAG="${{ github.event.inputs.model_path }}"
-              ;;
-            *)
-              IMAGE_TAG="${{ github.event.inputs.model_path }}"
-              ;;
-          esac
+          FULL_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ env.image_tag }}:${{ github.sha }}
+          LATEST_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${{ env.image_tag }}:latest
 
-          if [[ -z "$IMAGE_TAG" ]]; then
-            echo "ERROR: IMAGE_TAG resolved to empty. Check model_path input."
-            exit 1
-          fi
+          docker tag model:${{ github.sha }} $FULL_IMAGE_NAME
+          docker tag model:${{ github.sha }} $LATEST_IMAGE_NAME
 
-          ARTIFACT_REGISTRY_IMAGE_NAME=${{ env.ARTIFACT_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_NAME }}/${IMAGE_TAG}:${{ github.sha }}
-
-          echo "Pushing docker image to: $ARTIFACT_REGISTRY_IMAGE_NAME"
-          docker tag model:${{ github.sha }} $ARTIFACT_REGISTRY_IMAGE_NAME
-          docker push $ARTIFACT_REGISTRY_IMAGE_NAME
+          docker push $FULL_IMAGE_NAME
+          docker push $LATEST_IMAGE_NAME
+          echo "Pushed: $FULL_IMAGE_NAME"
