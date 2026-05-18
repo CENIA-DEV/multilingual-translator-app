@@ -1118,7 +1118,7 @@ class WordViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def analyze_sentence(self, request):
-        
+
         sentence = request.data.get("sentence", "")
 
         if not sentence:
