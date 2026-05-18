@@ -708,7 +708,7 @@ def get_word_candidates(sentence, max_n=5):
     # This allows detecting phrases like "como eta" or "'como eta"
     for n in range(2, max_n + 1):
         for i in range(len(tokens) - n + 1):
-            phrase = " ".join(tokens[i : i + n])
+            phrase = " ".join(tokens[i:i + n])
             candidates.add(phrase)
 
     return candidates
