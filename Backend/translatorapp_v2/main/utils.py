@@ -120,7 +120,7 @@ def translate(src_text, src_lang, dst_lang):
         f"{settings.APP_SETTINGS.raw_inference_model_name}/infer"
     )
 
-    logger.info(f"Starting request...")
+    logger.info("Starting request...")
     logger.info(f"Native deployment: {native_deployment}")
     logger.info(f"Raw deployment: {raw_deployment}")
 
