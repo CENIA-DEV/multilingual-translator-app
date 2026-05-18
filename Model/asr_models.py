@@ -191,8 +191,10 @@ class OptimizedASRWrapper(ASRModelWrapper):
             dummy_audio = np.zeros(16000, dtype=np.float32)
             # Use 'spa' as default warmup lang
             self.mms_processor.tokenizer.set_target_lang("spa")
-            if hasattr(self.mms_model, "set_adapter"):
-                self.mms_model.set_adapter("spa")
+
+            # CHANGED: load_adapter instead of set_adapter
+            if hasattr(self.mms_model, "load_adapter"):
+                self.mms_model.load_adapter("spa")
 
             processed = self.mms_processor(
                 dummy_audio, sampling_rate=16000, return_tensors="pt"
@@ -225,11 +227,11 @@ class OptimizedASRWrapper(ASRModelWrapper):
         # Set target language for tokenizer
         self.mms_processor.tokenizer.set_target_lang(lang)
 
-        # Set active adapter for model
+        # CHANGED: load_adapter instead of set_adapter
         try:
-            self.mms_model.set_adapter(lang)
+            self.mms_model.load_adapter(lang)
         except Exception as e:
-            self.logger.warning(f"Could not set adapter to {lang}: {e}")
+            self.logger.warning(f"Could not load adapter for {lang}: {e}")
 
         processed = self.mms_processor(
             audio, sampling_rate=sampling_rate, return_tensors="pt"
