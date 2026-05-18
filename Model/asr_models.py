@@ -145,14 +145,16 @@ class OptimizedASRWrapper(ASRModelWrapper):
             # Load Adapters
             self.logger.info("Loading Rapa Nui adapter...")
             try:
-                self.mms_model.load_adapter("rap")
+                # self.mms_model.load_adapter("rap")
+                self.mms_model.load_adapter(self.rap_adapter_path, adapter_name="rap")
                 self.logger.info("MMS Rapa Nui adapter loaded.")
             except Exception as e:
                 self.logger.warning(f"Could not load rap adapter: {e}")
 
             self.logger.info("Loading Spanish adapter...")
             try:
-                self.mms_model.load_adapter("spa")
+                # self.mms_model.load_adapter("spa")
+                self.mms_model.load_adapter(self.spa_adapter_path, adapter_name="spa")
                 self.logger.info("MMS Spanish adapter loaded.")
             except Exception as e:
                 self.logger.warning(f"Could not load spa adapter: {e}")
