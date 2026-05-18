@@ -227,11 +227,13 @@ class OptimizedASRWrapper(ASRModelWrapper):
         # Set target language for tokenizer
         self.mms_processor.tokenizer.set_target_lang(lang)
 
-        # CHANGED: load_adapter instead of set_adapter
+        # PYTRITON FIX: Force the worker process to load the adapter from disk
+        # before trying to set it, curing the "memory loss" from multiprocessing.
         try:
             self.mms_model.load_adapter(lang)
+            self.mms_model.set_adapter(lang)
         except Exception as e:
-            self.logger.warning(f"Could not load adapter for {lang}: {e}")
+            self.logger.warning(f"CRITICAL: Could not load/set adapter for {lang}: {e}")
 
         processed = self.mms_processor(
             audio, sampling_rate=sampling_rate, return_tensors="pt"
