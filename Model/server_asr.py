@@ -4,10 +4,14 @@ import logging
 import os
 
 import numpy as np
+import torch
 from asr_models import OptimizedASRWrapper
 from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig
+
+logging.info(f"CUDA IS AVAILABLE: {torch.cuda.is_available()}")
+logging.info(f"CUDA DEVICE COUNT: {torch.cuda.device_count()}")
 
 
 class _ASRInferFuncWrapper:
@@ -59,7 +63,7 @@ def _asr_infer_function_factory(num_copies, logger, asr_wrapper):
     """
     infer_fns = []
     for i in range(num_copies):
-        logger.info(f"Creating inference function copy {i+1}/{num_copies}")
+        logger.info(f"Creating inference function copy {i + 1}/{num_copies}")
         infer_fns.append(_ASRInferFuncWrapper(asr_wrapper=asr_wrapper, logger=logger))
 
     return infer_fns
