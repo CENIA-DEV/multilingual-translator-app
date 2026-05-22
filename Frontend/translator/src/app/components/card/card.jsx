@@ -146,15 +146,14 @@ export default function Card(props) {
     typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 1000);
   };
 
-  // The overlay shows if Rapa Nui word info is active AND the user is not actively typing
-  const showLeftOverlay =
-    isWordInformationActive && (!isLeftFocused || !isTyping);
+  // The overlay shows if word info is active
+  const showLeftOverlay = isWordInformationActive;
 
-  const renderHighlightedText = (text, textColorClass) => {
+  const renderHighlightedText = (text, textColorClass, isOverlay = false) => {
     if (!text) return null;
 
     if (!isWordInformationActive) {
-      return <span className={textColorClass}>{text}</span>;
+      return <span className={isOverlay ? "invisible" : textColorClass}>{text}</span>;
     }
 
     const wordsWithInfo = wordInfo
@@ -164,21 +163,21 @@ export default function Card(props) {
           w.information?.additional_explanation,
       )
       .map((w) => w.text.toLowerCase())
-      .sort((a, b) => b.length - a.length); // Longest first to match phrases before single words
+      .sort((a, b) => b.length - a.length);
 
     if (wordsWithInfo.length === 0) {
-      return <span className={textColorClass}>{text}</span>;
+      return <span className={isOverlay ? "invisible" : textColorClass}>{text}</span>;
     }
 
     const dotColor = side === "left" ? "#000000" : "#ffffff";
+    const highlightBg = side === "left" ? "rgba(10, 140, 222, 0.15)" : "rgba(255, 255, 255, 0.2)";
+    const highlightTextColor = side === "left" ? "inherit" : "#ffffff";
+    const regularTextColor = side === "left" ? "inherit" : "#ffffff";
 
     // Escape special regex characters in words
     const escapedWords = wordsWithInfo.map((w) =>
       w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
     );
-    // Match any of the words/phrases, but only as "whole words" relative to punctuation/spaces
-    // Using positive lookahead/lookbehind or word boundaries if appropriate,
-    // but here we want to match exact text as returned by backend.
     const regex = new RegExp(`(${escapedWords.join("|")})`, "gi");
 
     const parts = text.split(regex);
@@ -193,13 +192,14 @@ export default function Card(props) {
             return (
               <span
                 key={idx}
-                className={textColorClass}
+                className={isOverlay ? "" : textColorClass}
                 style={{
-                  backgroundImage: `radial-gradient(circle, ${dotColor} 2px, transparent 2px)`,
-                  backgroundRepeat: "repeat-x",
-                  backgroundSize: "8px 3px",
-                  backgroundPosition: "0 100%",
-                  paddingBottom: "5px",
+                  backgroundColor: highlightBg,
+                  borderRadius: "4px",
+                  padding: "2px 4px",
+                  margin: "0 1px",
+                  color: isOverlay ? "transparent" : highlightTextColor,
+                  WebkitTextFillColor: isOverlay ? "transparent" : highlightTextColor,
                 }}
               >
                 {part}
@@ -207,7 +207,14 @@ export default function Card(props) {
             );
           }
           return (
-            <span key={idx} className={textColorClass}>
+            <span 
+              key={idx} 
+              className={isOverlay ? "" : textColorClass}
+              style={{
+                color: isOverlay ? "transparent" : regularTextColor,
+                WebkitTextFillColor: isOverlay ? "transparent" : regularTextColor,
+              }}
+            >
               {part}
             </span>
           );
@@ -346,14 +353,21 @@ export default function Card(props) {
               {showLeftOverlay && (
                 <div
                   ref={leftOverlayRef}
-                  className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide text-black"
+                  className="absolute inset-0 pointer-events-none z-10 px-[14px] py-[8px] border border-transparent text-[1.125rem] leading-[1.75rem] font-light font-roboto tracking-normal break-words whitespace-pre-wrap overflow-y-auto scrollbar-hide text-black m-0"
+                  style={{ 
+                    boxSizing: "border-box",
+                    fontFamily: "inherit",
+                    lineHeight: "1.75rem",
+                    letterSpacing: "normal",
+                    wordBreak: "break-word"
+                  }}
                 >
-                  {renderHighlightedText(srcText, "text-black")}
+                  {renderHighlightedText(srcText, "text-black", true)}
                   {srcText?.endsWith("\n") ? <br /> : null}
                 </div>
               )}
 
-              <Textarea
+              <textarea
                 onFocus={handleLeftFocus}
                 onBlur={handleLeftBlur}
                 onScroll={handleLeftScroll}
@@ -370,13 +384,15 @@ export default function Card(props) {
                 autoComplete="off"
                 data-gramm="false"
                 style={{
-                  color: showLeftOverlay ? "transparent" : "#000000",
-                  WebkitTextFillColor: showLeftOverlay
-                    ? "transparent"
-                    : "#000000",
+                  color: "#000000",
                   caretColor: "#000000",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
+                  lineHeight: "1.75rem",
+                  letterSpacing: "normal",
+                  wordBreak: "break-word"
                 }}
-                className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? "border-red-500 focus-visible:ring-red-500" : "border-transparent focus-visible:ring-0"} resize-none bg-transparent outline-none px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap placeholder:text-black overflow-y-auto scrollbar-hide animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]`}
+                className={`absolute inset-0 z-20 w-full h-full border ${showTextMessage ? "border-red-500 focus:ring-red-500" : "border-transparent focus:ring-0"} resize-none bg-transparent outline-none px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light font-roboto tracking-normal break-words whitespace-pre-wrap placeholder:text-black overflow-y-auto scrollbar-hide m-0`}
               />
             </div>
 
@@ -505,7 +521,14 @@ export default function Card(props) {
           <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
             <div
               ref={rightOverlayRef}
-              className="flex-1 h-full min-w-0 overflow-y-auto scrollbar-hide scrollbar-white-thumb px-3 py-2 text-[1.125rem] leading-[1.75rem] font-light font-sans tracking-normal break-words whitespace-pre-wrap"
+              className="flex-1 h-full min-w-0 overflow-y-auto scrollbar-hide scrollbar-white-thumb px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light font-roboto tracking-normal break-words whitespace-pre-wrap"
+              style={{ 
+                boxSizing: "border-box",
+                fontFamily: "inherit",
+                lineHeight: "1.75rem",
+                letterSpacing: "normal",
+                wordBreak: "break-word"
+              }}
             >
               {renderHighlightedText(dstText, "text-white")}
               {dstText?.endsWith("\n") ? <br /> : null}

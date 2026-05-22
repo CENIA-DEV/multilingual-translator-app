@@ -82,7 +82,7 @@ export default function LangSelector({lang, ...props}) {
 	
 	
       {/* TO DO: Fix responsive view with large languages names */}
-      <strong className="lang-selected" style={side === 'left'? {color: "#0a8cde"} : {color: "#fff"}}>{lang.name}</strong>
+      <span className="lang-selected" style={side === 'left'? {color: "#0a8cde"} : {color: "#fff"}}>{lang.name}</span>
 
       {/*<div className="lang-last-elements">
         

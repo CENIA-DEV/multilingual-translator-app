@@ -11,68 +11,87 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
-.lang-container{
-  display: flex;
-  align-items: center;
-  width: calc(100% - 80px);
-  border: 0px solid #c8d1e1;
-  padding: 15px 0px 5px 0px;
-  border-bottom-width: medium;
-  animation: fade-in 1.2s cubic-bezier(0.390, 0.575, 0.565, 1.000) 1.5s both;
+.lang-container {
+    display: flex;
+    align-items: center;
+    width: calc(100% - 80px);
+    border: 0px solid #c8d1e1;
+    padding: 15px 0px 5px 0px;
+    border-bottom-width: medium;
+    animation: fade-in 1.2s cubic-bezier(0.39, 0.575, 0.565, 1) 1.5s both;
 }
 
-.is-left  { justify-content: flex-start; }
-
-.is-right { justify-content: flex-end; }
-
-.lang-selected{
-  font-family: 'Roboto Condensed', sans-serif;
-  font-size: 18px;
-  margin-right: 10px;
-  cursor: default;
+.is-left {
+    justify-content: flex-start;
 }
 
-.lang-last-elements{
-  display: flex;
-  gap: 10px;
-  padding-right: 15px;
+.is-right {
+    justify-content: flex-end;
+}
+
+.lang-selected {
+    font-family: "Roboto Condensed", sans-serif;
+    font-size: 18px;
+    margin-right: 10px;
+    cursor: default;
+}
+
+.lang-selected {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+
+    margin-right: 10px;
+    cursor: default;
+    white-space: nowrap;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+.lang-last-elements {
+    display: flex;
+    gap: 10px;
+    padding-right: 15px;
 }
 
 .lang-span-left {
-  cursor: pointer;
-  color: #c8d1e1;
-  transition: all 1s;
+    cursor: pointer;
+    color: #c8d1e1;
+    transition: all 1s;
 }
 
-.lang-span-left:hover{
-  cursor: pointer;
-  color: #0a8cde;
+.lang-span-left:hover {
+    cursor: pointer;
+    color: #0a8cde;
 }
 
 .lang-span-right {
-  cursor: pointer;
-  color: #c8d1e1;
-  transition: all 1s;
+    cursor: pointer;
+    color: #c8d1e1;
+    transition: all 1s;
 }
 
 .lang-span-right:hover {
-  cursor: pointer;
-  color: #eee;
+    cursor: pointer;
+    color: #eee;
 }
 
-.lang-modal-btn{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 25px;
-  height: 25px;
-  border-radius: 100%;
-  cursor: pointer;
+.lang-modal-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 25px;
+    border-radius: 100%;
+    cursor: pointer;
 }
 
 @media screen and (max-width: 850px) {
-  .lang-container {
-    width: calc(100% - 40px);
-	justify-content: flex-end !important;
-  }
+    .lang-container {
+        width: calc(100% - 40px);
+        justify-content: flex-end !important;
+    }
 }
