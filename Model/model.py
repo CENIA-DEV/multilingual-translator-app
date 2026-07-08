@@ -81,7 +81,7 @@ class ModelWrapper(ABC):
         self.logger.info(f"Max new tokens set to: {self.max_new_tokens}")
 
         self.generate_kwargs = {
-            "num_beams": num_beams,
+            "beam_size": num_beams,
             "no_repeat_ngram_size": no_repeat_ngram_size,
             "repetition_penalty": repetition_penalty,
             "length_penalty": length_penalty,
