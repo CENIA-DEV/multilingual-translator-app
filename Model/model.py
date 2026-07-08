@@ -33,6 +33,7 @@ class ModelWrapper(ABC):
         num_beams: int = 1,
         no_repeat_ngram_size: int = 0,
         repetition_penalty: float = 1.0,
+        length_penalty: float = 1.0,
     ):
         """
         Wrapper for prediction models.
@@ -59,6 +60,8 @@ class ModelWrapper(ABC):
                 penalties are used.
             repetition_penalty (`float`, *optional*, defaults to `1.0`):
                 The parameter for repetition penalty. `1.0` means no penalty (default).
+            length_penalty (`float`, *optional*, defaults to `1.0`):
+                The parameter for length penalty. `1.0` means no penalty (default).
         """
         self.logger = logger
         self.gpu = gpu
@@ -76,6 +79,7 @@ class ModelWrapper(ABC):
             "num_beams": num_beams,
             "no_repeat_ngram_size": no_repeat_ngram_size,
             "repetition_penalty": repetition_penalty,
+            "length_penalty": length_penalty,
         }
         self.logger.info(f"Model path: {model_path}")
         self.logger.info(

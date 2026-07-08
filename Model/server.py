@@ -73,6 +73,7 @@ def _infer_function_factory(
     num_beams: int,
     no_repeat_ngram_size: int,
     repetition_penalty: float,
+    length_penalty: float,
 ):
     infer_fns = []
     for _ in range(num_copies):
@@ -91,6 +92,7 @@ def _infer_function_factory(
             num_beams=num_beams,
             no_repeat_ngram_size=no_repeat_ngram_size,
             repetition_penalty=repetition_penalty,
+            length_penalty=length_penalty,
         )
         logger.info("Model loaded!")
         infer_fns.append(_InferFuncWrapper(model=model, logger=logger))
@@ -187,6 +189,13 @@ def _parse_args():
         help="The parameter for repetition penalty.",
     )
 
+    parser.add_argument(
+        "--length-penalty",
+        type=float,
+        default=1.0,
+        help="The parameter for length penalty.",
+    )
+
     return parser.parse_args()
 
 
@@ -229,6 +238,7 @@ def main():
                 num_beams=args.num_beams,
                 no_repeat_ngram_size=args.no_repeat_ngram_size,
                 repetition_penalty=args.repetition_penalty,
+                length_penalty=args.length_penalty,
             ),
             inputs=[
                 Tensor(name="input_text", dtype=np.bytes_, shape=(1,)),
