@@ -70,7 +70,7 @@ class ModelWrapper(ABC):
         self.logger.info(f"Using device: {self.device}")
 
         self.logger.info("Content info:")
-        self.logger.info(f"Contents in folder ('./'): {os.listdir(".")}")
+        self.logger.info(f"Contents in folder ('./'): {os.listdir('.')}")
         self.logger.info(f"Folder path to load model: '{model_path}'")
         self.logger.info(f"Contents in '{model_path}': {os.listdir(model_path)}")
 
