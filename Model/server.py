@@ -65,7 +65,17 @@ class _InferFuncWrapper:
 
 
 def _infer_function_factory(
-    num_copies, logger, folder_path, optimize, gpu, model_type, max_new_tokens
+    num_copies: int,
+    logger: logging.Logger,
+    folder_path: str,
+    optimize: bool,
+    gpu: bool,
+    model_type: str,
+    max_new_tokens: str,
+    n_warmup: int,
+    num_beams: int,
+    no_repeat_ngram_size: int,
+    repetition_penalty: float,
 ):
     infer_fns = []
     for _ in range(num_copies):
@@ -80,6 +90,10 @@ def _infer_function_factory(
             optimize=optimize,
             gpu=gpu,
             max_new_tokens=max_new_tokens,
+            n_warmup=n_warmup,
+            num_beams=num_beams,
+            no_repeat_ngram_size=no_repeat_ngram_size,
+            repetition_penalty=repetition_penalty,
         )
         logger.info("Model loaded!")
         infer_fns.append(_InferFuncWrapper(model=model, logger=logger))
@@ -104,23 +118,11 @@ def _parse_args():
     )
 
     parser.add_argument(
-        "--optimize", action="store_true", help="Optimize model.", default=False
-    )
-
-    parser.add_argument(
         "--copies",
         type=int,
         default=1,
         required=False,
         help="Number of copies of the model.",
-    )
-
-    parser.add_argument(
-        "--gpu",
-        "-c",
-        action="store_true",
-        help="If use CPU",
-        default=False,
     )
 
     parser.add_argument(
@@ -138,12 +140,56 @@ def _parse_args():
         default="nllb",
         choices=["nllb", "madlad"],
     )
+
+    parser.add_argument(
+        "--optimize",
+        action="store_true",
+        help="Optimize model inference.",
+        default=False,
+    )
+
+    parser.add_argument(
+        "--n-warmup",
+        type=int,
+        help="Number of warmup iterations when `optimize=True`.",
+        default=5,
+    )
+
+    parser.add_argument(
+        "--gpu",
+        action="store_true",
+        help="If use GPU",
+        default=False,
+    )
+
     parser.add_argument(
         "--max-new-tokens",
         type=int,
         default=256,
         help="Max new tokens to generate",
     )
+
+    parser.add_argument(
+        "--num-beams",
+        type=int,
+        default=1,
+        help="Number of beams for beam search.",
+    )
+
+    parser.add_argument(
+        "--no-repeat-ngram-size",
+        type=int,
+        default=0,
+        help="Size of no repeat n-grams.",
+    )
+
+    parser.add_argument(
+        "--repetition-penalty",
+        type=float,
+        default=1.0,
+        help="The parameter for repetition penalty.",
+    )
+
     return parser.parse_args()
 
 
@@ -182,6 +228,10 @@ def main():
                 gpu=args.gpu,
                 model_type=args.model_type,
                 max_new_tokens=args.max_new_tokens,
+                n_warmup=args.n_warmup,
+                num_beams=args.num_beams,
+                no_repeat_ngram_size=args.no_repeat_ngram_size,
+                repetition_penalty=args.repetition_penalty,
             ),
             inputs=[
                 Tensor(name="input_text", dtype=np.bytes_, shape=(1,)),
