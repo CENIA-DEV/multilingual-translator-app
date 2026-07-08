@@ -3,13 +3,10 @@ import argparse
 import logging
 
 import numpy as np
-from dotenv import load_dotenv
 from model import MadLadWrapper, ModelWrapper, NLLBModelWrapper
 from pytriton.decorators import batch, first_value, group_by_values
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig, TritonLifecyclePolicy
-
-load_dotenv()
 
 
 class _InferFuncWrapper:
