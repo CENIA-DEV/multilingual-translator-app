@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y python3-pip \
 ENV PYTHONUNBUFFERED=0
 # Requirements are installed here so if code changes
 # docker doesn't need to reinstall everything
-COPY requirements.txt .
+COPY requirements_translation.txt .
 
 # use no cache for smaller image size
-RUN pip install --no-cache-dir -r requirements.txt \
+RUN pip install --no-cache-dir -r requirements_translation.txt \
     && rm -rf ~/.cache/pip
 
 
