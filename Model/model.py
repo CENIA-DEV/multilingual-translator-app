@@ -297,7 +297,7 @@ class NLLBModelWrapper(ModelWrapper):
 
         # decode (also removes BOS token)
         results = [
-            self.tokenizer.convert_tokens_to_string(result.hypothesis[0][1:])
+            self.tokenizer.convert_tokens_to_string(result.hypotheses[0][1:])
             for result in results
         ]
 
