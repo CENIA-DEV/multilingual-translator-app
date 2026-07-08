@@ -1,10 +1,10 @@
 import json
 import logging
+import os
 from abc import ABC, abstractmethod
 
 import ctranslate2
 from transformers import AutoTokenizer
-
 
 nllb_language_token_map = {
     "rap_Latn": "mri_Latn",
@@ -68,6 +68,11 @@ class ModelWrapper(ABC):
 
         self.device = "cuda" if gpu else "cpu"
         self.logger.info(f"Using device: {self.device}")
+
+        self.logger.info("Content info:")
+        self.logger.info(f"Contents in folder ('./'): {os.listdir(".")}")
+        self.logger.info(f"Folder path to load model: '{model_path}'")
+        self.logger.info(f"Contents in '{model_path}': {os.listdir(model_path)}")
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = ctranslate2.Translator(model_path, device=self.device)
