@@ -192,14 +192,21 @@ export default function LandingPage() {
   // The sections are plain markup rather than a component tree, so the class is
   // the contract and one observer drives all of them; each node is unobserved
   // after firing so the reveal never replays.
+  //
+  // .is-visible is set imperatively, so it lives on the DOM node rather than in
+  // React state: any node React remounts comes back bare, at opacity 0. A
+  // one-shot scan at mount would leave those stranded invisible forever, so the
+  // pending set is rescanned whenever the DOM changes.
   useEffect(() => {
-    const nodes = Array.from(document.querySelectorAll(".reveal"))
-    if (!nodes.length) return undefined
+    const pending = () => document.querySelectorAll(".reveal:not(.is-visible)")
 
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     if (reduced || typeof IntersectionObserver === "undefined") {
-      nodes.forEach((node) => node.classList.add("is-visible"))
-      return undefined
+      const showAll = () => pending().forEach((node) => node.classList.add("is-visible"))
+      showAll()
+      const mutations = new MutationObserver(showAll)
+      mutations.observe(document.body, { childList: true, subtree: true })
+      return () => mutations.disconnect()
     }
 
     const observer = new IntersectionObserver(
@@ -214,8 +221,20 @@ export default function LandingPage() {
       // already settling by the time the reader reaches it.
       { threshold: 0.08, rootMargin: "0px 0px -10% 0px" }
     )
-    nodes.forEach((node) => observer.observe(node))
-    return () => observer.disconnect()
+
+    // Re-observing a node the observer already watches is a no-op, so this is
+    // safe to run on every mutation. Only childList is watched -- observing
+    // attributes would re-trigger on the .is-visible writes above.
+    const scan = () => pending().forEach((node) => observer.observe(node))
+    scan()
+
+    const mutations = new MutationObserver(scan)
+    mutations.observe(document.body, { childList: true, subtree: true })
+
+    return () => {
+      mutations.disconnect()
+      observer.disconnect()
+    }
   }, [])
 
   const tr = (node) => t(node, language)
@@ -886,7 +905,7 @@ export default function LandingPage() {
               },
             ].map((partner, index) => (
               <div
-                key={partner.caption}
+                key={partner.src}
                 className={`reveal lift reveal-d${index + 1}`}
                 style={{
                   display: "flex",
@@ -1023,7 +1042,7 @@ export default function LandingPage() {
               },
             ].map((funder, index) => (
               <div
-                key={funder.alt}
+                key={funder.src}
                 className={`reveal lift reveal-d${Math.min(index + 1, 5)}`}
                 style={{
                   display: "flex",
