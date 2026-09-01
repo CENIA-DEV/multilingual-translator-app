@@ -305,7 +305,7 @@ export default function LandingPage() {
                 letterSpacing: "0.02em",
               }}
             >
-              {`Traductor ${LANG_TITLE}`}
+              {tr(text.BrandTitle)}
             </span>
           </div>
 
@@ -1083,7 +1083,7 @@ export default function LandingPage() {
             maxWidth: "720px",
           }}
         >
-          {[tr(text.Owners.Eaauc), tr(text.Owners.Cenia), tr(text.Owners.Academy)].join(" · ")}
+          {[tr(text.Owners.Academy), tr(text.Owners.Eaauc), tr(text.Owners.Cenia)].join(" · ")}
         </span>
         <a
           href="https://tecnologiavoces.com"
@@ -1091,7 +1091,7 @@ export default function LandingPage() {
           rel="noopener noreferrer"
           style={{ fontSize: "13px", color: "#7db4e0" }}
         >
-          tecnologiavoces.com
+          www.tecnologiavoces.com
         </a>
       </footer>
 

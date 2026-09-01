@@ -21,6 +21,15 @@
 // publish the Rapa Nui version, replace null with the translated string; nothing
 // else needs to change.
 export const text = {
+  // Product name in the landing header, beside the academy logo.
+  'BrandTitle': {
+    "spa-rap": "Traductor Rapa Nui",
+    "rap": "Mākini Huri Vānaŋa Rapa Nui",
+    "eng-rap": "Rapa Nui Translator",
+    "spa-arn": "Traductor Mapuzungun",
+    "eng-arn": "Mapuzungun Translator"
+  },
+
   'Title': {
     "spa-rap": "Revitalicemos nuestro idioma rapa nui con IA",
     "rap": "Ki haka pūai i te re'o rapa nui hai IA",

@@ -117,7 +117,9 @@ export const AUKIN_MAPU_TEAM = ["Manuel Santander", "Flor Caniupil", "Rosa Caniu
 // Rapa Nui map in the "Validación" section.
 export const VALIDATION_PLACES = [
   { name: "Katipare (talleres abiertos)", lon: -109.42712, lat: -27.14806 },
-  { name: "ꞌŪmaŋa Hatu Reꞌo", lon: -109.42661, lat: -27.14762 },
+  // Nudged just south of Katipare so the two academy pins sit adjacent,
+  // one directly below the other, instead of overlapping diagonally.
+  { name: "ꞌŪmaŋa Hatu Reꞌo", lon: -109.42712, lat: -27.14856 },
   { name: "Municipalidad de Rapa Nui (Hare Tavana)", lon: -109.427976, lat: -27.14826 },
   { name: "Hospital de Hanga Roa", lon: -109.420939, lat: -27.150516 },
   { name: "Juzgado", lon: -109.427908, lat: -27.14802 },
