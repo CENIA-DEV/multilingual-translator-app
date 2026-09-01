@@ -71,7 +71,6 @@ export const CENIA_TEAM = [
   "Canela Orellana",
   "Estefanía Pakarati",
   "Andrés Carvallo",
-  "Álvaro Soto",
   "Agustín Ghent",
 ]
 
@@ -80,8 +79,13 @@ export const EAAUC_TEAM = [
   "Loreto Ulloa",
   "Francisca del Valle",
   "Tomás Pesce",
-  "Belen Villena",
+  "Julianna Jimenez",
+  "Leonardo Ribeiro",
+  "Antonia Rivas",
 ]
+
+// Rapa Nui speakers who lent their voice to the synthesised audio.
+export const AI_VOICES = ["Rachel Riroroko Calderón", "Alberto Pacomio Hotus"]
 
 const THANKS_SHARED = [
   "Cristian Vasquez",
@@ -91,6 +95,15 @@ const THANKS_SHARED = [
   "Gianyser González",
   "Pia Cassone",
   "Irma Palominos",
+  "Álvaro Soto",
+  "Belen Villena",
+  "Javiera Acevedo",
+  "Marcos Lores",
+  "Sebastián Martínez",
+  "Carlos González",
+  "Carolina Hey",
+  "Sebastián Guajardo",
+  "Loreto Aravena",
 ]
 
 export const THANKS_RAP = ["Fátima Hotus Hey", ...THANKS_SHARED]
@@ -104,6 +117,7 @@ export const AUKIN_MAPU_TEAM = ["Manuel Santander", "Flor Caniupil", "Rosa Caniu
 // Rapa Nui map in the "Validación" section.
 export const VALIDATION_PLACES = [
   { name: "Katipare (talleres abiertos)", lon: -109.42712, lat: -27.14806 },
+  { name: "ꞌŪmaŋa Hatu Reꞌo", lon: -109.42661, lat: -27.14762 },
   { name: "Municipalidad de Rapa Nui (Hare Tavana)", lon: -109.427976, lat: -27.14826 },
   { name: "Hospital de Hanga Roa", lon: -109.420939, lat: -27.150516 },
   { name: "Juzgado", lon: -109.427908, lat: -27.14802 },
@@ -123,6 +137,6 @@ export const VALIDATION_PLACES = [
   { name: "Secretaría Técnica de Patrimonio de Rapa Nui", lon: -109.4287, lat: -27.1438 },
   { name: "Centro de Hemodiálisis Rapa Nui", lon: -109.4203, lat: -27.1516 },
   { name: "Prodemu Rapa Nui y oficina MINVU", lon: -109.428484, lat: -27.148942 },
-  { name: "Honui", lon: -109.431871, lat: -27.149096 },
+  { name: "Hōnui", lon: -109.431871, lat: -27.149096 },
   { name: "CODEIPA", lon: -109.4295, lat: -27.1484 },
 ]

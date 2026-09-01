@@ -250,6 +250,15 @@ export const text = {
       }
     },
   },
+  "AiVoice": {
+    "Title": {
+      "spa-rap": "Voz de la IA",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "AI voice",
+      "spa-arn": "Voz de la IA",
+      "eng-arn": "AI voice"
+    }
+  },
   "ThanksTo": {
     "Title": {
       "spa-rap": "Agradecimientos",
@@ -311,10 +320,10 @@ export const text = {
 
   'Validation': {
     'Title': {
-      "spa-rap": "Validado con quienes realmente necesitan la herramienta",
+      "spa-rap": "Validado por los hablantes que requieren usar la herramienta",
       "rap": null, // TODO(rap): pending translation -- falls back to Spanish
       "eng-rap": "Validated with the people who actually need the tool",
-      "spa-arn": "Validado con quienes realmente necesitan la herramienta",
+      "spa-arn": "Validado por los hablantes que requieren usar la herramienta",
       "eng-arn": "Validated with the people who actually need the tool"
     }
   }

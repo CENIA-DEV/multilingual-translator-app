@@ -25,6 +25,7 @@ import { text } from "./text"
 import { t, SPANISH, LANGUAGE_OPTIONS } from "./i18n"
 import {
   ACADEMY_BOARD,
+  AI_VOICES,
   AUKIN_MAPU_TEAM,
   CENIA_TEAM,
   EAAUC_TEAM,
@@ -60,32 +61,27 @@ const IS_RAP = VARIANT_LANG === "rap"
 const SERIF = "'Newsreader', Georgia, serif"
 const SANS = "'Archivo', system-ui, sans-serif"
 
-// Placeholder photography, taken from the VOCES platform frontend
-// (github.com/voces-dev-ai/voces-platform-frontend) so the page ships complete.
-//
-// NOTE: only the first two are Rapa Nui specific. `team-workshop` and
-// `validation-workshop` document the same activity on sibling VOCES projects
-// (Bribri and Mapuzungun); swap them for Rapa Nui photos when available --
-// changing `src` here is the only edit needed.
+// Project photography from Rapa Nui, one per paragraph of "Acerca del proyecto"
+// (see text.AboutProject.AboutProjectText) in the same order.
 const ABOUT_PHOTOS = [
   {
-    src: "/images/landing/community-speakers.jpg",
-    alt: "Moai en Rapa Nui",
+    src: "/images/landing/community-gathering.jpg",
+    alt: "Encuentro comunitario en Rapa Nui",
     fit: "cover",
   },
   {
-    src: "/images/landing/decenio-lenguas-indigenas.png",
-    alt: "Decenio Internacional de las Lenguas Indígenas 2022-2032",
-    fit: "contain",
-  },
-  {
-    src: "/images/landing/team-workshop.jpg",
-    alt: "Equipo del proyecto trabajando con la comunidad",
+    src: "/images/landing/translator-in-use.jpg",
+    alt: "Traductor rapa nui - español en uso",
     fit: "cover",
   },
   {
-    src: "/images/landing/validation-workshop.jpg",
-    alt: "Taller de validación con hablantes",
+    src: "/images/landing/academy-book-launch.jpg",
+    alt: "Integrantes de la Academia de la Lengua Rapa Nui ꞌUmaŋa Hatu Reꞌo",
+    fit: "cover",
+  },
+  {
+    src: "/images/landing/speaker-interview.jpg",
+    alt: "Sesión de trabajo con un hablante de rapa nui",
     fit: "cover",
   },
 ]
@@ -96,6 +92,26 @@ const FUNDERS = [
   { src: "/images/isoc.png", alt: "ISOC", caption: "ISOC" },
   { src: "/images/conadi.png", alt: "Conadi", caption: "Conadi" },
 ]
+
+// Official VOCES wordmark. The source file is the blue logo on transparency;
+// on the dark sections it is reversed to white with a filter instead of
+// shipping a second asset.
+function VocesLogo({ height, variant = "blue" }) {
+  return (
+    <Image
+      src="/images/voces-logo.png"
+      alt="VOCES"
+      width={1109}
+      height={225}
+      style={{
+        height: `${height}px`,
+        width: "auto",
+        objectFit: "contain",
+        filter: variant === "white" ? "brightness(0) invert(1)" : undefined,
+      }}
+    />
+  )
+}
 
 function CreditColumn({ title, names }) {
   return (
@@ -461,7 +477,7 @@ export default function LandingPage() {
             right: "clamp(24px,5vw,56px)",
             bottom: "24px",
             display: "flex",
-            alignItems: "baseline",
+            alignItems: "center",
             gap: "10px",
           }}
         >
@@ -475,22 +491,12 @@ export default function LandingPage() {
           >
             {tr(text.Owners.DevelopedBy)}
           </span>
-          <span
-            style={{
-              fontSize: "20px",
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              color: "#ffffff",
-              lineHeight: 1,
-            }}
-          >
-            VOCES
-          </span>
+          <VocesLogo height={22} variant="white" />
         </a>
       </section>
 
       {/* --------------------------------------------- Acerca del proyecto */}
-      <section id="about" style={{ background: "#f4f7f9", padding: "clamp(72px,9vw,120px) 24px" }}>
+      <section id="about" style={{ background: "#e9f0f5", padding: "clamp(72px,9vw,120px) 24px" }}>
         <div
           style={{
             maxWidth: "1020px",
@@ -522,6 +528,39 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* ---------------------------------------------------------- Validación */}
+      {IS_RAP && (
+        <section id="validation" style={{ background: "#fdfdfc", padding: "clamp(64px,8vw,96px) 24px" }}>
+          <div
+            style={{
+              maxWidth: "1060px",
+              margin: "0 auto",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "40px",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: SERIF,
+                fontWeight: 500,
+                fontSize: "clamp(28px,3vw,38px)",
+                color: "#12283a",
+                textAlign: "center",
+                maxWidth: "760px",
+              }}
+            >
+              {tr(text.Validation.Title)}
+            </h2>
+            <div style={{ width: "100%" }}>
+              <RapaMap pins={VALIDATION_PLACES} label={tr(text.Validation.Title)} />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ---------------------------------------------------- Nuestro enfoque */}
       <section id="focus" style={{ background: "#0e2a40", padding: "clamp(72px,9vw,110px) 24px" }}>
@@ -661,17 +700,7 @@ export default function LandingPage() {
             rel="noopener noreferrer"
             style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}
           >
-            <span
-              style={{
-                fontSize: "40px",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                color: "#1e6fb8",
-                lineHeight: 1,
-              }}
-            >
-              VOCES
-            </span>
+            <VocesLogo height={46} />
             <span style={{ fontSize: "14px", color: "#1e6fb8" }}>www.tecnologiavoces.com</span>
           </a>
 
@@ -787,6 +816,7 @@ export default function LandingPage() {
                   names={TRANSCRIBERS}
                 />
                 <CreditColumn title={tr(text.Institutions.Reviewers.Title)} names={REVIEWERS} />
+                <CreditColumn title={tr(text.AiVoice.Title)} names={AI_VOICES} />
               </>
             ) : (
               <CreditColumn
@@ -801,43 +831,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------- Validación */}
-      {IS_RAP && (
-        <section id="validation" style={{ background: "#fdfdfc", padding: "clamp(64px,8vw,96px) 24px" }}>
-          <div
-            style={{
-              maxWidth: "1060px",
-              margin: "0 auto",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "40px",
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: SERIF,
-                fontWeight: 500,
-                fontSize: "clamp(28px,3vw,38px)",
-                color: "#12283a",
-                textAlign: "center",
-                maxWidth: "760px",
-              }}
-            >
-              {tr(text.Validation.Title)}
-            </h2>
-            <div style={{ width: "100%" }}>
-              <RapaMap pins={VALIDATION_PLACES} label={tr(text.Validation.Title)} />
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ------------------------------------------------------ Financiamiento */}
       <section
         id="financers"
-        style={{ background: "#e9f0f5", padding: "clamp(64px,8vw,96px) 24px" }}
+        style={{ background: "#fdfdfc", padding: "clamp(64px,8vw,96px) 24px" }}
       >
         <div
           style={{
@@ -1076,17 +1073,7 @@ export default function LandingPage() {
           {tr(text.Owners.Title)}
         </span>
         <a href="https://tecnologiavoces.com" target="_blank" rel="noopener noreferrer">
-          <span
-            style={{
-              fontSize: "26px",
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              color: "#ffffff",
-              lineHeight: 1,
-            }}
-          >
-            VOCES
-          </span>
+          <VocesLogo height={30} variant="white" />
         </a>
         <span
           style={{
