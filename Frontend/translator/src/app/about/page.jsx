@@ -13,11 +13,11 @@
 // limitations under the License.
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import parse from "html-react-parser"
-import { faSpinner } from "@fortawesome/free-solid-svg-icons"
+import { faChevronDown, faSpinner } from "@fortawesome/free-solid-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 
 import api from "../api"
@@ -115,7 +115,7 @@ function VocesLogo({ height, variant = "blue" }) {
 
 function CreditColumn({ title, names }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+    <div className="reveal" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       <h4 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 700, color: "#17517e" }}>
         {title}
       </h4>
@@ -139,7 +139,10 @@ function AboutRow({ paragraph, photo, reverse }) {
         gap: "48px",
       }}
     >
-      <div style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: "14px" }}>
+      <div
+        className={`reveal ${reverse ? "reveal-right" : "reveal-left"}`}
+        style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: "14px" }}
+      >
         <p
           className="landing-prose"
           style={{ margin: 0, fontSize: "17px", lineHeight: 1.75, color: "#33454f" }}
@@ -148,6 +151,7 @@ function AboutRow({ paragraph, photo, reverse }) {
         </p>
       </div>
       <div
+        className={`reveal reveal-d1 ${reverse ? "reveal-left" : "reveal-right"}`}
         style={{
           position: "relative",
           flex: "1 1 320px",
@@ -183,6 +187,36 @@ export default function LandingPage() {
   })
   const { toast } = useToast()
   const { trackEvent } = useAnalytics()
+
+  // Reveal every element marked .reveal the first time it scrolls into view.
+  // The sections are plain markup rather than a component tree, so the class is
+  // the contract and one observer drives all of them; each node is unobserved
+  // after firing so the reveal never replays.
+  useEffect(() => {
+    const nodes = Array.from(document.querySelectorAll(".reveal"))
+    if (!nodes.length) return undefined
+
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    if (reduced || typeof IntersectionObserver === "undefined") {
+      nodes.forEach((node) => node.classList.add("is-visible"))
+      return undefined
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return
+          entry.target.classList.add("is-visible")
+          observer.unobserve(entry.target)
+        })
+      },
+      // Fire a little before the element is fully on screen, so the motion is
+      // already settling by the time the reader reaches it.
+      { threshold: 0.08, rootMargin: "0px 0px -10% 0px" }
+    )
+    nodes.forEach((node) => observer.observe(node))
+    return () => observer.disconnect()
+  }, [])
 
   const tr = (node) => t(node, language)
 
@@ -225,8 +259,9 @@ export default function LandingPage() {
     <div style={{ width: "100%", overflowX: "hidden", background: "#f4f7f9", fontFamily: SANS }}>
       {/*
         Scoped styles: the language switcher swaps between pills and a <select>
-        purely in CSS so the markup is identical on server and client, and the
-        <strong> tags inside translated copy pick up the design's accent colour.
+        purely in CSS so the markup is identical on server and client, the
+        <strong> tags inside translated copy pick up the design's accent colour,
+        and the motion classes below drive the entrance and scroll reveals.
       */}
       <style>{`
         .landing-prose strong { color: #17517e; font-weight: 700; }
@@ -236,7 +271,83 @@ export default function LandingPage() {
           .lang-pills { display: none; }
           .lang-select-wrap { display: flex; }
         }
+        /* Scroll reveal: elements start dimmed and offset, and the observer
+           below adds .is-visible the first time they enter the viewport. The
+           motion runs as an animation rather than a transition so the stagger
+           delays never interfere with the hover transition on .lift. */
+        .reveal { opacity: 0; transform: translateY(28px); }
+        .reveal-left { transform: translateX(-36px); }
+        .reveal-right { transform: translateX(36px); }
+        .reveal-zoom { transform: scale(0.96); }
+        .reveal.is-visible {
+          opacity: 1;
+          transform: none;
+          animation: reveal-up 0.75s cubic-bezier(0.22,0.61,0.36,1) backwards;
+        }
+        .reveal-left.is-visible { animation-name: reveal-left; }
+        .reveal-right.is-visible { animation-name: reveal-right; }
+        .reveal-zoom.is-visible { animation-name: reveal-zoom; }
+        .reveal.reveal-d1 { animation-delay: 0.08s; }
+        .reveal.reveal-d2 { animation-delay: 0.16s; }
+        .reveal.reveal-d3 { animation-delay: 0.24s; }
+        .reveal.reveal-d4 { animation-delay: 0.32s; }
+        .reveal.reveal-d5 { animation-delay: 0.40s; }
+        @keyframes reveal-up {
+          from { opacity: 0; transform: translateY(28px); }
+          to { opacity: 1; transform: none; }
+        }
+        @keyframes reveal-left {
+          from { opacity: 0; transform: translateX(-36px); }
+          to { opacity: 1; transform: none; }
+        }
+        @keyframes reveal-right {
+          from { opacity: 0; transform: translateX(36px); }
+          to { opacity: 1; transform: none; }
+        }
+        @keyframes reveal-zoom {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: none; }
+        }
+
+        /* Hero copy rises once on load rather than on scroll -- it is already
+           in view when the page opens. */
+        @keyframes hero-rise {
+          from { opacity: 0; transform: translateY(22px); }
+          to { opacity: 1; transform: none; }
+        }
+        .hero-in { animation: hero-rise 0.9s cubic-bezier(0.22,0.61,0.36,1) both; }
+        .hero-in.hero-d1 { animation-delay: 0.10s; }
+        .hero-in.hero-d2 { animation-delay: 0.22s; }
+        @keyframes hero-zoom {
+          from { transform: scale(1.07); }
+          to { transform: scale(1); }
+        }
+        .hero-photo { animation: hero-zoom 14s ease-out both; }
+
+        /* Logos, cards and buttons lift slightly under the cursor. */
+        .lift { transition: transform 0.35s cubic-bezier(0.22,0.61,0.36,1); }
+        .lift:hover { transform: translateY(-6px); }
+
+        @media (prefers-reduced-motion: reduce) {
+          .reveal, .reveal.is-visible, .hero-in, .hero-photo, .lift, .lift:hover {
+            opacity: 1;
+            transform: none;
+            transition: none;
+            animation: none;
+          }
+        }
+        @keyframes scroll-cue-bounce {
+          0%, 100% { transform: translate(-50%, 0); }
+          50% { transform: translate(-50%, -25%); }
+        }
+        .scroll-cue { animation: scroll-cue-bounce 1s infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .scroll-cue { animation: none; }
+        }
       `}</style>
+      <noscript>
+        <style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style>
+      </noscript>
 
       {/* ---------------------------------------------------------- Portada */}
       <section
@@ -246,6 +357,8 @@ export default function LandingPage() {
           display: "flex",
           flexDirection: "column",
           background: "#0b1d2c",
+          // clips the slow zoom on the background photo
+          overflow: "hidden",
         }}
       >
         <Image
@@ -254,6 +367,7 @@ export default function LandingPage() {
           fill
           priority
           sizes="100vw"
+          className="hero-photo"
           style={{ objectFit: "cover" }}
         />
         <div
@@ -400,6 +514,7 @@ export default function LandingPage() {
           }}
         >
           <h1
+            className="hero-in"
             style={{
               margin: 0,
               maxWidth: "900px",
@@ -413,6 +528,7 @@ export default function LandingPage() {
             {tr(text.Title)}
           </h1>
           <p
+            className="hero-in hero-d1"
             style={{
               margin: 0,
               maxWidth: "660px",
@@ -424,6 +540,7 @@ export default function LandingPage() {
             {tr(text.Subtitle)}
           </p>
           <div
+            className="hero-in hero-d2"
             style={{
               display: "flex",
               gap: "16px",
@@ -467,6 +584,26 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* Hints that the page continues past the fold. */}
+        <a
+          href="#about"
+          aria-label={tr(text.JoinProject)}
+          className="scroll-cue"
+          style={{
+            position: "absolute",
+            zIndex: 2,
+            left: "50%",
+            bottom: "26px",
+            // keyframes re-apply this centering; the inline copy keeps the
+            // chevron centred when reduced motion turns the animation off
+            transform: "translateX(-50%)",
+            color: "rgba(255,255,255,0.85)",
+            fontSize: "18px",
+          }}
+        >
+          <FontAwesomeIcon icon={faChevronDown} />
+        </a>
+
         <a
           href="https://tecnologiavoces.com"
           target="_blank"
@@ -507,6 +644,7 @@ export default function LandingPage() {
           }}
         >
           <h2
+            className="reveal"
             style={{
               margin: 0,
               fontSize: "15px",
@@ -543,6 +681,7 @@ export default function LandingPage() {
             }}
           >
             <h2
+              className="reveal"
               style={{
                 margin: 0,
                 fontFamily: SERIF,
@@ -555,7 +694,7 @@ export default function LandingPage() {
             >
               {tr(text.Validation.Title)}
             </h2>
-            <div style={{ width: "100%" }}>
+            <div className="reveal reveal-zoom reveal-d1" style={{ width: "100%" }}>
               <RapaMap pins={VALIDATION_PLACES} label={tr(text.Validation.Title)} />
             </div>
           </div>
@@ -566,6 +705,7 @@ export default function LandingPage() {
       <section id="focus" style={{ background: "#0e2a40", padding: "clamp(72px,9vw,110px) 24px" }}>
         <div style={{ maxWidth: "1080px", margin: "0 auto" }}>
           <h2
+            className="reveal"
             style={{
               margin: "0 0 56px",
               fontFamily: SERIF,
@@ -619,6 +759,7 @@ export default function LandingPage() {
             ].map((pillar, index) => (
               <div
                 key={index}
+                className={`reveal reveal-d${index + 1}`}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -672,6 +813,7 @@ export default function LandingPage() {
           }}
         >
           <h2
+            className="reveal"
             style={{
               margin: 0,
               fontFamily: SERIF,
@@ -683,6 +825,7 @@ export default function LandingPage() {
             {tr(text.Owners.CollaborativeProject)}
           </h2>
           <h3
+            className="reveal reveal-d1"
             style={{
               margin: "20px 0 0",
               fontSize: "14px",
@@ -698,6 +841,7 @@ export default function LandingPage() {
             href="https://tecnologiavoces.com"
             target="_blank"
             rel="noopener noreferrer"
+            className="reveal reveal-d2 lift"
             style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}
           >
             <VocesLogo height={46} />
@@ -740,9 +884,10 @@ export default function LandingPage() {
                 href: "https://www.cenia.cl",
                 hrefLabel: "www.cenia.cl",
               },
-            ].map((partner) => (
+            ].map((partner, index) => (
               <div
                 key={partner.caption}
+                className={`reveal lift reveal-d${index + 1}`}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -782,6 +927,7 @@ export default function LandingPage() {
       <section id="collaborators" style={{ background: "#e9f0f5", padding: "clamp(64px,8vw,96px) 24px" }}>
         <div style={{ maxWidth: "1120px", margin: "0 auto" }}>
           <h2
+            className="reveal"
             style={{
               margin: "0 0 48px",
               fontFamily: SERIF,
@@ -847,6 +993,7 @@ export default function LandingPage() {
           }}
         >
           <h2
+            className="reveal"
             style={{
               margin: 0,
               fontFamily: SERIF,
@@ -874,9 +1021,10 @@ export default function LandingPage() {
                 alt: tr(text.Financing.Municipality),
                 caption: tr(text.Financing.Municipality),
               },
-            ].map((funder) => (
+            ].map((funder, index) => (
               <div
                 key={funder.alt}
+                className={`reveal lift reveal-d${Math.min(index + 1, 5)}`}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -926,6 +1074,7 @@ export default function LandingPage() {
           }}
         >
           <h2
+            className="reveal"
             style={{
               margin: 0,
               fontFamily: SERIF,
@@ -936,7 +1085,10 @@ export default function LandingPage() {
           >
             {tr(text.Contact.Title)}
           </h2>
-          <p style={{ margin: 0, fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,0.78)" }}>
+          <p
+            className="reveal reveal-d1"
+            style={{ margin: 0, fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,0.78)" }}
+          >
             {tr(text.Contact.Subtitle)}
           </p>
 
@@ -944,6 +1096,7 @@ export default function LandingPage() {
             <DialogTrigger asChild>
               <button
                 type="button"
+                className="reveal reveal-d2 lift"
                 style={{
                   marginTop: "12px",
                   background: "#ffffff",
@@ -1021,7 +1174,7 @@ export default function LandingPage() {
                     Mensaje
                   </Label>
                   <Textarea
-                    className="col-span-3 h-40 rounded-md hover:border-default hover:rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="col-span-3 h-40 rounded-md border shadow-sm hover:border-default hover:rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0"
                     id="reason"
                     name="reason"
                     value={newParticipate.reason}
@@ -1062,6 +1215,7 @@ export default function LandingPage() {
         }}
       >
         <span
+          className="reveal"
           style={{
             fontSize: "12px",
             fontWeight: 700,
@@ -1072,10 +1226,16 @@ export default function LandingPage() {
         >
           {tr(text.Owners.Title)}
         </span>
-        <a href="https://tecnologiavoces.com" target="_blank" rel="noopener noreferrer">
+        <a
+          href="https://tecnologiavoces.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="reveal reveal-d1 lift"
+        >
           <VocesLogo height={30} variant="white" />
         </a>
         <span
+          className="reveal reveal-d2"
           style={{
             fontSize: "13px",
             lineHeight: 1.8,
