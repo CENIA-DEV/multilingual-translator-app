@@ -11,7 +11,25 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+// TRANSLATION SLOTS
+// -----------------
+// Every entry maps a language code ("spa-rap" | "rap" | "eng-rap", and the "-arn"
+// equivalents) to its string. Read entries through t() in ./i18n.js rather than
+// indexing directly: t() falls back to Spanish when a translation is missing.
+//
+// A "rap": null entry is a PLACEHOLDER -- the text shows in Spanish for now. To
+// publish the Rapa Nui version, replace null with the translated string; nothing
+// else needs to change.
 export const text = {
+  // Product name in the landing header, beside the academy logo.
+  'BrandTitle': {
+    "spa-rap": "Traductor Rapa Nui",
+    "rap": "Mākini Huri Vānaŋa Rapa Nui",
+    "eng-rap": "Rapa Nui Translator",
+    "spa-arn": "Traductor Mapuzungun",
+    "eng-arn": "Mapuzungun Translator"
+  },
+
   'Title': {
     "spa-rap": "Revitalicemos nuestro idioma rapa nui con IA",
     "rap": "Ki haka pūai i te re'o rapa nui hai IA",
@@ -152,6 +170,34 @@ export const text = {
   },
 
   "Owners": {
+    'CollaborativeProject': {
+      "spa-rap": "Un proyecto colaborativo",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "A collaborative project",
+      "spa-arn": "Un proyecto colaborativo",
+      "eng-arn": "A collaborative project"
+    },
+    'DevelopedBy': {
+      "spa-rap": "Desarrollado por",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "Developed by",
+      "spa-arn": "Desarrollado por",
+      "eng-arn": "Developed by"
+    },
+    'Cenia': {
+      "spa-rap": "Centro Nacional de Inteligencia Artificial",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "National Center for Artificial Intelligence",
+      "spa-arn": "Centro Nacional de Inteligencia Artificial",
+      "eng-arn": "National Center for Artificial Intelligence"
+    },
+    'Eaauc': {
+      "spa-rap": "Estudios Aplicados Antropología UC",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "Applied Studies, Anthropology UC",
+      "spa-arn": "Estudios Aplicados Antropología UC",
+      "eng-arn": "Applied Studies, Anthropology UC"
+    },
     "Title": {
       "spa-rap": "Proyecto de",
       "rap": "Te aŋa nei 'a",
@@ -213,6 +259,15 @@ export const text = {
       }
     },
   },
+  "AiVoice": {
+    "Title": {
+      "spa-rap": "Voz de la IA",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "AI voice",
+      "spa-arn": "Voz de la IA",
+      "eng-arn": "AI voice"
+    }
+  },
   "ThanksTo": {
     "Title": {
       "spa-rap": "Agradecimientos",
@@ -241,6 +296,7 @@ export const text = {
   "Contact": {
     "Title": {
       "spa-rap": "Contáctanos",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
       "eng-rap": "Contact us",
       "spa-arn": "Contáctanos",
       "eng-arn": "Contact us"
@@ -258,6 +314,26 @@ export const text = {
       "rap": "Ka hāꞌaki mai",
       "spa-arn": "Contáctanos",
       "eng-arn": "Contact us"
+    }
+  },
+
+  'Nav': {
+    'SelectLanguage': {
+      "spa-rap": "Selecciona tu idioma",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "Select your language",
+      "spa-arn": "Selecciona tu idioma",
+      "eng-arn": "Select your language"
+    }
+  },
+
+  'Validation': {
+    'Title': {
+      "spa-rap": "Validado por los hablantes que requieren usar la herramienta",
+      "rap": null, // TODO(rap): pending translation -- falls back to Spanish
+      "eng-rap": "Validated with the people who actually need the tool",
+      "spa-arn": "Validado por los hablantes que requieren usar la herramienta",
+      "eng-arn": "Validated with the people who actually need the tool"
     }
   }
 };
