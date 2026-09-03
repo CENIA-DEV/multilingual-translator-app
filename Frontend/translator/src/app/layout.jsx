@@ -25,6 +25,8 @@ import Script from "next/script";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
 config.autoAddCss = false;
 
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
 export const metadata = {
   title: `Traductor ${LANG_TITLE}`,
   icons: {
@@ -41,23 +43,27 @@ export default function Layout({ children }) {
         <meta name="description" content={`Proyecto que busca revitalizar la lengua ${LANG_TITLE} mediante un traductor.`} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet" />
         {/* {process.env.NEXT_PUBLIC_GOOGLE_SEARCH_ID && (
           <meta name="google-site-verification" content={process.env.NEXT_PUBLIC_GOOGLE_SEARCH_ID} />
         )} */}
         {/* Google Analytics */}
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
+        {GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}');
+            gtag('config', '${GA_MEASUREMENT_ID}');
           `}
-        </Script>
+            </Script>
+          </>
+        )}
       </head>
       <body>
         <ProtectedRoute>
