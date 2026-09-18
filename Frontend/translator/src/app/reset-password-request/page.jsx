@@ -54,14 +54,16 @@ export default function Resetpasswordrequest(){
       setSubmitStatus(true);
 
       toast("Solicitud enviada",{
-        description: "La solicitud de recuperación de contraseña ha sido enviada con éxito",
+        description: "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.",
       });
     } 
     catch (error) {
       console.log('Error sending recovery token')
       
       toast("Error al enviar solicitud",{
-        description: "El correo ingresado no se encuentra registrado en la plataforma",
+        // The API answers the same for registered and unknown emails, so a
+        // failure here is never "that email has no account".
+        description: "No se pudo enviar la solicitud. Inténtalo nuevamente.",
       });
       
       //setErrorMessage("El correo ingresado no tiene una cuenta existente en la plataforma.")
@@ -109,7 +111,7 @@ export default function Resetpasswordrequest(){
               Solicitud enviada con éxito
             </h2>
             <span>
-              En unos instantes llegará a tu correo los pasos a seguir para restablecer tu constraseña.
+              Si el correo está registrado, en unos instantes recibirás los pasos a seguir para restablecer tu contraseña.
             </span>
           </div>
           </>

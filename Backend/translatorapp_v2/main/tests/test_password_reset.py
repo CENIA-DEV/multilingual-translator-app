@@ -49,10 +49,28 @@ def test_recover_password_invalid_email(api_client, mock_recovery_email):
 
     response = api_client.post(url, data, format="json")
 
-    assert response.status_code == 400
-    assert "user" in response.data  # Expecting an error related to the 'user' field
+    assert response.status_code == 400  # malformed, so nothing is revealed
+    assert "email" in response.data
     assert PasswordResetToken.objects.count() == 0  # No object created
     # Assert that the email wasnt sent
+    mock_recovery_email.assert_not_called()
+
+
+# 2b. recover_password - Unknown email answers exactly like a registered one
+@pytest.mark.django_db
+def test_recover_password_does_not_reveal_unknown_emails(
+    api_client, user, mock_recovery_email
+):
+    url = "/api/password_reset/recover_password/"
+
+    known = api_client.post(url, {"email": user.email}, format="json")
+    mock_recovery_email.reset_mock()
+    unknown = api_client.post(url, {"email": "nobody@example.com"}, format="json")
+
+    assert unknown.status_code == known.status_code == 200
+    assert unknown.data == known.data
+    # ...but only the registered address got a token and an email
+    assert PasswordResetToken.objects.count() == 1
     mock_recovery_email.assert_not_called()
 
 

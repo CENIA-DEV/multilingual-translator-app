@@ -19,6 +19,8 @@ from operator import or_
 
 import numpy as np
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -79,6 +81,11 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# The one answer `recover_password` gives to any well-formed email; see there.
+RECOVERY_REQUESTED_DETAIL = (
+    "Si el correo está registrado, enviamos un enlace para restablecer la contraseña."
+)
 
 
 class CustomAuthToken(ObtainAuthToken):
@@ -395,17 +402,33 @@ class PasswordResetViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def recover_password(self, request):
-        serializer = self.serializer_class(data={"user": request.data})
-        if serializer.is_valid():
-            invitation = serializer.save()
-        else:
-            return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+        # The answer is the same whether or not the email has an account, so this
+        # form can't be used to find out who is registered. Only a malformed
+        # request is an error; an unknown email simply gets no email.
+        email = request.data.get("email")
+        try:
+            validate_email(email)
+        except ValidationError:
+            return Response(
+                {"email": ["Ingresa un correo electrónico válido."]},
+                status=HTTP_400_BAD_REQUEST,
+            )
 
-        # send recovery email with the raw token; only its hash is stored
-        send_recovery_email(
-            user_email=invitation.user.email, raw_token=invitation._raw_token
-        )
-        return Response(serializer.data)
+        serializer = self.serializer_class(data={"user": {"email": email}})
+        if serializer.is_valid():
+            try:
+                reset_token = serializer.save()
+            except User.DoesNotExist:
+                # The email matched a user whose username differs; answering
+                # with an error here would single the address out as registered.
+                reset_token = None
+            if reset_token is not None:
+                # send recovery email with the raw token; only its hash is stored
+                send_recovery_email(
+                    user_email=reset_token.user.email,
+                    raw_token=reset_token._raw_token,
+                )
+        return Response({"detail": RECOVERY_REQUESTED_DETAIL})
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def check_reset_token(self, request):
