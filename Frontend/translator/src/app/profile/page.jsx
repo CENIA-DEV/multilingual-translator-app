@@ -269,15 +269,6 @@ export default function Profile(){
                 </label>
               </div>
 
-              <DatePicker
-                label={'Fecha de nacimiento'}
-                handleDateUpdate={handleDateUpdate}
-                selectedDate={dateOfBirth}
-                disabled={!isEditing}
-              />
-            </div>
-
-            <div className="flex gap-5">
               <div className="relative w-full h-[50px]">
                 <input
                   id="organization"
@@ -296,7 +287,18 @@ export default function Profile(){
                   Organización
                 </label>
               </div>
+            </div>
 
+            {/* Three dropdowns need the full width; squeezed into half a row
+                the chevrons covered the day and the year was cut off. */}
+            <DatePicker
+              label={'Fecha de nacimiento'}
+              handleDateUpdate={handleDateUpdate}
+              selectedDate={dateOfBirth}
+              disabled={!isEditing}
+            />
+
+            <div className="flex gap-5">
               <div className="relative w-full h-[50px]">
                 <select
                   id="languageProficiency"
@@ -321,7 +323,6 @@ export default function Profile(){
 
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
               </div>
-
             </div>
 
             <div className="flex gap-5">
