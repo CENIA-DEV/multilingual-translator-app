@@ -26,6 +26,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -398,10 +399,50 @@ class PasswordResetViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class SuggestionPageNumberPagination(PageNumberPagination):
+    """Page the suggestions table by the size the client asks for.
+
+    The table used to guess the page size from the length of the page it got
+    back, so the last page (which is shorter) inflated the page count and the
+    footer offered pages that did not exist. The client now sends `page_size`,
+    and the envelope echoes `page_size` and `page` so no client has to guess.
+
+    Ported from `OptInPageNumberPagination` in voces-platform-backend (commit
+    322e1b22). That version pages only callers that send `page` or
+    `page_size`, because its endpoint used to answer with a plain array. This
+    endpoint has always answered paged, so the opt-in gate is left out and the
+    rest is kept identical.
+    """
+
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+    def paginate_queryset(self, queryset, request, view=None):
+        try:
+            return super().paginate_queryset(queryset, request, view)
+        except NotFound:
+            # The list shrinks under the viewer -- rows get validated, accepted
+            # and deleted from the page that lists them -- so a page number that
+            # was valid when it was rendered can point past the end by the time
+            # it is used. Answer with the last page instead of a 404 that the
+            # table has no way to recover from.
+            page_size = self.get_page_size(request) or self.page_size
+            paginator = self.django_paginator_class(queryset, page_size)
+            self.page = paginator.page(paginator.num_pages)
+            self.request = request
+            return list(self.page)
+
+    def get_paginated_response(self, data):
+        response = super().get_paginated_response(data)
+        response.data["page_size"] = self.get_page_size(self.request) or self.page_size
+        response.data["page"] = self.page.number
+        return response
+
+
 class SuggestionViewSet(viewsets.ModelViewSet):
     serializer_class = SuggestionSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
-    pagination_class = PageNumberPagination
+    pagination_class = SuggestionPageNumberPagination
 
     def get_permissions(self):
         if self.action in [
@@ -418,10 +459,20 @@ class SuggestionViewSet(viewsets.ModelViewSet):
         queryset = TranslationPair.objects.all()
         language_param = self.request.query_params.get("lang")
         validated = self.request.query_params.get("validated")
+        # Filter by feedback polarity. `correct` stays null until someone says
+        # whether the output was right, so "none" is a third value worth asking
+        # for rather than a missing one. (Same parsing as voces-platform-backend;
+        # this used to read anything but "true" as False, so `correct=null`
+        # returned the incorrect rows.)
         correct = self.request.query_params.get("correct")
         if correct is not None:
-            correct = correct.lower() == "true"
-            queryset = queryset.filter(correct=correct)
+            wanted = correct.strip().lower()
+            if wanted in ("null", "none", ""):
+                queryset = queryset.filter(correct__isnull=True)
+            elif wanted in ("true", "1", "yes"):
+                queryset = queryset.filter(correct=True)
+            elif wanted in ("false", "0", "no"):
+                queryset = queryset.filter(correct=False)
         if language_param is not None:
             language_codes = [
                 code.strip() for code in language_param.split(",") if code.strip()

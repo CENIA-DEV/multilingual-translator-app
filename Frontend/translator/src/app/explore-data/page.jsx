@@ -53,6 +53,7 @@ export default function Exploredata()  {
               handleEditSuggestion={handleEditSuggestion}
               validated={false}
               updateTable={updateTable}
+              onActionComplete={handleUpdateTable}
             />
 
           </TabsContent>
@@ -61,6 +62,7 @@ export default function Exploredata()  {
               handleEditSuggestion={handleEditSuggestion}
               validated={true}
               updateTable={updateTable}
+              onActionComplete={handleUpdateTable}
             />
           </TabsContent>
         </Tabs>
