@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { generateText, warmupASRModel, validateTranscriptionApi } from '../app/services/asrService';
+import { generateText, warmupASRModel, validateTranscriptionApi, isRequestCancelled } from '../app/services/asrService';
 import { toast } from 'sonner';
 
 export function useASR({ getAudioContext, trackEvent }) {
@@ -230,18 +230,24 @@ export function useASR({ getAudioContext, trackEvent }) {
 
   async function transcribeForReview(blob, hint, filename = 'audio.webm') {
     setAsrStatus('transcribing');
+    const controller = new AbortController();
+    asrAbortRef.current = controller;
     try {
-      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename, { signal: controller.signal });
       updateASRActivity();
       setReviewTranscript((data?.text || '').trim());
       setCurrentAsrId(data?.id || null);
       setAsrStatus('reviewing');
     } catch (err) {
+      // Cancelled from the modal: cancelTranscription already reset the state
+      if (isRequestCancelled(err)) return;
       console.error(err);
       setAsrStatus('error');
       toast('Error al transcribir.', {
         description: err?.response?.data?.error || 'Reintenta con otro archivo.',
       });
+    } finally {
+      if (asrAbortRef.current === controller) asrAbortRef.current = null;
     }
   }
   
@@ -270,11 +276,11 @@ export function useASR({ getAudioContext, trackEvent }) {
         toast('Transcripción lista.');
       } catch (err) {
         clearTimeout(timeoutId);
-        console.error(err);
-        if (err?.name === 'AbortError') {
+        if (isRequestCancelled(err)) {
           toast('Transcripción cancelada.');
           return;
         }
+        console.error(err);
         toast('Error al transcribir.', {
           description: err?.response?.data?.error || 'Reintenta con otro archivo.',
         });

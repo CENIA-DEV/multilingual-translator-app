@@ -1,7 +1,10 @@
+import axios from 'axios';
 import api from '../api';
 import { API_ENDPOINTS, MAX_AUDIO_MB } from '../constants';
 
-export const generateText = async (audio, language, model_name = "mms_meta_asr", model_version = "v1", fileName = "audio.webm") => {
+// Pass { signal } (from an AbortController) to be able to cancel the request.
+// A cancelled request rejects with axios' CanceledError (see isRequestCancelled).
+export const generateText = async (audio, language, model_name = "mms_meta_asr", model_version = "v1", fileName = "audio.webm", { signal } = {}) => {
   try {
     // Validate file size
     const maxBytes = MAX_AUDIO_MB * 1024 * 1024;
@@ -15,13 +18,20 @@ export const generateText = async (audio, language, model_name = "mms_meta_asr",
     formData.append('model_name', model_name);
     formData.append('model_version', model_version);
 
-    const response = await api.post(API_ENDPOINTS.SPEECH_TO_TEXT, formData);
+    const response = await api.post(API_ENDPOINTS.SPEECH_TO_TEXT, formData, { signal });
     return response.data;
   } catch (error) {
-    console.error('Speech-to-Text generation failed:', error);
+    if (!isRequestCancelled(error)) {
+      console.error('Speech-to-Text generation failed:', error);
+    }
     throw error;
   }
 };
+
+// axios reports an aborted request as a CanceledError (name "CanceledError"),
+// not the DOM "AbortError" that fetch uses; accept both.
+export const isRequestCancelled = (error) =>
+  axios.isCancel(error) || error?.name === 'CanceledError' || error?.name === 'AbortError';
 
 /**
  * Send a tiny dummy audio to wake up the ASR model
