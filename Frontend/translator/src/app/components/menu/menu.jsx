@@ -15,11 +15,11 @@ limitations under the License. */
 
 import React, { useContext, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { faUsersGear, faDatabase, faHouse, faLanguage, faUser, faBars, faX, faArrowRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+import { faUsersGear, faDatabase, faHouse, faLanguage, faUser, faBars, faX, faArrowRightFromBracket, faPalette } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button } from "@/components/ui/button";
 import { AuthContext } from '@/app/contexts';
-import { PATHS, NO_USER_PATHS, ACCESS_TOKEN, isAdminUser } from '@/app/constants';
+import { PATHS, NO_USER_PATHS, ACCESS_TOKEN, isAdminUser, canManageTranslator, TRANSLATOR_ADMIN_PATH } from '@/app/constants';
 import ActionButton from '../actionButton/actionButton';
 import './menu.css'
 
@@ -29,7 +29,8 @@ const iconMap = {
   'language': faLanguage,
   'user': faUser,
   'database': faDatabase,
-  'home': faHouse
+  'home': faHouse,
+  'palette': faPalette
 }
 
 
@@ -38,7 +39,8 @@ export default function Menu(){
   const path = usePathname();
   const currentUser = useContext(AuthContext);
   // set paths to public (no user), else check if admin or not
-  const menuOptions = currentUser ? (isAdminUser(currentUser) ? PATHS.ADMIN : PATHS.USER) : NO_USER_PATHS;
+  const baseOptions = currentUser ? (isAdminUser(currentUser) ? PATHS.ADMIN : PATHS.USER) : NO_USER_PATHS;
+  const menuOptions = canManageTranslator(currentUser) ? [...baseOptions, TRANSLATOR_ADMIN_PATH] : baseOptions;
   
   const [isOpen, setIsOpen] = useState(false);
 
@@ -66,7 +68,7 @@ export default function Menu(){
         <div className={
           `fixed top-4 left-4 max-[850px]:left-0 z-50 
           animate-fade animate-once animate-duration-[1200ms] ${path !== '/translator'? 'animate-delay-[100ms]' : 'animate-delay-[1500ms]'} animate-ease-in-out 
-          ${path === '/about'? 'hidden':''}
+          ${path === '/about' || path?.startsWith('/manage-translator') ? 'hidden':''}
           `  
         }>
           <Button 
