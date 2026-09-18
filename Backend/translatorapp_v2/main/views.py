@@ -489,7 +489,8 @@ class SuggestionViewSet(viewsets.ModelViewSet):
         if validated is not None:
             validated = validated.lower() == "true"
             queryset = queryset.filter(validated=validated)
-        return queryset.order_by("-created_at")
+        # `-id` breaks created_at ties so pages never overlap or skip rows
+        return queryset.order_by("-created_at", "-id")
 
     def create(self, request):
         # add the user thats adding the suggestion
