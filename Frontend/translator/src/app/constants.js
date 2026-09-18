@@ -13,6 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */ 
 
 export const ACCESS_TOKEN = 'token'
+// Fired on window by the API client when the backend rejects the stored token
+export const AUTH_EXPIRED_EVENT = 'auth-token-expired'
 
 export const API_ENDPOINTS = {
     TRANSLATION: 'api/translate/',
