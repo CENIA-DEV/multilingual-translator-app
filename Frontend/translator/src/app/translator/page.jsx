@@ -35,8 +35,10 @@ import {
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, TTS_ENABLED, ASR_ENABLED, WORD_INFORMATION_REQUIRES_AUTH, SEPARATE_GENDERS_REQUIRES_AUTH, MAINTENANCE_MODE } from '../constants';
-import { VARIANT_LANG } from "@/app/constants";
+import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, WORD_INFORMATION_REQUIRES_AUTH, SEPARATE_GENDERS_REQUIRES_AUTH, MAINTENANCE_MODE } from '../constants';
+import { useConfig, useIsPreview } from '@/customization/ConfigProvider';
+import { findLanguage, matchesPrefix, prefixOf, useLanguageList } from '@/customization/languages';
+import RichText from '@/customization/RichText';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -50,29 +52,32 @@ import { validateTranscriptionApi } from '../services/asrService';
 import { useASR } from '../../hooks/useASR';
 import { getLanguages, translateText, submitPositiveFeedback } from '../services/translationService';
 
+// A language object for `code`, even if the document names a code the
+// selector does not list (the translator still works with it).
+const languageFor = (list, code) =>
+  findLanguage(list, code) || { name: code, code, writing: code.split('_')[1] || null, dialect: null };
+
 export default function Translator() {
+
+  const config = useConfig();
+  const languageList = useLanguageList();
+  const { features, translator: texts } = config;
 
   const [srcText, setSrcText] = useState('');
   const [showSrcTextMessage, setShowSrcTextMessage] = useState(false);
   const [dstText, setDstText] = useState('');
-  const [srcLang, setSrcLang] = useState({
-    "name": "Español",
-    "writing": "Latn",
-    "code": "spa_Latn",
-    "dialect": null
-  });
-  const [dstLang, setDstLang] = useState(VARIANT_LANG === 'arn'? {
-    "name": "Huilliche Azümchefe",
-    "writing": "a0",
-    "code": 'arn_a0_h',
-    "dialect": "n"
-  } : {
-    "name": "Rapa Nui",
-    "writing": "Latn",
-    "code": "rap_Latn",
-    "dialect": null
-  });
-  
+  const [srcLang, setSrcLang] = useState(() => languageFor(languageList, texts.defaultSource));
+  const [dstLang, setDstLang] = useState(() => languageFor(languageList, texts.defaultTarget));
+
+  // Follow a change of the default languages (the editor's live preview)
+  const defaultsRef = useRef({ src: texts.defaultSource, dst: texts.defaultTarget });
+  useEffect(() => {
+    const previous = defaultsRef.current;
+    if (previous.src !== texts.defaultSource) setSrcLang(languageFor(languageList, texts.defaultSource));
+    if (previous.dst !== texts.defaultTarget) setDstLang(languageFor(languageList, texts.defaultTarget));
+    defaultsRef.current = { src: texts.defaultSource, dst: texts.defaultTarget };
+  }, [texts.defaultSource, texts.defaultTarget, languageList]);
+
   const { isSpeaking, ttsError, isLoadingAudio, handleSpeak: handleSpeakBase, stopSpeaking: stopSpeakingBase, getAudioContext } = useAudioPlayer();
 
   const { trackEvent } = useAnalytics();
@@ -101,7 +106,12 @@ export default function Translator() {
   const [copyReady, setCopyReady] = useState(false);
   const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
 
-  const [showDevModal, setShowDevModal] = useState(true);
+  const [showDevModal, setShowDevModal] = useState(texts.notice.enabled);
+  // Inside the editor's preview the notice would cover the cards being edited
+  const isPreview = useIsPreview();
+  useEffect(() => {
+    if (isPreview) setShowDevModal(false);
+  }, [isPreview]);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(MAINTENANCE_MODE);
   
   // Record modal
@@ -136,24 +146,19 @@ export default function Translator() {
   const ASRRestricted = isASRRestricted(currentUser);
   const TTSRestricted = isTTSRestricted(currentUser);
 
-  // --- Language helpers for button visibility---
-  const codeOf = (l) => (l?.code || '').toLowerCase(); // 'spa_Latn','eng_Latn','rap_Latn',…
-  const isES  = (l) => codeOf(l).startsWith('spa');
-  const isEN  = (l) => codeOf(l).startsWith('eng');
-  const isRAP = (l) => codeOf(l).startsWith('rap');
+  // --- Which languages get voice features ("Idiomas y funciones" in Administrar Traductor) ---
+  // TTS reads languages by prefix ('rap' covers every Rapa Nui variant)
+  const isTTSSideAllowed = (l) => features.tts.enabled && matchesPrefix(l, features.tts.languages);
 
-  // TTS (API-only): Only RAP if TTS_ENABLED
-  const isTTSSideAllowed = (l) => TTS_ENABLED && isRAP(l);
+  // ASR transcribes the languages it has a model hint for; audio upload only from the listed sources
+  const isASRLang = (l) => features.asr.enabled && matchesPrefix(l, features.asr.languages);
+  const isASRSourceAllowed = (l) => features.asr.enabled && matchesPrefix(l, features.asr.uploadLanguages);
 
-  // ASR helpers - only if ASR_ENABLED
-  const isASRLang = (l) => ASR_ENABLED && (isES(l) || isRAP(l)); // ASR works for Spanish and Rapa Nui
-  const isASRSourceAllowed = (l) => ASR_ENABLED && isES(l); // Upload audio only available for Spanish source
-
+  // The language hint the ASR model expects ('spa_Latn', 'rap_Latn', ...), or null
   function getHintForLang(l) {
-    const c = (l?.code || '').toLowerCase();
-    if (c.includes('spa')) return 'spa_Latn';
-    if (c.includes('rap')) return 'rap_Latn';
-    return null; // not transcribable
+    if (!features.asr.enabled) return null;
+    const prefix = prefixOf(l?.code);
+    return features.asr.languages.find((code) => prefixOf(code) === prefix) || null;
   }
 
   const srcHint = getHintForLang(srcLang);
@@ -533,16 +538,6 @@ export default function Translator() {
     // The refs are stable objects; listing them doesn't add re-runs.
   }, [showRecordModal, isRecording, mediaStreamRef, waveCanvasRef, waveAnalyserRef]);
 
-  function inferHintFromSrcLang() {
-    const code = (srcLang?.code || '').toLowerCase();
-    if (code.includes('spa')) return 'spa_Latn';
-    if (code.includes('rap')) return 'rap_Latn';
-    if (code.includes('arn')) return 'arn_Latn';
-    if (VARIANT_LANG === 'rap') return 'rap_Latn';
-    if (VARIANT_LANG === 'arn') return 'arn_Latn';
-    return 'spa_Latn';
-  }
-  
   const [isSubmittingValidation, setIsSubmittingValidation] = useState(false);
 
   // Function to validate transcription
@@ -633,14 +628,11 @@ export default function Translator() {
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
-          <DialogTitle>Modelo en desarrollo</DialogTitle>
+          <DialogTitle>{texts.notice.title}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <p>
-          El traductor se encuentra en desarrollo y esta es una <strong>versión operativa de prueba</strong>.
-            Se encuentra en un proceso de <strong>mejora continua</strong>, por lo que puede cometer errores o
-            producir resultados inesperados. Los <strong>resultados siempre deben ser verificados por hablantes</strong>. Agradecemos su comprensión y su retroalimentación,
-            que nos ayuda a mejorar su precisión y utilidad.
+            <RichText html={texts.notice.body} />
           </p>
         </div>
         </DialogContent>
@@ -648,22 +640,21 @@ export default function Translator() {
       <Dialog open={translationRestrictedDialogOpen} onOpenChange={setTranslationRestrictedDialogOpen}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-3/4'>
         <DialogHeader>
-          <DialogTitle>Acceso restringido</DialogTitle>
+          <DialogTitle>{texts.restricted.title}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <p>
-            El traductor se encuentra en una fase preliminar de prueba por lo que 
-            debe <strong>iniciar sesión</strong> para usar el traductor en esta versión.
+            <RichText html={texts.restricted.body} />
           </p>
         </div>
         <div className="flex justify-center">
           <Button 
-            className='bg-[#068cdc1a] 
+            className='bg-default/10 
                 text-default text-xs font-bold 
                 hover:bg-default hover:text-white' 
             onClick={() => handleLogin()}
           >
-            Iniciar sesión
+            {texts.restricted.button}
           </Button>
         </div>
         </DialogContent>
@@ -771,7 +762,7 @@ export default function Translator() {
                     // --- DURATION VALIDATION END ---
                   }}
                 />
-                <FontAwesomeIcon icon={faPlus} className="fa-lg" color="#0a8cde" />
+                <FontAwesomeIcon icon={faPlus} className="fa-lg text-default" />
               </label>
             )}
           </div>
@@ -782,7 +773,7 @@ export default function Translator() {
 			{/* Mic button (center-bottom) */}
 			{ASR_MIC_VISIBLE_D && (
 			  <div
-				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-[#0a8cde] shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
+				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-default shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
 				onClick={async () => {
 				  if (ASRRestricted) {
 					setTranslationRestrictedDialogOpen(true);
@@ -805,8 +796,7 @@ export default function Translator() {
 			  >
 				<FontAwesomeIcon
 				  icon={isRecording ? faMicrophone : (asrStatus === 'transcribing' || asrStatus === 'processing' ? faSpinner : faMicrophone)}
-				  className={`text-[1.5em] ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''}`}
-				  color={isRecording ? "#d40000" : "#0a8cde"}
+				  className={`text-[1.5em] ${asrStatus === 'transcribing' || asrStatus === 'processing' ? 'fa-spin' : ''} ${isRecording ? 'text-[#d40000]' : 'text-default'}`}
 				/>
 			  </div>
 			)}
@@ -827,8 +817,7 @@ export default function Translator() {
         >
           <FontAwesomeIcon
             icon={faArrowRightArrowLeft }
-            className={`fa-xl max-[850px]:rotate-90 transform transition-all duration-300 hover:scale-110`}
-            color="#0a8cde"
+            className={`fa-xl max-[850px]:rotate-90 transform transition-all duration-300 hover:scale-110 text-default`}
           />
         </div>
 
@@ -839,8 +828,7 @@ export default function Translator() {
         >
           <FontAwesomeIcon
             icon={loadingState ? faArrowsRotate : (translationRestricted ? faLock : faArrowRight)}
-            className={`fa-2xl transform transition-all duration-300 hover:scale-110 max-[850px]:rotate-90 ${translationRestricted ? 'opacity-50' : ''}`}
-            color={translationRestricted ? "#666" : "#0a8cde"}
+            className={`fa-2xl transform transition-all duration-300 hover:scale-110 max-[850px]:rotate-90 ${translationRestricted ? 'opacity-50 text-[#666]' : 'text-default'}`}
             style={loadingState ? { animation: 'spin 1s linear infinite' } : {}}
           />
         </div>
@@ -878,7 +866,7 @@ export default function Translator() {
       <div className="translator-footer max-[850px]:mb-[84px]">
         {translationRestricted ? (<></>) : (
           <>
-            <strong className="max-[850px]:hidden">Déjanos tu opinión</strong>
+            <strong className="max-[850px]:hidden">{texts.feedbackPrompt}</strong>
 
             <FontAwesomeIcon
               icon={faThumbsUp}
@@ -947,7 +935,7 @@ export default function Translator() {
 						hintChosen: transcribeChoice === 'source' ? srcHint : dstHint,
 						onStopWaveformVisualization: stopWaveformVisualization
 					})}
-					className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0a8cde] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+					className="w-14 h-14 rounded-full bg-default flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-default focus-visible:ring-offset-2 focus-visible:ring-offset-white"
 					title="Iniciar grabación"
 					aria-label="Iniciar grabación"
 					style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -960,7 +948,7 @@ export default function Translator() {
 						  hintChosen: transcribeChoice === 'source' ? srcHint : dstHint,
 						  onStopWaveformVisualization: stopWaveformVisualization
 					  })}
-					  className="text-[#0a8cde] font-medium"
+					  className="text-default font-medium"
 					>
 					  Iniciar grabación
 					</button>
@@ -978,7 +966,7 @@ export default function Translator() {
                         onClick={() => setTranscribeChoice('source')}
                         className={`px-3 py-1 text-sm rounded-full transition border ${
                           transcribeChoice === 'source'
-                            ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                            ? 'bg-default text-white border-default'
                             : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                         }`}
                       >
@@ -989,7 +977,7 @@ export default function Translator() {
                         disabled={!dstHint}
                         className={`ml-1 px-3 py-1 text-sm rounded-full transition border ${
                           transcribeChoice === 'target'
-                            ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                            ? 'bg-default text-white border-default'
                             : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                         } ${!dstHint ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
@@ -1006,10 +994,10 @@ export default function Translator() {
             {asrStatus === 'preparing' && (
               <div className="flex flex-col items-center justify-center py-12 space-y-4 animate-in fade-in zoom-in duration-300">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-[#0a8cde] animate-spin" />
+                  <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-default animate-spin" />
                   <FontAwesomeIcon 
                     icon={faMicrophone} 
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#0a8cde] text-xl" 
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-default text-xl" 
                   />
                 </div>
                 <div className="text-center">
@@ -1067,7 +1055,7 @@ export default function Translator() {
                     Transcripción ({transcribeChoice === 'source' ? srcDisplay : dstDisplay})
                   </label>
                   <textarea
-                    className="w-full h-40 p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0a8cde]"
+                    className="w-full h-40 p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-default"
                     value={reviewTranscript}
                     onChange={(e) => setReviewTranscript(e.target.value)}
                     placeholder="Revisa o edita la transcripción…"
@@ -1093,7 +1081,7 @@ export default function Translator() {
                   </Button>
                   <div className="flex gap-2">
                     <Button
-                      className="bg-[#068cdc1a] text-default text-sm font-medium hover:bg-default hover:text-white"
+                      className="bg-default/10 text-default text-sm font-medium hover:bg-default hover:text-white"
                       onClick={() => {
                         // Return to READY: user will click mic and choose language again
                         safeUnloadReviewAudio();
@@ -1108,7 +1096,7 @@ export default function Translator() {
                       Volver a grabar
                     </Button>
                     <Button
-                      className="bg-[#0a8cde] text-white text-sm font-medium hover:bg-[#067ac1]"
+                      className="bg-default text-white text-sm font-medium hover:bg-defaultStrong"
                       onClick={startTranslationFromReview}
                       disabled={isSubmittingValidation} // Add disabled state
                     >
@@ -1127,18 +1115,18 @@ export default function Translator() {
         <DialogContent className="bg-white rounded-lg shadow-lg p-6 max-w-md">
           <DialogHeader>
             <DialogTitle className="text-center text-xl font-semibold text-slate-800">
-              Mantenimiento
+              {texts.maintenance.title}
             </DialogTitle>
           </DialogHeader>
           <div className="text-center space-y-4">
             <p className="text-slate-600">
-              El traductor está en mantenimiento por lo que estará fuera servicio por unas horas...
+              <RichText html={texts.maintenance.body} />
             </p>
             <Button
               onClick={() => setShowMaintenanceModal(false)}
-              className="bg-[#0a8cde] text-white hover:bg-[#067ac1] w-full"
+              className="bg-default text-white hover:bg-defaultStrong w-full"
             >
-              Entendido
+              {texts.maintenance.button}
             </Button>
           </div>
         </DialogContent>

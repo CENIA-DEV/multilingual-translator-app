@@ -23,7 +23,8 @@ import { Badge } from "@/components/ui/badge"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft , faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { useState , useEffect, useCallback } from "react";
-import { API_ENDPOINTS, BASE_LANG, VARIANT_LANG } from '../../constants.js';
+import { API_ENDPOINTS, BASE_LANG } from '../../constants.js';
+import { useConfig } from '@/customization/ConfigProvider';
 import api from '../../api.js';
 import { useToast } from "@/hooks/use-toast"
 
@@ -53,7 +54,8 @@ export default function ListSuggestions({validated, ...props}) {
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, totalCount);
 
   const srcLang = `${BASE_LANG}_Latn`
-  const dstLang = VARIANT_LANG === 'arn' ? 'arn_a0_n,arn_r0_n,arn_u0_n' : `${VARIANT_LANG}_Latn`;
+  // The translator's own language(s), from "Idiomas y funciones"
+  const dstLang = useConfig().languages.nativeCodes.join(',');
   
   const reorderSuggestions = useCallback((suggestions) => {
     return suggestions.map((suggestion) => {

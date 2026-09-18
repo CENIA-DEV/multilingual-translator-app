@@ -68,8 +68,10 @@ export const useWaveform = (getAudioContext) => {
         g.lineTo(width, mid);
         g.stroke();
   
-        // waveform
-        g.strokeStyle = '#0a8cde';
+        // waveform, in the translator's brand colour (a canvas cannot read CSS variables)
+        const brand = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '10 140 222';
+        const brandRgb = brand.split(/\s+/).join(',');
+        g.strokeStyle = `rgb(${brandRgb})`;
         g.lineWidth = 2;
         g.beginPath();
         for (let i = 0; i < timeData.length; i++) {
@@ -91,7 +93,7 @@ export const useWaveform = (getAudioContext) => {
           const barH = (avg / 255) * (height * 0.35);
           const x = 10 + b * (barW + 6);
           const y = height - 10 - barH;
-          g.fillStyle = '#0a8cde';
+          g.fillStyle = `rgb(${brandRgb})`;
           g.fillRect(x, y, barW, barH);
         }
   
@@ -105,7 +107,7 @@ export const useWaveform = (getAudioContext) => {
         if (pulseRef.current) {
           const s = 1 + Math.min(1.4, rms * 2.2);
           pulseRef.current.style.transform = `scale(${s})`;
-          pulseRef.current.style.boxShadow = `0 0 ${8 + rms * 36}px rgba(10,140,222,0.65)`;
+          pulseRef.current.style.boxShadow = `0 0 ${8 + rms * 36}px rgb(var(--brand) / 0.65)`;
           pulseRef.current.style.opacity = `${0.6 + Math.min(0.4, rms * 0.8)}`;
         }
       };

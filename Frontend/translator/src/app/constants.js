@@ -43,8 +43,6 @@ export const ADMIN = 'Admin';
 export const USER = 'User';
 export const MAX_WORDS_TRANSLATION = Number(process.env.NEXT_PUBLIC_MAX_WORDS_TRANSLATION);
 export const BASE_LANG = "spa";
-export const VARIANT_LANG = process.env.NEXT_PUBLIC_VARIANT;
-export const LANG_TITLE = VARIANT_LANG === 'rap' ? 'Rapa Nui' : 'Mapuzungun';
 // URL configuration for the sitemap, robots.txt and metadata. The deploy
 // workflow writes NEXT_PUBLIC_BASE_URL for production builds; fallback to the
 // development host otherwise.
@@ -65,9 +63,9 @@ export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === '
 export const WORD_INFORMATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH === 'true';
 export const SEPARATE_GENDERS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_SEPARATE_GENDERS_REQUIRES_AUTH === 'true';
 
-// Feature availability by variant
-export const TTS_ENABLED = VARIANT_LANG === 'rap'; // Only enable TTS for Rapa Nui
-export const ASR_ENABLED = VARIANT_LANG === 'rap'; // Only enable ASR for Rapa Nui
+// Which languages get TTS / ASR / word information is part of the
+// customization ("Idiomas y funciones" in Administrar Traductor); whether they
+// need a login stays a deploy-time setting.
 
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;
@@ -81,12 +79,11 @@ export const isTranslationRestricted = (currentUser) => {
 };
 
 export const isTTSRestricted = (currentUser) => {
-    return !TTS_ENABLED || (TTS_REQUIRES_AUTH && !currentUser);
+    return TTS_REQUIRES_AUTH && !currentUser;
 }
 
 export const isASRRestricted = (currentUser) => {
-    return !ASR_ENABLED || (ASR_REQUIRES_AUTH && !currentUser);
-  
+    return ASR_REQUIRES_AUTH && !currentUser;
 }
 
 
@@ -95,6 +92,10 @@ export const isAdminUser = (currentUser) => {
   const role = currentUser?.profile?.role;
   return role === NATIVE_ADMIN || role === ADMIN;
 };
+
+// "Administrar Traductor" (look, texts and languages of the site) is only for
+// the technical team and Django staff; the backend decides and reports it.
+export const canManageTranslator = (currentUser) => Boolean(currentUser?.can_manage_translator);
 
 export const ROLES = [
   {name: "Administrador", value: "NativeAdmin"},
@@ -125,6 +126,9 @@ const ADMIN_PATHS = [
   {'name': 'Explorar Datos', 'route': '/explore-data', 'icon': 'database'},
   {'name': 'Administrar Palabras', 'route': '/manage-word-information', 'icon': 'database'},
 ];
+
+export const TRANSLATOR_ADMIN_PATH =
+  {'name': 'Administrar Traductor', 'route': '/manage-translator', 'icon': 'palette'};
 
 export const PATHS = {
   USER: USER_PATHS,

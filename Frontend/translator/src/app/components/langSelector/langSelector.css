@@ -15,7 +15,8 @@ limitations under the License. */
     display: flex;
     align-items: center;
     width: calc(100% - 80px);
-    border: 0px solid #c8d1e1;
+    border: 0px solid;
+    border-color: rgb(var(--line));
     padding: 15px 0px 5px 0px;
     border-bottom-width: medium;
     animation: fade-in 1.2s cubic-bezier(0.39, 0.575, 0.565, 1) 1.5s both;
@@ -59,18 +60,18 @@ limitations under the License. */
 
 .lang-span-left {
     cursor: pointer;
-    color: #c8d1e1;
+    color: rgb(var(--line));
     transition: all 1s;
 }
 
 .lang-span-left:hover {
     cursor: pointer;
-    color: #0a8cde;
+    color: rgb(var(--brand));
 }
 
 .lang-span-right {
     cursor: pointer;
-    color: #c8d1e1;
+    color: rgb(var(--line));
     transition: all 1s;
 }
 

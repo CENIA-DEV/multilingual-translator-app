@@ -20,14 +20,13 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import languages_list_arn from "../../assets/languages_arn.json";
-import languages_list_rap from "../../assets/languages_rap.json";
-import { VARIANT_LANG } from "@/app/constants";
+import { useLanguageList } from "@/customization/languages";
 
 
 export default function LangsModal(props) {
 
-  const languages_list = VARIANT_LANG === 'arn'? languages_list_arn : languages_list_rap;
+  // Already filtered, renamed and sorted by the customization
+  const languages_list = useLanguageList();
 
   const [characterSearch, setCharacterSearch] = useState("");
   const [langSearch, setLangSearch] = useState("");
@@ -74,10 +73,7 @@ export default function LangsModal(props) {
   };
 
   useEffect(() => {
-    const new_list = languages_list.sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-    setLanguages(new_list);
+    setLanguages(languages_list);
   }, [languages_list]);
 
   return (

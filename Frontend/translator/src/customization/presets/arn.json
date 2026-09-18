@@ -1,0 +1,591 @@
+{
+  "schemaVersion": 1,
+  "identity": {
+    "languageName": "Mapuzungun",
+    "organizationName": "Academia de la Lengua Mapuzungun",
+    "siteTitle": "Traductor Mapuzungun",
+    "siteDescription": "Proyecto que busca revitalizar la lengua Mapuzungun mediante un traductor.",
+    "keywords": [
+      "Traductor Mapuzungun",
+      "Mapuzungun",
+      "Mapudungun",
+      "mapuche",
+      "traductor",
+      "traducción",
+      "español",
+      "lenguas indígenas",
+      "pueblos originarios",
+      "revitalización lingüística"
+    ],
+    "logo": "/logo-arn.png",
+    "favicon": "/logo-arn.ico"
+  },
+  "theme": {
+    "primary": "#0a8cde",
+    "primaryHover": "#0e9ff8",
+    "primaryStrong": "#067ac1",
+    "onPrimary": "#ffffff",
+    "line": "#c8d1e1",
+    "landing": {
+      "page": "#f4f7f9",
+      "paper": "#fdfdfc",
+      "tint": "#e9f0f5",
+      "night": "#0e2a40",
+      "deepNight": "#081a29",
+      "heroBase": "#0b1d2c",
+      "heroOverlay": "#06121e",
+      "heading": "#12283a",
+      "body": "#33454f",
+      "subtle": "#44566a",
+      "muted": "#5a6e7c",
+      "accent": "#2b7fc4",
+      "link": "#1e6fb8",
+      "highlight": "#17517e",
+      "onDarkAccent": "#7db4e0",
+      "mapDots": "#b7d3ea",
+      "mapSurface": "#f4f9fc"
+    },
+    "fonts": {
+      "display": "Newsreader",
+      "text": "Archivo"
+    }
+  },
+  "translator": {
+    "defaultSource": "spa_Latn",
+    "defaultTarget": "arn_a0_n",
+    "leftCard": {
+      "image": "/images/arn-white.png",
+      "fit": "contain",
+      "position": "bottom",
+      "opacity": 100,
+      "tint": false
+    },
+    "rightCard": {
+      "image": "/images/arn-2-blue.png",
+      "fit": "contain",
+      "position": "bottom",
+      "opacity": 100,
+      "tint": false
+    },
+    "placeholders": {},
+    "placeholder": "Escriba aquí el texto a traducir",
+    "notice": {
+      "enabled": true,
+      "title": "Modelo en desarrollo",
+      "body": "El traductor se encuentra en desarrollo y esta es una <strong>versión operativa de prueba</strong>. Se encuentra en un proceso de <strong>mejora continua</strong>, por lo que puede cometer errores o producir resultados inesperados. Los <strong>resultados siempre deben ser verificados por hablantes</strong>. Agradecemos su comprensión y su retroalimentación, que nos ayuda a mejorar su precisión y utilidad."
+    },
+    "restricted": {
+      "title": "Acceso restringido",
+      "body": "El traductor se encuentra en una fase preliminar de prueba por lo que debe <strong>iniciar sesión</strong> para usar el traductor en esta versión.",
+      "button": "Iniciar sesión"
+    },
+    "maintenance": {
+      "title": "Mantenimiento",
+      "body": "El traductor está en mantenimiento por lo que estará fuera servicio por unas horas...",
+      "button": "Entendido"
+    },
+    "feedbackPrompt": "Déjanos tu opinión"
+  },
+  "languages": {
+    "hidden": [
+      "rap_Latn"
+    ],
+    "renamed": {},
+    "custom": [],
+    "nativeCodes": [
+      "arn_a0_n",
+      "arn_r0_n",
+      "arn_u0_n"
+    ],
+    "variantSelector": {
+      "enabled": true,
+      "prefix": "arn",
+      "label": "Grafemario",
+      "options": [
+        {
+          "code": "a0",
+          "label": "Azümchefe"
+        },
+        {
+          "code": "r0",
+          "label": "Raguileo"
+        },
+        {
+          "code": "u0",
+          "label": "Unificado"
+        }
+      ]
+    }
+  },
+  "features": {
+    "tts": {
+      "enabled": false,
+      "languages": [
+        "rap"
+      ]
+    },
+    "asr": {
+      "enabled": false,
+      "languages": [
+        "spa_Latn",
+        "rap_Latn"
+      ],
+      "uploadLanguages": [
+        "spa"
+      ]
+    },
+    "wordInformation": {
+      "enabled": false,
+      "languages": [
+        "rap"
+      ]
+    }
+  },
+  "authPages": {
+    "loginImage": "/images/arn-blue.png",
+    "formsImage": "/images/arn-2-blue.png",
+    "profileImage": "/images/arn-profile.png",
+    "tint": false
+  },
+  "landing": {
+    "locales": [
+      {
+        "code": "es",
+        "label": "Español"
+      },
+      {
+        "code": "en",
+        "label": "English"
+      }
+    ],
+    "defaultLocale": "es",
+    "sections": [
+      {
+        "id": "about",
+        "visible": true,
+        "tone": "tint"
+      },
+      {
+        "id": "validation",
+        "visible": false,
+        "tone": "paper"
+      },
+      {
+        "id": "focus",
+        "visible": true,
+        "tone": "dark"
+      },
+      {
+        "id": "owners",
+        "visible": true,
+        "tone": "paper"
+      },
+      {
+        "id": "collaborators",
+        "visible": true,
+        "tone": "tint"
+      },
+      {
+        "id": "funding",
+        "visible": true,
+        "tone": "paper"
+      },
+      {
+        "id": "contact",
+        "visible": true,
+        "tone": "dark"
+      }
+    ],
+    "header": {
+      "logo": "/images/arn-language-academy.png",
+      "logoAlt": {
+        "es": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu",
+        "en": "Mapuche Language and Culture Institute Aukiñ Mapu"
+      },
+      "brandTitle": {
+        "es": "Traductor Mapuzungun",
+        "en": "Mapuzungun Translator"
+      },
+      "selectLanguageLabel": {
+        "es": "Selecciona tu idioma",
+        "en": "Select your language"
+      }
+    },
+    "hero": {
+      "image": "/images/landing-arn.png",
+      "imageAlt": {
+        "es": "Mapuzungun"
+      },
+      "focalPoint": {
+        "x": 50,
+        "y": 50
+      },
+      "overlayOpacity": 100,
+      "title": {
+        "es": "Apoyo a la revitalización del Mapuzungun con IA",
+        "en": "Supporting the revitalization of the Mapuzungun language with AI"
+      },
+      "subtitle": {
+        "es": "Proyecto que desarrolla modelos de traducción automática mapuzungun-español con inteligencia artificial",
+        "en": "Project that develops translation models mapuzungun-español with artificial intelligence"
+      },
+      "primaryCta": {
+        "es": "Probar el traductor",
+        "en": "Try the translator"
+      },
+      "secondaryCta": {
+        "es": "Acerca del proyecto",
+        "en": "About the project"
+      },
+      "showDeveloperBadge": true
+    },
+    "about": {
+      "title": {
+        "es": "ACERCA DE NUESTRO PROYECTO",
+        "en": "ABOUT OUR PROJECT"
+      },
+      "items": [
+        {
+          "text": {
+            "es": "La pérdida de lenguas de pueblos originarios es una crisis creciente en la actualidad. <strong>El mapuzungun, es considerado una lengua en peligro</strong>, ya que a pesar de que en Chile más de 1.500.000 de personas se identifican como mapuche, cuenta con menos de 200.000 hablantes activos, y sólo tres comunas la consideran lengua co-oficial a nivel nacional.",
+            "en": "The loss of indigenous languages is a growing crisis today. <strong>Mapuzungun, is considered a language at risk</strong>, despite the fact that more than 1.5 million people in Chile identify as Mapuche, has less than 200,000 active speakers, and only three communities consider it co-official at the national level."
+          },
+          "image": "/images/landing/community-gathering.jpg",
+          "imageAlt": {
+            "es": "Encuentro comunitario en Rapa Nui"
+          },
+          "imageFit": "cover",
+          "focalPoint": {
+            "x": 50,
+            "y": 50
+          }
+        },
+        {
+          "text": {
+            "es": "La ONU ha declarado que entre el 2022 y el 2032 nos encontramos en el <strong>Decenio Internacional de las Lenguas Indígenas del Mundo</strong>. La UNESCO destaca la importancia de la tecnología en los procesos de preservación, revitalización y promoción de las lenguas.",
+            "en": "The United Nations has declared that between 2022 and 2032 we are in the <strong>Decade of Indigenous Languages of the World</strong>. UNESCO highlights the importance of technology in the processes of preservation, revitalization and promotion of languages."
+          },
+          "image": "/images/landing/translator-in-use.jpg",
+          "imageAlt": {
+            "es": "Traductor rapa nui - español en uso"
+          },
+          "imageFit": "cover",
+          "focalPoint": {
+            "x": 50,
+            "y": 50
+          }
+        },
+        {
+          "text": {
+            "es": "En este contexto surge este innovador proyecto, llevado a cabo por un equipo del Centro Nacional de Inteligencia Artificial, Estudios Aplicados Antropología UC y el Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu, que se ha focalizado en el desarrollo un <strong>traductor de texto mapuzungun - español</strong>.",
+            "en": "In this context this innovative project was born, carried out by the National Center for Artificial Intelligence, \u0016Applied Studies Anthropology UC, and the Mapuche Language and Culture Institute Aukiñ Mapu, focused on the development of a <strong>Mapuzungun - Spanish text translator</strong>."
+          },
+          "image": "/images/landing/academy-book-launch.jpg",
+          "imageAlt": {
+            "es": "Integrantes de la Academia de la Lengua Rapa Nui ꞌUmaŋa Hatu Reꞌo"
+          },
+          "imageFit": "cover",
+          "focalPoint": {
+            "x": 50,
+            "y": 50
+          }
+        },
+        {
+          "text": {
+            "es": "En esta página podrás acceder a <strong>un prototipo del traductor online</strong>, que se encuentra actualmente en una fase de validación y mejora continua. La participación de la comunidad es fundamental para retroalimentar la calidad del traductor, lo cual permite el aprendizaje de la inteligencia artificial.",
+            "en": "On this page you can access an <strong>online translator prototype</strong>, which is currently in a validation and continuous improvement phase. The participation of the community is fundamental to feed back the quality of the translator, which allows the learning of artificial intelligence."
+          },
+          "image": "/images/landing/speaker-interview.jpg",
+          "imageAlt": {
+            "es": "Sesión de trabajo con un hablante de rapa nui"
+          },
+          "imageFit": "cover",
+          "focalPoint": {
+            "x": 50,
+            "y": 50
+          }
+        }
+      ]
+    },
+    "validation": {
+      "title": {
+        "es": "Validado por los hablantes que requieren usar la herramienta",
+        "en": "Validated with the people who actually need the tool"
+      },
+      "mapLabel": {
+        "es": "Mapa de los lugares de validación"
+      },
+      "geojson": "",
+      "pins": []
+    },
+    "focus": {
+      "title": {
+        "es": "Nuestro enfoque",
+        "en": "Our focus"
+      },
+      "items": [
+        {
+          "icon": "community",
+          "title": {
+            "es": "Colaboración con Comunidades",
+            "en": "Collaboration with Communities"
+          },
+          "text": {
+            "es": "Para su desarrollo ha sido fundamental el trabajo colaborativo y la validación del proceso con hablantes mapuche",
+            "en": "For its development, it has been fundamental the collaborative work and the validation of the process with native speakers of Mapuzungun."
+          }
+        },
+        {
+          "icon": "network",
+          "title": {
+            "es": "Inteligencia Artificial",
+            "en": "Artificial Intelligence"
+          },
+          "text": {
+            "es": "El traductor utiliza inteligencia artificial, específicamente técnicas de aprendizaje automático y NLP.",
+            "en": "The translator uses artificial intelligence, specifically machine learning and NLP techniques."
+          }
+        },
+        {
+          "icon": "open",
+          "title": {
+            "es": "Uso libre y gratuito",
+            "en": "Free and open source"
+          },
+          "text": {
+            "es": "Este es un proyecto sin fines de lucro, el uso del traductor es gratuito y los códigos serán de acceso libre.",
+            "en": "This is a non-profit project, the use of the translator is free and the codes will be freely accessible."
+          }
+        }
+      ]
+    },
+    "owners": {
+      "title": {
+        "es": "Un proyecto colaborativo",
+        "en": "A collaborative project"
+      },
+      "developedByLabel": {
+        "es": "Desarrollado por",
+        "en": "Developed by"
+      },
+      "partners": [
+        {
+          "logo": "/images/arn-language-academy.png",
+          "name": {
+            "es": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu",
+            "en": "Mapuche Language and Culture Institute Aukiñ Mapu"
+          },
+          "url": "",
+          "urlLabel": "",
+          "logoHeight": 88
+        },
+        {
+          "logo": "/images/eaauc.png",
+          "name": {
+            "es": "Estudios Aplicados Antropología UC",
+            "en": "Applied Studies, Anthropology UC"
+          },
+          "url": "https://www.estudiosaplicados.cl",
+          "urlLabel": "www.estudiosaplicados.cl",
+          "logoHeight": 72
+        },
+        {
+          "logo": "/images/cenia.png",
+          "name": {
+            "es": "Centro Nacional de Inteligencia Artificial",
+            "en": "National Center for Artificial Intelligence"
+          },
+          "url": "https://www.cenia.cl",
+          "urlLabel": "www.cenia.cl",
+          "logoHeight": 72
+        }
+      ]
+    },
+    "developer": {
+      "enabled": true,
+      "name": "VOCES",
+      "logo": "/images/voces-logo.png",
+      "url": "https://tecnologiavoces.com",
+      "urlLabel": "www.tecnologiavoces.com"
+    },
+    "collaborators": {
+      "title": {
+        "es": "Colaboradores",
+        "en": "Collaborators"
+      },
+      "groups": [
+        {
+          "title": {
+            "es": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu"
+          },
+          "names": [
+            "Manuel Santander",
+            "Flor Caniupil",
+            "Rosa Caniupil"
+          ]
+        },
+        {
+          "title": {
+            "es": "Centro Nacional de Inteligencia Artificial",
+            "en": "National Center for Artificial Intelligence"
+          },
+          "names": [
+            "Carlos Aspillaga",
+            "Sebastián Ricke",
+            "César Rivera",
+            "Martín Pizarro",
+            "Guillermo Figueroa",
+            "Hugo Zeballos",
+            "Canela Orellana",
+            "Estefanía Pakarati",
+            "Andrés Carvallo",
+            "Agustín Ghent"
+          ]
+        },
+        {
+          "title": {
+            "es": "Estudios Aplicados Antropología UC",
+            "en": "Applied Studies, Anthropology UC"
+          },
+          "names": [
+            "Jaime Coquelet",
+            "Loreto Ulloa",
+            "Francisca del Valle",
+            "Tomás Pesce",
+            "Julianna Jimenez",
+            "Leonardo Ribeiro",
+            "Antonia Rivas"
+          ]
+        },
+        {
+          "title": {
+            "es": "Agradecimientos",
+            "en": "Thanks"
+          },
+          "names": [
+            "Participantes Txawun de validación",
+            "Cristian Vasquez",
+            "Josefina Irribarra",
+            "Daniela Contreras",
+            "Constanza Cruz",
+            "Gianyser González",
+            "Pia Cassone",
+            "Irma Palominos",
+            "Álvaro Soto",
+            "Belen Villena",
+            "Javiera Acevedo",
+            "Marcos Lores",
+            "Sebastián Martínez",
+            "Carlos González",
+            "Carolina Hey",
+            "Sebastián Guajardo",
+            "Loreto Aravena"
+          ]
+        }
+      ]
+    },
+    "funding": {
+      "title": {
+        "es": "Financiamiento",
+        "en": "Financing"
+      },
+      "items": [
+        {
+          "logo": "/images/anid.png",
+          "caption": {
+            "es": "ANID\nFondef IT24I0155"
+          },
+          "url": ""
+        },
+        {
+          "logo": "/images/lacuna-fund.png",
+          "caption": {
+            "es": "Lacuna Fund"
+          },
+          "url": ""
+        },
+        {
+          "logo": "/images/isoc.png",
+          "caption": {
+            "es": "ISOC"
+          },
+          "url": ""
+        },
+        {
+          "logo": "/images/conadi.png",
+          "caption": {
+            "es": "Conadi"
+          },
+          "url": ""
+        },
+        {
+          "logo": "/images/municipalidad.png",
+          "caption": {
+            "es": "Municipalidad de Rapa Nui",
+            "en": "Rapa Nui Municipality"
+          },
+          "url": ""
+        }
+      ]
+    },
+    "contact": {
+      "title": {
+        "es": "Contáctanos",
+        "en": "Contact us"
+      },
+      "subtitle": {
+        "es": "Únete a nuestro equipo o colabora en el proyecto",
+        "en": "Join our team or collaborate on the project"
+      },
+      "button": {
+        "es": "Contáctanos",
+        "en": "Contact us"
+      },
+      "form": {
+        "description": {
+          "es": "Llena los siguientes campos para contactarnos."
+        },
+        "firstName": {
+          "es": "Nombre"
+        },
+        "lastName": {
+          "es": "Apellido"
+        },
+        "email": {
+          "es": "Correo"
+        },
+        "organization": {
+          "es": "Organización"
+        },
+        "optional": {
+          "es": "Opcional"
+        },
+        "message": {
+          "es": "Mensaje"
+        },
+        "submit": {
+          "es": "Enviar"
+        },
+        "successTitle": {
+          "es": "Gracias por tu interés en colaborar con nosotros"
+        },
+        "successBody": {
+          "es": "Te contactaremos a la brevedad"
+        },
+        "errorTitle": {
+          "es": "Hubo un error al enviar tu solicitud"
+        },
+        "errorBody": {
+          "es": "Por favor corrobore los datos y vuelva a intentarlo"
+        }
+      }
+    },
+    "footer": {
+      "label": {
+        "es": "Proyecto de",
+        "en": "Project developed by"
+      },
+      "showPartnerNames": true
+    }
+  }
+}

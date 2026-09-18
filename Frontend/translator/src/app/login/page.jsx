@@ -20,14 +20,15 @@ import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react"
 import { API_ENDPOINTS , ACCESS_TOKEN } from '../constants';
-import { VARIANT_LANG } from "../constants";
-import Image from "next/image";
+import { useConfig } from "@/customization/ConfigProvider";
+import { MediaImage } from "@/customization/media";
 const validateEmail = (email) => {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return regex.test(email);
 };
 
 export default function Login(){
+  const { authPages } = useConfig();
 
   const router = useRouter()
   
@@ -89,10 +90,11 @@ export default function Login(){
 	
   return (
     <div className="bg-default w-full h-[100dvh] relative">
-      <Image
-        src={`/images/${VARIANT_LANG}-blue.png`}
+      <MediaImage
+        src={authPages.loginImage}
         alt="Background decoration"
         fill
+        style={authPages.tint ? { mixBlendMode: "luminosity" } : undefined}
         className="
           animate-fade animate-once animate-duration-[1200ms] animate-delay-[700ms] animate-ease-in-out 
           object-contain object-left-bottom -scale-x-100
@@ -134,7 +136,7 @@ export default function Login(){
           <Button 
             className="
               h-7 
-              bg-[#068cdc1a] 
+              bg-default/10 
               text-default text-xs font-bold 
               hover:bg-default hover:text-white
               "

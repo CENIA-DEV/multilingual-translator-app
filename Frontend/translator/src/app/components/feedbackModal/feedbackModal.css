@@ -41,7 +41,7 @@ limitations under the License. */
 }
 
 .closeButton:hover {
-  color:#0a8cde
+  color:rgb(var(--brand))
 }
 
 .modal-card{
@@ -117,7 +117,7 @@ limitations under the License. */
 }
 
 .input-suggest-box, .input-suggest-box:focus {
-	color: #0a8cde;
+	color: rgb(var(--brand));
     border-color: #f2f2f2;
     outline: none;
 }
@@ -160,7 +160,7 @@ limitations under the License. */
   position: relative;
   font-family: inherit;
   color: #fff;
-  background-color: #0a8cde;
+  background-color: rgb(var(--brand));
   border: none;
   width: 90%;
   height: 50px;
@@ -176,7 +176,7 @@ limitations under the License. */
 }
 
 .submit-btn::before {
-  background-color: #0e9ff8;
+  background-color: rgb(var(--brand-hover));
   width: 0;
   height: 100%;
   content: "";
@@ -204,7 +204,7 @@ limitations under the License. */
   width: 20%;
   height: 40px;
   color: #fff;
-  background-color: #0a8cde;
+  background-color: rgb(var(--brand));
   display: flex;
   justify-content: center;
   align-items: center;

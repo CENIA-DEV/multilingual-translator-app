@@ -39,7 +39,7 @@ export function WarningModals({
           </div>
           <div className="flex justify-center">
             <Button 
-              className='bg-[#068cdc1a] text-default text-xs font-bold hover:bg-default hover:text-white' 
+              className='bg-default/10 text-default text-xs font-bold hover:bg-default hover:text-white' 
               onClick={() => handleLogin()}
             >
               Iniciar sesión

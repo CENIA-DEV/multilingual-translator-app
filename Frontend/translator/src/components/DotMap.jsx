@@ -15,19 +15,66 @@
 
 import { useEffect, useRef } from "react"
 
-// Dot-matrix map of Rapa Nui: a circular close-up of Hanga Roa framed against a
-// small inset of the whole island, with one pin per validation site.
+// Dot-matrix map of a territory: a circular close-up around the pins framed
+// against a small inset of the whole region, with one pin per place. Built for
+// the Rapa Nui validation sites; any region works -- "Mapa de validación" in
+// Administrar Traductor takes a GeoJSON outline and the list of places.
 //
-// The drawing is plain geometry over the island outline, so it is built as an
-// SVG string and injected once per layout rather than as a React tree -- there
-// are a few thousand generated <circle> elements and none of them hold state.
+// The drawing is plain geometry over the outline, so it is built as an SVG
+// string and injected once per layout rather than as a React tree -- there are
+// a few thousand generated <circle> elements and none of them hold state.
 
 const MAIN_W = 640
 const MAIN_H = 520
 const INSET_W = 250
 const INSET_H = 190
-const DOT_COLOR = "#b7d3ea"
-const ACCENT = "#2b7fc4"
+const DEFAULT_COLORS = { dots: "#b7d3ea", accent: "#2b7fc4", surface: "#f4f9fc" }
+const HEX = /^#[0-9a-f]{6}$/i
+
+const hexToRgba = (hex, alpha) => {
+  const value = parseInt(hex.slice(1), 16)
+  return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${alpha})`
+}
+
+// One request per outline, however often the map is rebuilt (the editor's
+// live preview rebuilds it on every change).
+const geoJsonCache = new Map()
+function loadGeoJson(url) {
+  if (!geoJsonCache.has(url)) {
+    const request = fetch(url).then((response) => {
+      if (!response.ok) throw new Error(`geojson ${response.status}`)
+      return response.json()
+    })
+    request.catch(() => geoJsonCache.delete(url))
+    geoJsonCache.set(url, request)
+  }
+  return geoJsonCache.get(url)
+}
+
+/**
+ * Polygon rings from the formats the editor accepts: the legacy
+ * { rings: [...] } file, or GeoJSON (Polygon, MultiPolygon, Feature,
+ * FeatureCollection, GeometryCollection). Holes are just more rings: the
+ * even-odd test below leaves them empty.
+ */
+export function ringsOf(geo) {
+  if (!geo || typeof geo !== "object") return []
+  if (Array.isArray(geo.rings)) return geo.rings
+  switch (geo.type) {
+    case "Polygon":
+      return geo.coordinates || []
+    case "MultiPolygon":
+      return (geo.coordinates || []).flat()
+    case "Feature":
+      return ringsOf(geo.geometry)
+    case "FeatureCollection":
+      return (geo.features || []).flatMap(ringsOf)
+    case "GeometryCollection":
+      return (geo.geometries || []).flatMap(ringsOf)
+    default:
+      return []
+  }
+}
 
 const escapeAttr = (value) => String(value).split('"').join("&quot;")
 
@@ -118,27 +165,42 @@ function declutter(anchors) {
   return pos
 }
 
-export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.geojson", label }) {
+export default function DotMap({ pins = [], geoJsonUrl, label, colors: colorProp }) {
   const hostRef = useRef(null)
   const tipRef = useRef(null)
+
+  // Only validated hex colours reach the SVG string
+  const safe = (value, fallback) => (HEX.test(value || "") ? value : fallback)
+  const dotColor = safe(colorProp?.dots, DEFAULT_COLORS.dots)
+  const ACCENT = safe(colorProp?.accent, DEFAULT_COLORS.accent)
+  const surface = safe(colorProp?.surface, DEFAULT_COLORS.surface)
 
   useEffect(() => {
     let cancelled = false
     let cleanupResize = () => {}
-    if (!hostRef.current) return undefined
+    if (!hostRef.current || !geoJsonUrl) return undefined
 
-    fetch(geoJsonUrl)
-      .then((response) => {
-        if (!response.ok) throw new Error(`geojson ${response.status}`)
-        return response.json()
-      })
+    loadGeoJson(geoJsonUrl)
       .then((geo) => {
         if (cancelled || !hostRef.current) return
-        const rings = geo.rings
-        if (!rings || !rings.length) throw new Error("geojson has no rings")
+        const rings = ringsOf(geo).filter((ring) => Array.isArray(ring) && ring.length > 2)
+        if (!rings.length) throw new Error("geojson has no rings")
 
-        // Close-up viewport fitted to the pins, falling back to Hanga Roa.
-        let zoom = [-109.465, -27.195, -109.395, -27.115]
+        const flat = rings.flat()
+        const lons = flat.map((p) => p[0])
+        const lats = flat.map((p) => p[1])
+        // 0.01 degrees around a small island, proportionally more for a region
+        const extent = Math.max(Math.max(...lons) - Math.min(...lons), Math.max(...lats) - Math.min(...lats))
+        const pad = Math.max(0.01, extent * 0.03)
+        const islandBox = [
+          Math.min(...lons) - pad,
+          Math.min(...lats) - pad,
+          Math.max(...lons) + pad,
+          Math.max(...lats) + pad,
+        ]
+
+        // Close-up viewport fitted to the pins, falling back to the region.
+        let zoom = islandBox
         if (pins.length) {
           const pinLons = pins.map((p) => p.lon)
           const pinLats = pins.map((p) => p.lat)
@@ -151,20 +213,10 @@ export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.g
           zoom = [x1 - mx, y1 - my, x2 + mx, y2 + my]
         }
 
-        const main = dotField(rings, zoom, MAIN_W, MAIN_H, 20, 8.5, 2.6, DOT_COLOR, (x, y, r) =>
+        const main = dotField(rings, zoom, MAIN_W, MAIN_H, 20, 8.5, 2.6, dotColor, (x, y, r) =>
           Math.hypot(x - MAIN_W / 2, y - MAIN_H / 2) <= MAIN_H / 2 - 2 + r
         )
-
-        const flat = rings.flat()
-        const lons = flat.map((p) => p[0])
-        const lats = flat.map((p) => p[1])
-        const islandBox = [
-          Math.min(...lons) - 0.01,
-          Math.min(...lats) - 0.01,
-          Math.max(...lons) + 0.01,
-          Math.max(...lats) + 0.01,
-        ]
-        const inset = dotField(rings, islandBox, INSET_W, INSET_H, 14, 5.5, 1.7, DOT_COLOR)
+        const inset = dotField(rings, islandBox, INSET_W, INSET_H, 14, 5.5, 1.7, dotColor)
         const [rzx1, rzy1] = inset.proj.fwd(zoom[0], zoom[3])
         const [rzx2, rzy2] = inset.proj.fwd(zoom[2], zoom[1])
 
@@ -201,7 +253,7 @@ export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.g
           const beam =
             `<path d="M${at(c1, r1, theta + beta)} L${at([czx, czy], r2, theta + beta)} ` +
             `A${r2.toFixed(1)},${r2.toFixed(1)} 0 0 0 ${at([czx, czy], r2, theta - beta)} ` +
-            `L${at(c1, r1, theta - beta)} Z" fill="rgba(43,127,196,0.07)"></path>`
+            `L${at(c1, r1, theta - beta)} Z" fill="${hexToRgba(ACCENT, 0.07)}"></path>`
 
           const pinSvg = pins
             .map((pin, i) => {
@@ -215,12 +267,12 @@ export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.g
                   `<circle cx="${ax}" cy="${ay}" r="1.8" fill="${ACCENT}" opacity="0.55"></circle>`
                 : ""
               return (
-                `<g class="rapa-pin" data-i="${i}" data-x="${x}" data-y="${y}" style="cursor:pointer" ` +
+                `<g class="map-pin" data-i="${i}" data-x="${x}" data-y="${y}" style="cursor:pointer" ` +
                 `tabindex="0" role="button" aria-label="${escapeAttr(pin.name)}">${leader}` +
-                `<circle cx="${x}" cy="${y}" r="9" fill="rgba(43,127,196,0.18)">` +
+                `<circle cx="${x}" cy="${y}" r="9" fill="${hexToRgba(ACCENT, 0.18)}">` +
                 `<animate attributeName="r" values="7;11;7" dur="2.4s" begin="${(i * 0.2).toFixed(1)}s" repeatCount="indefinite"></animate>` +
                 `</circle>` +
-                `<circle class="rapa-dot" cx="${x}" cy="${y}" r="5.5" fill="${ACCENT}" stroke="#ffffff" stroke-width="2"></circle>` +
+                `<circle class="map-dot" cx="${x}" cy="${y}" r="5.5" fill="${ACCENT}" stroke="#ffffff" stroke-width="2"></circle>` +
                 `<circle cx="${x}" cy="${y}" r="9" fill="transparent"></circle></g>`
               )
             })
@@ -229,12 +281,12 @@ export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.g
           const svg =
             `<svg viewBox="0 0 ${tw} ${th}" style="width:100%;display:block" role="img"` +
             (label ? ` aria-label="${escapeAttr(label)}"` : "") +
-            `><defs><clipPath id="rapa-mclip"><circle cx="${c1[0]}" cy="${c1[1]}" r="${r1 - 1}"></circle></clipPath></defs>` +
+            `><defs><clipPath id="dotmap-clip"><circle cx="${c1[0]}" cy="${c1[1]}" r="${r1 - 1}"></circle></clipPath></defs>` +
             beam +
-            `<circle cx="${c1[0]}" cy="${c1[1]}" r="${r1}" fill="#f4f9fc" stroke="${ACCENT}" stroke-width="1.5"></circle>` +
-            `<g clip-path="url(#rapa-mclip)"><g transform="translate(0,${my})">${main.svg}</g></g>` +
+            `<circle cx="${c1[0]}" cy="${c1[1]}" r="${r1}" fill="${surface}" stroke="${ACCENT}" stroke-width="1.5"></circle>` +
+            `<g clip-path="url(#dotmap-clip)"><g transform="translate(0,${my})">${main.svg}</g></g>` +
             `<g transform="translate(${ix},${iy})">${inset.svg}</g>` +
-            `<circle cx="${czx.toFixed(1)}" cy="${czy.toFixed(1)}" r="${r2.toFixed(1)}" fill="rgba(43,127,196,0.08)" stroke="${ACCENT}" stroke-width="1.5" stroke-dasharray="4 3"></circle>` +
+            `<circle cx="${czx.toFixed(1)}" cy="${czy.toFixed(1)}" r="${r2.toFixed(1)}" fill="${hexToRgba(ACCENT, 0.08)}" stroke="${ACCENT}" stroke-width="1.5" stroke-dasharray="4 3"></circle>` +
             tangent(theta + beta) +
             tangent(theta - beta) +
             pinSvg +
@@ -253,11 +305,11 @@ export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.g
           host.innerHTML = built.svg
           tip.style.opacity = "0"
 
-          host.querySelectorAll("g.rapa-pin").forEach((group) => {
+          host.querySelectorAll("g.map-pin").forEach((group) => {
             const i = Number(group.getAttribute("data-i"))
             const show = () => {
               const rect = host.getBoundingClientRect()
-              const dot = group.querySelector(".rapa-dot")
+              const dot = group.querySelector(".map-dot")
               if (dot) dot.setAttribute("r", "8")
               tip.textContent = pins[i].name
               tip.style.left = `${(Number(group.getAttribute("data-x")) / built.tw) * rect.width}px`
@@ -265,7 +317,7 @@ export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.g
               tip.style.opacity = "1"
             }
             const hide = () => {
-              const dot = group.querySelector(".rapa-dot")
+              const dot = group.querySelector(".map-dot")
               if (dot) dot.setAttribute("r", "5.5")
               tip.style.opacity = "0"
             }
@@ -302,7 +354,7 @@ export default function RapaMap({ pins = [], geoJsonUrl = "/data/easter-island.g
       cancelled = true
       cleanupResize()
     }
-  }, [pins, geoJsonUrl, label])
+  }, [pins, geoJsonUrl, label, dotColor, ACCENT, surface])
 
   return (
     <div style={{ position: "relative", width: "100%" }}>

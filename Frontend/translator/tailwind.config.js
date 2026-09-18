@@ -21,8 +21,12 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
-        default: "#0a8cde",
-        defaultHover: "#0e9ff8",
+        // Brand colour of the translator, set in "Administrar Traductor" (see
+        // src/customization/theme.js). Triplets so opacity modifiers work.
+        default: "rgb(var(--brand) / <alpha-value>)",
+        defaultHover: "rgb(var(--brand-hover) / <alpha-value>)",
+        defaultStrong: "rgb(var(--brand-strong) / <alpha-value>)",
+        onDefault: "rgb(var(--on-brand) / <alpha-value>)",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

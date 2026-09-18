@@ -21,46 +21,50 @@ import Menu from "./components/menu/menu";
 import ProtectedRoute from "./protected-route";
 import { Toaster } from "@/components/ui/sonner";
 import { Toaster as UIToaster } from "@/components/ui/toaster";
-import { VARIANT_LANG, LANG_TITLE, BASE_URL } from "./constants";
+import { BASE_URL } from "./constants";
 import Script from "next/script";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
+import { ConfigProvider } from "@/customization/ConfigProvider";
+import { resolveConfig } from "@/customization/presets";
+import { landingFontsHref } from "@/customization/fonts";
+import { resolveMedia } from "@/customization/media";
+import { loadPublishedConfig } from "@/customization/server";
 config.autoAddCss = false;
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
-const TITLE = `Traductor ${LANG_TITLE}`;
-const DESCRIPTION = `Proyecto que busca revitalizar la lengua ${LANG_TITLE} mediante un traductor.`;
+// Every page is rendered per request so it carries the customization that is
+// published right now (server.js caches it); a build-time snapshot would show
+// the preset until the next deploy.
+export const dynamic = "force-dynamic";
 
-export const metadata = {
-  metadataBase: new URL(BASE_URL),
-  title: TITLE,
-  description: DESCRIPTION,
-  keywords: [
-    TITLE,
-    LANG_TITLE,
-    ...(VARIANT_LANG === "rap" ? ["Isla de Pascua", "Rapa Nui a español"] : ["Mapudungun", "mapuche"]),
-    "traductor",
-    "traducción",
-    "español",
-    "lenguas indígenas",
-    "pueblos originarios",
-    "revitalización lingüística",
-  ],
-  icons: {
-    icon: `/logo-${VARIANT_LANG}.ico`,
-  },
-  openGraph: {
-    title: TITLE,
-    description: DESCRIPTION,
-    siteName: TITLE,
-    locale: "es_CL",
-    type: "website",
-    url: BASE_URL,
-  },
-};
+// Shares server.js's in-process cache with the layout below.
+export async function generateMetadata() {
+  const { stored } = await loadPublishedConfig();
+  const { identity } = resolveConfig(stored);
+  const favicon = resolveMedia(identity.favicon);
+  return {
+    metadataBase: new URL(BASE_URL),
+    title: identity.siteTitle,
+    description: identity.siteDescription,
+    keywords: identity.keywords,
+    ...(favicon ? { icons: { icon: favicon } } : {}),
+    openGraph: {
+      title: identity.siteTitle,
+      description: identity.siteDescription,
+      siteName: identity.siteTitle,
+      locale: "es_CL",
+      type: "website",
+      url: BASE_URL,
+    },
+  };
+}
 
-export default function Layout({ children }) {
-  
+export default async function Layout({ children }) {
+  const { stored, version, source } = await loadPublishedConfig();
+  const config = resolveConfig(stored);
+  const landingFonts = landingFontsHref(config.theme.fonts);
+
   return (
     <html lang="es" suppressHydrationWarning={true}>
       <head>
@@ -69,7 +73,10 @@ export default function Layout({ children }) {
         {/* This rule targets pages/_document; in the App Router root layout
             these fonts already load on every page. */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet" />
+        {/* Landing typefaces chosen in "Administrar Traductor" */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        {landingFonts && <link href={landingFonts} rel="stylesheet" />}
         {/* {process.env.NEXT_PUBLIC_GOOGLE_SEARCH_ID && (
           <meta name="google-site-verification" content={process.env.NEXT_PUBLIC_GOOGLE_SEARCH_ID} />
         )} */}
@@ -92,20 +99,22 @@ export default function Layout({ children }) {
         )}
       </head>
       <body>
-        <ProtectedRoute>
-          <Suspense fallback={<Loading />}>
-            {/* useSearchParams would otherwise turn every static page into a
-                client-only render of the Loading fallback */}
-            <Suspense fallback={null}>
-              <PageViewTracker />
+        <ConfigProvider initial={{ config, version, source }}>
+          <ProtectedRoute>
+            <Suspense fallback={<Loading />}>
+              {/* useSearchParams would otherwise turn every static page into a
+                  client-only render of the Loading fallback */}
+              <Suspense fallback={null}>
+                <PageViewTracker />
+              </Suspense>
+              <Menu />
+              {children}
+              <Toaster />
+              {/* Renders toasts from @/hooks/use-toast (admin pages, about page) */}
+              <UIToaster />
             </Suspense>
-            <Menu />
-            {children}
-            <Toaster />
-            {/* Renders toasts from @/hooks/use-toast (admin pages, about page) */}
-            <UIToaster />
-          </Suspense>
-        </ProtectedRoute>
+          </ProtectedRoute>
+        </ConfigProvider>
       </body>
     </html>
   );

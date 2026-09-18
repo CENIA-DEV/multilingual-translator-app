@@ -15,11 +15,13 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import api from "@/app/api";
-import { API_ENDPOINTS } from "@/app/constants";
+import { API_ENDPOINTS, MAX_WORDS_TRANSLATION } from "@/app/constants";
 import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
-import Image from "next/image";
-import { VARIANT_LANG, LANG_TITLE } from "@/app/constants";
+import { useConfig } from "@/customization/ConfigProvider";
+import { matchesPrefix } from "@/customization/languages";
+import { MediaImage } from "@/customization/media";
+import Backdrop from "@/customization/Backdrop";
 import {
   Tooltip,
   TooltipContent,
@@ -43,7 +45,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
-  const [showGenderOptions, setShowGenderOptions] = useState(false);
+  const { identity, translator, features } = useConfig();
+const [showGenderOptions, setShowGenderOptions] = useState(false);
   const [isLeftFocused, setIsLeftFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
@@ -64,12 +67,15 @@ export default function Card(props) {
   const isSpeaking = props.isSpeaking;
   const isLoadingAudio = props.isLoadingAudio;
   const wordInformationEnabled = !!props.wordInformationEnabled;
-  const isRapaNuiLanguage = (lang?.code || "").toLowerCase().startsWith("rap");
-  const isWordInformationActive = wordInformationEnabled && isRapaNuiLanguage;
+  // Word information exists for the languages listed in the customization
+  const hasWordInformation =
+    features.wordInformation.enabled &&
+    matchesPrefix(lang, features.wordInformation.languages);
+  const isWordInformationActive = wordInformationEnabled && hasWordInformation;
   const separateGendersAllowed = props.separateGendersAllowed !== false;
   const onSpeak = props.onSpeak;
   const onStop = props.onStop;
-  const speakerColor = side === "left" ? "#0a8cde" : "#ffffff";
+  const speakerColor = side === "left" ? "rgb(var(--brand))" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
   const showClearLeft = side === "left" && !!srcText?.trim();
   const [wordInfo, setWordInfo] = useState([]);
@@ -170,7 +176,7 @@ export default function Card(props) {
     }
 
     const dotColor = side === "left" ? "#000000" : "#ffffff";
-    const highlightBg = side === "left" ? "rgba(10, 140, 222, 0.15)" : "rgba(255, 255, 255, 0.2)";
+    const highlightBg = side === "left" ? "rgb(var(--brand) / 0.15)" : "rgba(255, 255, 255, 0.2)";
     const highlightTextColor = side === "left" ? "inherit" : "#ffffff";
     const regularTextColor = side === "left" ? "inherit" : "#ffffff";
 
@@ -242,7 +248,7 @@ export default function Card(props) {
               >
                 <FontAwesomeIcon
                   icon={faInfoCircle}
-                  className={`h-6 w-6 ${speakerColor === "#ffffff" ? "text-white" : "text-[#0a8cde]"}`}
+                  className={`h-6 w-6 ${speakerColor === "#ffffff" ? "text-white" : "text-default"}`}
                 />
               </button>
             </TooltipTrigger>
@@ -304,14 +310,13 @@ export default function Card(props) {
       className={`card-container flex flex-col items-center relative ${
         side === "left"
           ? "card-container-left bg-gradient-to-b from-white to-white/10 bg-bottom bg-no-repeat bg-contain bg-white shadow-[0px_0_70px_rgba(0,0,0,0.50)] z-[1] animate-[card-slide-in-left_1.5s_cubic-bezier(0.390,0.575,0.565,1.000)_0.1s_both]"
-          : "bg-gradient-to-b from-[rgb(10,141,222,1)] to-[rgba(10,141,222,0.1)] bg-bottom bg-no-repeat bg-contain z-0 animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]"
+          : "bg-gradient-to-b from-default to-default/10 bg-bottom bg-no-repeat bg-contain z-0 animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]"
       }`}
-      style={
-        side === "left"
-          ? { backgroundImage: `url('/images/${VARIANT_LANG}-white.png')` }
-          : { backgroundImage: `url('/images/${VARIANT_LANG}-2-blue.png')` }
-      }
+      // The right card sits on the brand colour; painting it too gives a tinted
+      // backdrop something to blend with.
+      style={side === "left" ? undefined : { backgroundColor: "rgb(var(--brand))" }}
     >
+      <Backdrop backdrop={side === "left" ? translator.leftCard : translator.rightCard} />
       <div
         className={`flex h-[70px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
           side === "left"
@@ -320,9 +325,9 @@ export default function Card(props) {
         }`}
       >
         {side === "left" ? (
-          <Image
-            src={`/logo-${VARIANT_LANG}.png`}
-            alt={`logo-${LANG_TITLE}`}
+          <MediaImage
+            src={identity.logo}
+            alt={`logo-${identity.languageName}`}
             priority={false}
             width={100}
             height={100}
@@ -373,9 +378,7 @@ export default function Card(props) {
                 onScroll={handleLeftScroll}
                 value={srcText}
                 placeholder={
-                  lang?.code === "rap_Latn"
-                    ? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri"
-                    : "Escriba aquí el texto a traducir"
+                  translator.placeholders[lang?.code] || translator.placeholder
                 }
                 onChange={handleLeftTextChange}
                 spellCheck={false}
@@ -476,7 +479,7 @@ export default function Card(props) {
                                   : faVolumeHigh
                             }
                             className={isLoadingAudio ? "fa-spin" : ""}
-                            color={speakerColor}
+                            style={{ color: speakerColor }}
                           />
                         </button>
                       </TooltipTrigger>
@@ -498,7 +501,7 @@ export default function Card(props) {
                         title="Borrar texto"
                         className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
                       >
-                        <FontAwesomeIcon icon={faTrash} color={speakerColor} />
+                        <FontAwesomeIcon icon={faTrash} style={{ color: speakerColor }} />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="rounded-full">
@@ -512,7 +515,7 @@ export default function Card(props) {
 
           {showTextMessage && (
             <p className="text-red-500 text-sm">
-              El texto no puede tener más de 150 palabras
+              El texto no puede tener más de {MAX_WORDS_TRANSLATION} palabras
             </p>
           )}
         </>
@@ -614,7 +617,7 @@ export default function Card(props) {
                                   : faVolumeHigh
                             }
                             className={isLoadingAudio ? "fa-spin" : ""}
-                            color={speakerColor}
+                            style={{ color: speakerColor }}
                           />
                         </button>
                       </TooltipTrigger>
