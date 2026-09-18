@@ -16,7 +16,7 @@ import "./profile.css"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { AuthContext } from "../contexts"
 import { API_ENDPOINTS } from "../constants";
 import { Eye, EyeOff , ChevronDown } from "lucide-react"
@@ -26,6 +26,7 @@ import DatePicker from "../components/datePicker/datePicker"
 import { toast } from "sonner";
 import Image from "next/image";
 import { VARIANT_LANG, LANG_TITLE } from "../constants";
+import { parseDate, getLocalYYYYMMDD, hasProfileChanges } from "@/lib/profile-utils";
 
 export default function Profile(){
 
@@ -42,11 +43,7 @@ export default function Profile(){
     new: '',
   });
 
-  const [dateOfBirth, setDateOfBirth] = useState(
-    new Date(
-      currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]
-    )
-  );
+  const [dateOfBirth, setDateOfBirth] = useState(parseDate(currentUser.profile.date_of_birth));
 
   const proficiencyLevels = [
     {value: 'Non-Speaker', label: 'No hablante'},
@@ -56,27 +53,28 @@ export default function Profile(){
 
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const checkFormStatus = () => {
+  const profileChanged = useCallback(() => hasProfileChanges(currentUser, {
+    firstName,
+    lastName,
+    organization,
+    languageProficiency,
+    dateOfBirth,
+  }), [currentUser, firstName, lastName, organization, languageProficiency, dateOfBirth]);
+
+  const checkFormStatus = useCallback(() => {
     if(!firstName || !lastName || !dateOfBirth){
       setDisableSubmit(true);
+      return;
     }
-    else{
+
+    const hasPasswordChanges = passwords.current !== '' || passwords.new !== '';
+
+    if (!profileChanged() && !hasPasswordChanges) {
+      setDisableSubmit(true);
+    } else {
       setDisableSubmit(false);
     }
-
-    if(
-      currentUser.first_name === firstName &&
-      currentUser.last_name === lastName &&
-      currentUser.profile.organization === (organization? organization : null) &&
-      currentUser.profile.proficiency === languageProficiency &&
-      new Date(currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]).getDate() === dateOfBirth.getDate() &&
-      passwords.current === '' &&
-      passwords.new == ''
-    ){
-      setDisableSubmit(true);
-    }
-
-  }
+  }, [firstName, lastName, dateOfBirth, passwords, profileChanged]);
 
   const handleDateUpdate = (date) => {
     setDateOfBirth(date);
@@ -93,14 +91,10 @@ export default function Profile(){
   }
 
   const handleSubmit = async () => {
+    let profileUpdated = false;
+    let passwordUpdated = false;
     
-    if(!(
-      currentUser.first_name === firstName &&
-      currentUser.last_name === lastName &&
-      currentUser.profile.organization === (organization? organization : null) &&
-      currentUser.profile.proficiency === languageProficiency &&
-      new Date(currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]).getDate() === dateOfBirth.getDate()
-    )){
+    if(profileChanged()){
     
       try {
         await api.patch(
@@ -110,7 +104,7 @@ export default function Profile(){
             first_name: firstName,
             last_name: lastName,
             profile: {
-              date_of_birth: dateOfBirth.toISOString().split('T')[0],
+              date_of_birth: getLocalYYYYMMDD(dateOfBirth),
               proficiency: languageProficiency,
               organization: organization? organization : null
             }
@@ -120,10 +114,13 @@ export default function Profile(){
         toast("Actualización",{
           description: "Datos actualizados con éxito",
         });
+        profileUpdated = true;
 
       } 
       catch (error) {
-        console.log(error)
+        toast("Error", {
+          description: "No se pudieron actualizar los datos del perfil",
+        });
       }
 
     }
@@ -136,13 +133,13 @@ export default function Profile(){
         });
       }
       
-      if(!passwords.new){
+      else if(!passwords.new){
         toast("Error al actualizar contraseña", {
           description: "No se ha ingresado la nueva contraseña del usuario",
         });
       }
 
-      if (passwords.current && passwords.new){
+      else {
         try {
           await api.patch(API_ENDPOINTS.USERS + "update_password/", {
             old_password: passwords.current,
@@ -152,6 +149,7 @@ export default function Profile(){
           toast("Actualización de contraseña", {
             description: "Contraseña actualizada con éxito",
           });
+          passwordUpdated = true;
         } 
         catch (error) {
           console.log(error);
@@ -169,6 +167,14 @@ export default function Profile(){
       }
     }
 
+    if (profileUpdated || passwordUpdated) {
+      // The logged-in user is only loaded once; reload so the page shows the
+      // saved data. Small delay to let toasts be seen first.
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+
     setPasswords({
       current: "",
       new: "",
@@ -177,10 +183,6 @@ export default function Profile(){
     setIsEditing(false);
 
   }
-
-  useEffect(() => {
-    checkFormStatus();
-  }, [firstName, lastName, dateOfBirth, organization, languageProficiency, checkFormStatus])
 
   useEffect(() => {
     checkFormStatus();
@@ -369,9 +371,7 @@ export default function Profile(){
                 setLastName(currentUser.last_name);
                 setLanguageProficiency(currentUser.profile.proficiency);
                 setOrganization(currentUser.profile.organization? currentUser.profile.organization: '');
-                setDateOfBirth(new Date(
-                  currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]
-                ))
+                setDateOfBirth(parseDate(currentUser.profile.date_of_birth));
               };
               checkFormStatus();
             }}

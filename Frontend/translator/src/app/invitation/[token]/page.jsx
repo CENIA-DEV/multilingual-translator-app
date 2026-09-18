@@ -23,6 +23,7 @@ import api from "@/app/api";
 import { API_ENDPOINTS, LANG_TITLE, VARIANT_LANG } from "@/app/constants";
 import DatePicker from "../../components/datePicker/datePicker"
 import { toast } from "sonner";
+import { getLocalYYYYMMDD } from "@/lib/profile-utils";
 export default function Invitation({params}){
 
   const router = useRouter();
@@ -62,7 +63,7 @@ export default function Invitation({params}){
   const handleSubmit = async () => {
     try {
       const profileData = {
-        date_of_birth: dateOfBirth.toISOString().split("T")[0],
+        date_of_birth: getLocalYYYYMMDD(dateOfBirth),
         proficiency: languageProficiency
       };
 
