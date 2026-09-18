@@ -14,11 +14,16 @@ limitations under the License. */
 'use client'
 import "./resetpasswordrequest.css"
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ActionButton from "../components/actionButton/actionButton";
 import { API_ENDPOINTS, VARIANT_LANG } from "../constants";
 import api from "../api";
 import { toast } from "sonner";
+
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
 
 export default function Resetpasswordrequest(){
 
@@ -30,19 +35,14 @@ export default function Resetpasswordrequest(){
 
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const checkFormStatus = () => {
+  const checkFormStatus = useCallback(() => {
     if(!validateEmail(email)){
       setDisableSubmit(true);
     }
     else{
       setDisableSubmit(false);
     }
-  }
-
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
+  }, [email]);
 
   const handleSubmit = async () => {
     
@@ -73,7 +73,7 @@ export default function Resetpasswordrequest(){
 
   useEffect(() => {
     checkFormStatus();
-  }, [email, checkFormStatus])
+  }, [checkFormStatus])
 	
   return (
     <div className="bg-default w-full h-[100dvh] relative">

@@ -15,13 +15,18 @@ limitations under the License. */
 import "./login.css"
 import api from "../api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react"
 import { API_ENDPOINTS , ACCESS_TOKEN } from '../constants';
 import { VARIANT_LANG } from "../constants";
 import Image from "next/image";
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
+
 export default function Login(){
 
   const router = useRouter()
@@ -33,19 +38,14 @@ export default function Login(){
 
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const checkFormStatus = () => {
+  const checkFormStatus = useCallback(() => {
     if(!validateEmail(email) || !password){
       setDisableSubmit(true);
     }
     else{
       setDisableSubmit(false);
     }
-  }
-
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
+  }, [email, password]);
 
   const handleForgotPass = () => {
     router.push('/reset-password-request');
@@ -85,7 +85,7 @@ export default function Login(){
   
   useEffect(() => {
     checkFormStatus();
-  }, [email, password, checkFormStatus])
+  }, [checkFormStatus])
 	
   return (
     <div className="bg-default w-full h-[100dvh] relative">
