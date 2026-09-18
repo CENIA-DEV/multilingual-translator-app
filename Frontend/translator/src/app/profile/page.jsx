@@ -35,16 +35,16 @@ export default function Profile(){
   const [email, setEmail]= useState(currentUser.email);
   const [firstName, setFirstName]= useState(currentUser.first_name);
   const [lastName, setLastName]= useState(currentUser.last_name);
-	const [phone, setPhone]= useState(currentUser.profile.phone);
-  const [languageProficiency, setLanguageProficiency] = useState(currentUser.profile.proficiency);
-  const [oralProficiency, setOralProficiency] = useState(currentUser.profile.oral_proficiency || '');
-  const [organization, setOrganization] = useState(currentUser.profile.organization? currentUser.profile.organization : '');
+	const [phone, setPhone]= useState(currentUser.profile?.phone);
+  const [languageProficiency, setLanguageProficiency] = useState(currentUser.profile?.proficiency || '');
+  const [oralProficiency, setOralProficiency] = useState(currentUser.profile?.oral_proficiency || '');
+  const [organization, setOrganization] = useState(currentUser.profile?.organization || '');
   const [passwords, setPasswords] = useState({
     current: '',
     new: '',
   });
 
-  const [dateOfBirth, setDateOfBirth] = useState(parseDate(currentUser.profile.date_of_birth));
+  const [dateOfBirth, setDateOfBirth] = useState(parseDate(currentUser.profile?.date_of_birth));
 
   const proficiencyLevels = [
     {value: 'Non-Speaker', label: 'No hablante'},
@@ -406,10 +406,10 @@ export default function Profile(){
                 setPasswords({ current: '', new: '', confirm: '' })
                 setFirstName(currentUser.first_name);
                 setLastName(currentUser.last_name);
-                setLanguageProficiency(currentUser.profile.proficiency);
-                setOralProficiency(currentUser.profile.oral_proficiency || '');
-                setOrganization(currentUser.profile.organization? currentUser.profile.organization: '');
-                setDateOfBirth(parseDate(currentUser.profile.date_of_birth));
+                setLanguageProficiency(currentUser.profile?.proficiency || '');
+                setOralProficiency(currentUser.profile?.oral_proficiency || '');
+                setOrganization(currentUser.profile?.organization || '');
+                setDateOfBirth(parseDate(currentUser.profile?.date_of_birth));
               };
               checkFormStatus();
             }}
