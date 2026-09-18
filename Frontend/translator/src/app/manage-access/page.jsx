@@ -53,6 +53,30 @@ import { API_ENDPOINTS, REQUEST_ACCESS_REASONS , ROLES} from "../constants";
 import ActionIcon from "../components/actionIcon/actionIcon";
 import ActionButton from "../components/actionButton/actionButton";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Returns the first problem with the invite form, or "" when it can be sent.
+const validateInvite = (invite) => {
+  if (!invite.first_name.trim()) return "Ingresa el nombre de la persona invitada.";
+  if (!invite.last_name.trim()) return "Ingresa el apellido de la persona invitada.";
+  if (!invite.email.trim()) return "Ingresa el correo de la persona invitada.";
+  if (!EMAIL_REGEX.test(invite.email.trim())) return "El correo ingresado no es válido.";
+  if (!invite.role) return "Selecciona un rol para la invitación.";
+  return "";
+};
+
+// Builds a readable message from a DRF error response (field errors or detail).
+const getApiErrorMessage = (error, fallback) => {
+  const data = error?.response?.data;
+  if (data && typeof data === "object") {
+    const messages = Object.values(data)
+      .flat()
+      .filter((message) => typeof message === "string");
+    if (messages.length) return messages.join(" ");
+  }
+  return fallback;
+};
+
 export default function Manageaccess() {
 
   const roles = ROLES;
@@ -128,14 +152,29 @@ export default function Manageaccess() {
   }, [getInvitations, getRequests, getUsers]);
 
   const handleSendInvite = async () => {
+    const validationError = validateInvite(newInvite);
+    if (validationError) {
+      toast({
+        title: "Faltan datos para la invitación",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSendingInvite(true);
-    await sendInvite(
-      newInvite.email,
+    const sent = await sendInvite(
+      newInvite.email.trim(),
       newInvite.role,
-      newInvite.first_name,
-      newInvite.last_name,
-      newInvite.organization
+      newInvite.first_name.trim(),
+      newInvite.last_name.trim(),
+      newInvite.organization.trim()
     );
+    setIsSendingInvite(false);
+
+    // Keep the dialog open with the entered data when sending fails
+    if (!sent) return;
+
     setNewInvite({
       first_name: "",
       last_name: "",
@@ -144,25 +183,34 @@ export default function Manageaccess() {
       organization: "",
     });
     setIsInviteModalOpen(false);
-    setIsSendingInvite(false);
   };
 
+  // Returns true when the invitation was sent
   const sendInvite = async (email, role, firstName, lastName, organization) => {
     try {
-      const res = await api.post(API_ENDPOINTS.SEND_INVITATION, {
+      const body = {
         email: email,
         role: role,
         first_name: firstName,
         last_name: lastName,
-        organization: organization,
-      });
+      };
+      // The API rejects a blank organization; omit it when empty
+      if (organization) body.organization = organization;
+
+      await api.post(API_ENDPOINTS.SEND_INVITATION, body);
       toast({
         title: "Invitación enviada",
         description: `La invitación ha sido enviada correctamente al usuario ${email}`,
       });
       await getInvitations();
+      return true;
     } catch (error) {
-      console.log("Error sending invite");
+      toast({
+        title: "No se pudo enviar la invitación",
+        description: getApiErrorMessage(error, "Inténtalo nuevamente."),
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
@@ -516,7 +564,7 @@ export default function Manageaccess() {
                           Rol
                         </Label>
                         <Select
-                          defaultValue={roles.find(role => role.value === newInvite.role)}
+                          value={newInvite.role}
                           onValueChange={(value) =>
                             setNewInvite({ ...newInvite, role: value })
                           }
