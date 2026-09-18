@@ -44,6 +44,7 @@ import {
   faUserCheck,
   faTrash,
   faCircleInfo,
+  faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState, useContext, useCallback } from "react";
 import { AuthContext } from "../contexts";
@@ -52,6 +53,26 @@ import api from "../api";
 import { API_ENDPOINTS, REQUEST_ACCESS_REASONS , ROLES} from "../constants";
 import ActionIcon from "../components/actionIcon/actionIcon";
 import ActionButton from "../components/actionButton/actionButton";
+
+/** "12 sept 2026", or null when the backend sent no date. */
+const formatRequestDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("es-CL", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+/** The same date with the time, for the tooltip. */
+const formatRequestDateTime = (value) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toLocaleString("es-CL");
+};
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -697,6 +718,15 @@ export default function Manageaccess() {
                         <p className="text-sm text-gray-500">
                           {REQUEST_ACCESS_REASONS.find(reason => reason.value === request.reason)?.name} {request.organization ? `(${request.organization})` : ""}
                         </p>
+                        {formatRequestDate(request.created_at) && (
+                          <p
+                            className="text-xs text-gray-400 inline-flex items-center gap-1 mt-0.5"
+                            title={formatRequestDateTime(request.created_at)}
+                          >
+                            <FontAwesomeIcon icon={faClock} className="text-[10px]" />
+                            Recibida el {formatRequestDate(request.created_at)}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">

@@ -355,7 +355,11 @@ class RequestSerializer(serializers.ModelSerializer):
             "reason",
             "approved",
             "organization",
+            # When the person asked for access, so administrators can tell how
+            # long a pending request has been waiting.
+            "created_at",
         ]
+        read_only_fields = ["created_at"]
 
     def validate(self, data):
         if (
