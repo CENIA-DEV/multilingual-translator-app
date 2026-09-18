@@ -503,7 +503,7 @@ class SuggestionSerializer(serializers.ModelSerializer):
                     correct=False,
                     validated=True,
                     validated_by=validated_user,
-                    **validated_data
+                    **validated_data,
                 )
             validated_data["correct"] = True
             validated_data["validated"] = True
@@ -541,9 +541,10 @@ class TranslationPairSerializer(SuggestionSerializer):
         }
 
     def validate_src_text(self, src_text):
-        if len(src_text.strip().split()) > settings.MAX_WORDS_TRANSLATION:
+        max_words = settings.MAX_WORDS_TRANSLATION
+        if len(src_text.strip().split()) > max_words:
             raise serializers.ValidationError(
-                "El texto no puede tener más de 150 palabras", code=400
+                f"El texto no puede tener más de {max_words} palabras", code=400
             )
         return src_text
 
