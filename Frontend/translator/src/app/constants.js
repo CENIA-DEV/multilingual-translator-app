@@ -79,6 +79,12 @@ export const isASRRestricted = (currentUser) => {
 }
 
 
+// Admin pages (manage access, explore data, manage words) are for these roles
+export const isAdminUser = (currentUser) => {
+  const role = currentUser?.profile?.role;
+  return role === NATIVE_ADMIN || role === ADMIN;
+};
+
 export const ROLES = [
   {name: "Administrador", value: "NativeAdmin"},
   {name: "Equipo técnico", value: "Admin"},

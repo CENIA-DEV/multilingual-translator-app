@@ -19,7 +19,7 @@ import { faUsersGear, faDatabase, faHouse, faLanguage, faUser, faBars, faX, faAr
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button } from "@/components/ui/button";
 import { AuthContext } from '@/app/contexts';
-import { PATHS, NATIVE_ADMIN, ADMIN, NO_USER_PATHS, ACCESS_TOKEN} from '@/app/constants';
+import { PATHS, NO_USER_PATHS, ACCESS_TOKEN, isAdminUser } from '@/app/constants';
 import ActionButton from '../actionButton/actionButton';
 import './menu.css'
 
@@ -38,7 +38,7 @@ export default function Menu(){
   const path = usePathname();
   const currentUser = useContext(AuthContext);
   // set paths to public (no user), else check if admin or not
-  const menuOptions = currentUser ? ((currentUser.profile.role == NATIVE_ADMIN || currentUser.profile.role == ADMIN) ? PATHS.ADMIN : PATHS.USER) : NO_USER_PATHS;
+  const menuOptions = currentUser ? (isAdminUser(currentUser) ? PATHS.ADMIN : PATHS.USER) : NO_USER_PATHS;
   
   const [isOpen, setIsOpen] = useState(false);
 
