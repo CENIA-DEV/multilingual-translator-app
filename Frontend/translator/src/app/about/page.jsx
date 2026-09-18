@@ -44,7 +44,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
 import {
   Dialog,
@@ -1273,8 +1272,6 @@ export default function LandingPage() {
           www.tecnologiavoces.com
         </a>
       </footer>
-
-      <Toaster />
     </div>
   )
 }

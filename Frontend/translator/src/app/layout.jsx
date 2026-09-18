@@ -20,6 +20,7 @@ import "@fortawesome/fontawesome-svg-core/styles.css";
 import Menu from "./components/menu/menu";
 import ProtectedRoute from "./protected-route";
 import { Toaster } from "@/components/ui/sonner";
+import { Toaster as UIToaster } from "@/components/ui/toaster";
 import { VARIANT_LANG, LANG_TITLE } from "./constants";
 import Script from "next/script";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
@@ -72,6 +73,8 @@ export default function Layout({ children }) {
             <Menu />
             {children}
             <Toaster />
+            {/* Renders toasts from @/hooks/use-toast (admin pages, about page) */}
+            <UIToaster />
           </Suspense>
         </ProtectedRoute>
       </body>
