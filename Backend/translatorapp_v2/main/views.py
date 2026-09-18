@@ -287,7 +287,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class LanguageViewSet(viewsets.ModelViewSet):
-    queryset = Lang.objects.all()
+    # select_related keeps the nested script/dialect from costing two extra
+    # queries per language on the list.
+    queryset = Lang.objects.select_related("script", "dialect")
     serializer_class = LanguageSerializer
     permission_classes = [AllowAny]
 
@@ -303,7 +305,12 @@ class LanguageViewSet(viewsets.ModelViewSet):
         code = request.query_params.get("code")
         script = request.query_params.get("script")
         dialect = request.query_params.get("dialect")
-        queryset = self.queryset
+        # `self.get_queryset()`, never `self.queryset`: the class attribute is one
+        # queryset instance built at import time, so serializing it directly makes
+        # Django reuse its result cache for the life of the worker. An unfiltered
+        # GET would then keep returning pre-rename (and pre-create/delete) rows
+        # until the process restarted.
+        queryset = self.get_queryset()
         # if code is not None then filter by code
         if code is not None:
             queryset = queryset.filter(code__icontains=code)
@@ -312,7 +319,7 @@ class LanguageViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(script__code=script)
         elif dialect is not None:
             queryset = queryset.filter(dialect__code=dialect)
-        serializer = self.serializer_class(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 

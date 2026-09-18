@@ -202,6 +202,8 @@ class ScriptSerializer(serializers.ModelSerializer):
             # Remove default uniqueness validator
             # this is handled in create method
             "code": {"validators": []},
+            # name falls back to the code when omitted (see _resolve_by_code)
+            "name": {"required": False},
         }
 
 
@@ -214,27 +216,74 @@ class DialectSerializer(serializers.ModelSerializer):
             # Remove default uniqueness validator
             # this is handled in create method
             "code": {"validators": []},
+            "name": {"required": False},
         }
 
 
+def _resolve_by_code(model, data):
+    """Look up `model` by its unique `code`, creating the row if it is new.
+
+    `get_or_create(code=..., name=...)` would raise IntegrityError whenever a row
+    with that code already exists under a different name, so the code alone is
+    used for the lookup. The name is a creation default only: Script and Dialect
+    rows are shared by many languages, so one language's payload must not
+    rename them for everyone.
+    """
+    if not data:
+        return None
+
+    code = (data.get("code") or "").strip()
+    if not code:
+        return None
+
+    name = (data.get("name") or "").strip() or code
+    obj, _ = model.objects.get_or_create(code=code, defaults={"name": name})
+    return obj
+
+
 class LanguageSerializer(serializers.ModelSerializer):
-    script = ScriptSerializer()
-    dialect = DialectSerializer()
+    # Optional on write so a PATCH can touch `name` alone without having to
+    # re-send the whole script/dialect payload.
+    script = ScriptSerializer(required=False, allow_null=True)
+    dialect = DialectSerializer(required=False, allow_null=True)
 
     class Meta:
         model = Lang
         fields = ["id", "script", "code", "dialect", "name"]
+        extra_kwargs = {
+            # Let validate_name own the empty case so the client gets the
+            # Spanish message rather than DRF's default English one.
+            "name": {"allow_blank": True},
+        }
+
+    def validate_name(self, name):
+        """The name is what the whole site displays, so keep it trimmed and set."""
+        if name is None:
+            return name
+        name = name.strip()
+        if not name:
+            raise serializers.ValidationError(
+                "El nombre del idioma no puede estar vacío"
+            )
+        return name
 
     def create(self, validated_data):
-        # Get or create script to avoid unique constraint error
-        script_data = validated_data.pop("script")
-        script, _ = Script.objects.get_or_create(**script_data)
-
-        # Get or create dialect to avoid unique constraint error
-        dialect_data = validated_data.pop("dialect")
-        dialect, _ = Dialect.objects.get_or_create(**dialect_data)
+        script = _resolve_by_code(Script, validated_data.pop("script", None))
+        dialect = _resolve_by_code(Dialect, validated_data.pop("dialect", None))
 
         return Lang.objects.create(script=script, dialect=dialect, **validated_data)
+
+    def update(self, instance, validated_data):
+        """Explicit update: ModelSerializer refuses to write nested fields."""
+        if "script" in validated_data:
+            instance.script = _resolve_by_code(Script, validated_data.pop("script"))
+        if "dialect" in validated_data:
+            instance.dialect = _resolve_by_code(Dialect, validated_data.pop("dialect"))
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
 class NameLanguageSerializer(serializers.ModelSerializer):
