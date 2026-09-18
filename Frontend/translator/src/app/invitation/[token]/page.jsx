@@ -14,7 +14,7 @@ limitations under the License. */
 'use client'
 import "./invitation.css"
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useEffect } from "react";
 import ActionButton from "../../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
@@ -54,14 +54,14 @@ export default function Invitation({params}){
 
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const checkFormStatus = () => {
+  const checkFormStatus = useCallback(() => {
     if(!firstName || !lastName || !dateOfBirth || !password){
       setDisableSubmit(true);
     }
     else{
       setDisableSubmit(false);
     }
-  }
+  }, [firstName, lastName, dateOfBirth, password]);
 
   const handleDateUpdate = (date) => {
     setDateOfBirth(date);
@@ -175,7 +175,7 @@ export default function Invitation({params}){
 
   useEffect(() => {
     checkFormStatus();
-  }, [firstName, lastName, organization, dateOfBirth, languageProficiency, password, checkFormStatus])
+  }, [checkFormStatus])
 	
   return (
   

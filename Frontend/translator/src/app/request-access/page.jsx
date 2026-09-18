@@ -15,12 +15,17 @@ limitations under the License. */
 import "./requestaccess.css"
 import api from "../api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react"
 import { API_ENDPOINTS, REQUEST_ACCESS_REASONS, LANG_TITLE, VARIANT_LANG } from '../constants';
 import { toast } from "sonner";
+
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
 
 export default function RequestAccess(){
 
@@ -35,12 +40,7 @@ export default function RequestAccess(){
 
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
-
-  const checkFormStatus = () => {
+  const checkFormStatus = useCallback(() => {
     if(!firstName || !lastName || !validateEmail(email)){
       setDisableSubmit(true);
     }
@@ -53,7 +53,7 @@ export default function RequestAccess(){
         setDisableSubmit(false);
       } 
     }
-  }
+  }, [firstName, lastName, email, accessReason, organization]);
 
   const handleLogin = () => {
     router.push('/login')
@@ -106,7 +106,7 @@ export default function RequestAccess(){
 
   useEffect(() => {
     checkFormStatus();
-  }, [firstName, lastName, organization, checkFormStatus])
+  }, [checkFormStatus])
 
   return (
     <div className="bg-default w-full h-[100dvh] relative">

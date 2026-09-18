@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,9 @@ export default function ManageWordInformation() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const fetchWords = async () => {
+  // `toast` is a module-level function, so this is created once and the
+  // effect below still fetches only on mount.
+  const fetchWords = useCallback(async () => {
     try {
       setIsLoading(true);
       const { data } = await api.get(API_ENDPOINTS.WORDS);
@@ -46,11 +48,11 @@ export default function ManageWordInformation() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchWords();
-  }, []);
+  }, [fetchWords]);
 
   const handleAddWord = async (e) => {
     e.preventDefault();
