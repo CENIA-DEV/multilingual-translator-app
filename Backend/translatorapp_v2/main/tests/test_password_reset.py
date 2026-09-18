@@ -74,6 +74,21 @@ def test_recover_password_does_not_reveal_unknown_emails(
     mock_recovery_email.assert_not_called()
 
 
+# 2c. recover_password - A failed send answers like everything else
+@pytest.mark.django_db
+def test_recover_password_failed_send_is_not_an_error(api_client, user, mocker):
+    mocker.patch(
+        "main.views.send_recovery_email", side_effect=ConnectionError("smtp down")
+    )
+    url = "/api/password_reset/recover_password/"
+
+    registered = api_client.post(url, {"email": user.email}, format="json")
+    unknown = api_client.post(url, {"email": "nobody@example.com"}, format="json")
+
+    assert registered.status_code == unknown.status_code == 200
+    assert registered.data == unknown.data
+
+
 # 3. check_reset_token - Active Token
 @pytest.mark.django_db
 def test_check_reset_token_active(api_client, user, reset_token):

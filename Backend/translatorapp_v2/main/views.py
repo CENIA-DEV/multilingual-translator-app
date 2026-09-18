@@ -424,10 +424,16 @@ class PasswordResetViewSet(viewsets.GenericViewSet):
                 reset_token = None
             if reset_token is not None:
                 # send recovery email with the raw token; only its hash is stored
-                send_recovery_email(
-                    user_email=reset_token.user.email,
-                    raw_token=reset_token._raw_token,
-                )
+                try:
+                    send_recovery_email(
+                        user_email=reset_token.user.email,
+                        raw_token=reset_token._raw_token,
+                    )
+                except Exception:
+                    # A failed send must not change the answer either: an error
+                    # here would single the address out as registered. It is
+                    # logged for whoever runs the mail server.
+                    logger.exception("Password-reset email could not be sent")
         return Response({"detail": RECOVERY_REQUESTED_DETAIL})
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
