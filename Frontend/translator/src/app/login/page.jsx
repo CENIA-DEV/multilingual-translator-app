@@ -20,7 +20,6 @@ import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react"
 import { API_ENDPOINTS , ACCESS_TOKEN } from '../constants';
-import { toast } from "sonner";
 import { VARIANT_LANG } from "../constants";
 import Image from "next/image";
 export default function Login(){
@@ -71,18 +70,10 @@ export default function Login(){
     } 
     catch(error) {
       if (error.response) {
-        console.log(error.response.data);
         if (error.response.status == 400) {
-          if(error.response.data.email){
-            toast("Inicio de sesión fallido", {
-              description: "El correo ingresado no se encuentra registrado en la plaforma",
-            });
-          }
-          else if(error.response.data.password){
-            toast("Inicio de sesión fallido", {
-              description: "El contraseña ingresada no corresponde es incorrecta",
-            });
-          }
+          // One message for every failed login. The API answers the same for
+          // an unknown email and a wrong password, and the page must not tell
+          // them apart either (it used to carry an "email not registered" one).
           setErrorMessage("Correo y/o contraseña incorrecto/s. Inténtalo nuevamente.");
         };
       }
