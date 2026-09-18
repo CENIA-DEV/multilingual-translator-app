@@ -379,7 +379,7 @@ export default function Manageaccess() {
             <div className="flex items-center space-x-4">
               <Avatar className="h-12 w-12">
                 <AvatarImage
-                  src={currentUser.profile.avatar}
+                  src={currentUser.profile?.avatar}
                   alt={currentUser.first_name + " " + currentUser.last_name}
                 />
                 <AvatarFallback>
@@ -394,7 +394,7 @@ export default function Manageaccess() {
                   {currentUser.email}
                 </p>
                 <p className="text-sm font-medium text-default">
-                  {roles.find(role => role.value === currentUser.profile.role).name}
+                  {roles.find(role => role.value === currentUser.profile?.role)?.name}
                 </p>
               </div>
             </div>
@@ -441,7 +441,7 @@ export default function Manageaccess() {
                         <div className="flex items-center space-x-4">
                           <Avatar>
                             <AvatarImage
-                              src={user.profile.avatar}
+                              src={user.profile?.avatar}
                               alt={user.username}
                             />
                             <AvatarFallback>
@@ -468,7 +468,9 @@ export default function Manageaccess() {
                             onValueChange={(newRole) =>
                               handleUserRoleChange(user.id, newRole)
                             }
-                            defaultValue={roles.find(role => role.value === user.profile.role).value}
+                            // Accounts made with `createsuperuser` have no profile; show them
+                            // without a role instead of crashing the whole list.
+                            defaultValue={roles.find(role => role.value === user.profile?.role)?.value}
                           >
                             <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[160px]">
                               <SelectValue placeholder="Seleccionar Rol" />
