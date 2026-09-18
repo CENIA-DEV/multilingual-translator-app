@@ -7,3 +7,8 @@
 *.yaml text eol=lf
 *.md   text eol=lf
 *.txt  text eol=lf
+
+# Shell scripts must keep LF endings: the Dockerfile runs run_django_server.sh
+# as the image ENTRYPOINT, and a CRLF shebang makes Linux look for `/bin/sh\r`,
+# failing with "exec ./run_django_server.sh: no such file or directory".
+*.sh text eol=lf
