@@ -191,6 +191,7 @@ class Profile(models.Model):
     NON_SPEAKER = "Non-Speaker"
     FLUENT = "Fluent"
     BEGINNER = "Beginner"
+    BASIC = "Basic"
     ROLES = [
         (ADMIN, "Administrator"),
         (NATIVEADMIN, "Native-Administrator"),
@@ -203,6 +204,11 @@ class Profile(models.Model):
         (FLUENT, "Fluent"),
         (BEGINNER, "Beginner"),
     ]
+    ORAL_PROFICIENCY = [
+        (NON_SPEAKER, "Non-Speaker"),
+        (BASIC, "Basic"),
+        (FLUENT, "Fluent"),
+    ]
     date_joined = models.DateField(default=timezone.now)
     date_of_birth = models.DateField(null=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -211,6 +217,9 @@ class Profile(models.Model):
     organization = models.CharField(max_length=120, default=None, null=True)
     proficiency = models.CharField(
         max_length=120, default="Non-Speaker", choices=PROFICIENCY
+    )
+    oral_proficiency = models.CharField(
+        max_length=120, default="Non-Speaker", choices=ORAL_PROFICIENCY
     )
 
     def has_role(self, role):

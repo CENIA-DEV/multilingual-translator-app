@@ -37,6 +37,7 @@ export default function Profile(){
   const [lastName, setLastName]= useState(currentUser.last_name);
 	const [phone, setPhone]= useState(currentUser.profile.phone);
   const [languageProficiency, setLanguageProficiency] = useState(currentUser.profile.proficiency);
+  const [oralProficiency, setOralProficiency] = useState(currentUser.profile.oral_proficiency || '');
   const [organization, setOrganization] = useState(currentUser.profile.organization? currentUser.profile.organization : '');
   const [passwords, setPasswords] = useState({
     current: '',
@@ -51,6 +52,12 @@ export default function Profile(){
     {value: 'Fluent', label: 'Avanzado'}
   ]
 
+  const oralProficiencyLevels = [
+    {value: 'Non-Speaker', label: 'No hablante'},
+    {value: 'Basic', label: 'Básico'},
+    {value: 'Fluent', label: 'Fluido'}
+  ]
+
   const [disableSubmit, setDisableSubmit] = useState(false);
 
   const profileChanged = useCallback(() => hasProfileChanges(currentUser, {
@@ -58,8 +65,9 @@ export default function Profile(){
     lastName,
     organization,
     languageProficiency,
+    oralProficiency,
     dateOfBirth,
-  }), [currentUser, firstName, lastName, organization, languageProficiency, dateOfBirth]);
+  }), [currentUser, firstName, lastName, organization, languageProficiency, oralProficiency, dateOfBirth]);
 
   const checkFormStatus = useCallback(() => {
     if(!firstName || !lastName || !dateOfBirth){
@@ -106,6 +114,7 @@ export default function Profile(){
             profile: {
               date_of_birth: getLocalYYYYMMDD(dateOfBirth),
               proficiency: languageProficiency,
+              oral_proficiency: oralProficiency,
               organization: organization? organization : null
             }
           }
@@ -304,15 +313,42 @@ export default function Profile(){
                   ))}
                 </select>
                 <label
-                  htmlFor="reason"
+                  htmlFor="languageProficiency"
                   className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
                 >
-                  Nivel de {LANG_TITLE}
+                  Nivel de manejo escrito de {LANG_TITLE}
                 </label>
 
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
               </div>
 
+            </div>
+
+            <div className="flex gap-5">
+              <div className="relative w-full h-[50px]">
+                <select
+                  id="oralProficiency"
+                  value={oralProficiency}
+                  onChange={(e) => setOralProficiency(e.target.value)}
+                  required
+                  disabled={!isEditing}
+                  className="block cursor-pointer h-full disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-default peer"
+                >
+                  {oralProficiencyLevels.map((proficiency) => (
+                    <option key={proficiency.value} value={proficiency.value}>
+                      {proficiency.label}
+                    </option>
+                  ))}
+                </select>
+                <label
+                  htmlFor="oralProficiency"
+                  className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
+                >
+                  Nivel de manejo oral de {LANG_TITLE}
+                </label>
+
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+              </div>
             </div>
             
           </div>
@@ -370,6 +406,7 @@ export default function Profile(){
                 setFirstName(currentUser.first_name);
                 setLastName(currentUser.last_name);
                 setLanguageProficiency(currentUser.profile.proficiency);
+                setOralProficiency(currentUser.profile.oral_proficiency || '');
                 setOrganization(currentUser.profile.organization? currentUser.profile.organization: '');
                 setDateOfBirth(parseDate(currentUser.profile.date_of_birth));
               };

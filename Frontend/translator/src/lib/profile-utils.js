@@ -37,7 +37,7 @@ export const getLocalYYYYMMDD = (date) => {
 };
 
 // Whether the profile form differs from the saved user data.
-export const hasProfileChanges = (currentUser, { firstName, lastName, organization, languageProficiency, dateOfBirth }) => {
+export const hasProfileChanges = (currentUser, { firstName, lastName, organization, languageProficiency, oralProficiency, dateOfBirth }) => {
   if (!currentUser) return false;
   const currentDob = currentUser.profile?.date_of_birth || '';
   const newDob = getLocalYYYYMMDD(dateOfBirth);
@@ -46,5 +46,6 @@ export const hasProfileChanges = (currentUser, { firstName, lastName, organizati
     currentUser.last_name !== lastName ||
     (currentUser.profile?.organization || '') !== (organization || '') ||
     (currentUser.profile?.proficiency || '') !== (languageProficiency || '') ||
+    (currentUser.profile?.oral_proficiency || '') !== (oralProficiency || '') ||
     currentDob !== newDob;
 };

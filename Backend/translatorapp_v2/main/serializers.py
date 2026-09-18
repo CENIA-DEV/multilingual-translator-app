@@ -78,6 +78,7 @@ class FullProfileSerializer(BaseProfileSerializer):
             "avatar",
             "date_of_birth",
             "proficiency",
+            "oral_proficiency",
             "organization",
             "age",
         ]
@@ -87,7 +88,14 @@ class FullProfileSerializer(BaseProfileSerializer):
 class ProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = Profile
-        fields = ["avatar", "date_of_birth", "organization", "age"]
+        fields = [
+            "avatar",
+            "date_of_birth",
+            "organization",
+            "proficiency",
+            "oral_proficiency",
+            "age",
+        ]
         extra_kwargs = {"age": {"read_only": True}}
 
 
