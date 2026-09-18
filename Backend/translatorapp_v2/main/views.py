@@ -289,7 +289,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class LanguageViewSet(viewsets.ModelViewSet):
     # select_related keeps the nested script/dialect from costing two extra
     # queries per language on the list.
-    queryset = Lang.objects.select_related("script", "dialect")
+    queryset = Lang.objects.select_related("script", "dialect").order_by("name")
     serializer_class = LanguageSerializer
     permission_classes = [AllowAny]
 
@@ -324,7 +324,7 @@ class LanguageViewSet(viewsets.ModelViewSet):
 
 
 class InvitationViewSet(viewsets.ModelViewSet):
-    queryset = InvitationToken.objects.all()
+    queryset = InvitationToken.objects.all().order_by("-created_at")
     serializer_class = InvitationSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
 
@@ -606,7 +606,7 @@ class SuggestionViewSet(viewsets.ModelViewSet):
 class RequestViewSet(viewsets.ModelViewSet):
     serializer_class = RequestSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
-    queryset = RequestAccess.objects.all()
+    queryset = RequestAccess.objects.all().order_by("-created_at")
 
     def get_permissions(self):
         """
@@ -621,7 +621,9 @@ class RequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def get_pending_requests(self, request):
-        pending_requests = RequestAccess.objects.filter(approved=None)
+        pending_requests = RequestAccess.objects.filter(approved=None).order_by(
+            "-created_at"
+        )
         serializer = self.get_serializer(pending_requests, many=True)
         return Response(serializer.data)
 
