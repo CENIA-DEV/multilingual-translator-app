@@ -685,7 +685,8 @@ def send_participate_email(email, organization, reason, first_name, last_name):
 
 
 def get_hashed_token(token):
-    # Get the associated Invitation Token
+    # Tokens are stored as the SHA-256 of the raw UUID that is emailed out, so a
+    # token coming back from a link is hashed before it is looked up.
     hash_object = hashlib.sha256()
     hash_object.update(token.encode("utf-8"))
     hashed_token = hash_object.hexdigest()

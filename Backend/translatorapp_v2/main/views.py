@@ -19,6 +19,8 @@ from operator import or_
 
 import numpy as np
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -70,6 +72,7 @@ from .utils import (
     find_cached_tts_normalized,
     generate_asr,
     generate_tts,
+    get_hashed_token,
     get_word_candidates,
     send_invite_email,
     send_participate_email,
@@ -78,6 +81,11 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# The one answer `recover_password` gives to any well-formed email; see there.
+RECOVERY_REQUESTED_DETAIL = (
+    "Si el correo está registrado, enviamos un enlace para restablecer la contraseña."
+)
 
 
 class CustomAuthToken(ObtainAuthToken):
@@ -170,10 +178,13 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def create_by_invitation(self, request):
         form = request.data.copy()
-        print(form)
-        token = form.pop("token")
-        # hashed_token = get_hashed_token(token)
-        invitation = get_object_or_404(InvitationToken.objects.all(), token=token)
+        token = form.pop("token", None)
+        if not token:
+            return Response({"detail": "token missing"}, status=HTTP_400_BAD_REQUEST)
+        # incoming token is the raw UUID from the email; the model stores its hash
+        invitation = get_object_or_404(
+            InvitationToken.objects.all(), token=get_hashed_token(token)
+        )
         # TO DO: MAYBE THIS CHECK ISNT NECESARY, SHOULD CHECK TOKEN STATUS WHILE LOADING
         if invitation.is_expired():
             invitation.delete()
@@ -250,10 +261,12 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["patch"])
     def update_password_token(self, request):
-        token = request.data["token"]
-        # hashed_token = get_hashed_token(token)
+        token = request.data.get("token")
+        if not token:
+            return Response({"detail": "token missing"}, status=HTTP_400_BAD_REQUEST)
+        # incoming token is the raw UUID from the email; the model stores its hash
         recovery_token = get_object_or_404(
-            PasswordResetToken.objects.all(), token=token
+            PasswordResetToken.objects.all(), token=get_hashed_token(token)
         )
         if recovery_token.is_expired():
             recovery_token.delete()
@@ -335,65 +348,101 @@ class InvitationViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
-        # send invitation email
+        # send invitation email with the raw token; only its hash is stored
         send_invite_email(
             invited_by_user=invited_by,
             user_email=invitation.email,
-            invitation_token=invitation.token,
+            invitation_token=invitation._raw_token,
         )
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
     def resend_invitation(self, request, pk):
         invitation_token = self.get_object()
-        serializer = self.serializer_class(invitation_token)
-        if invitation_token.is_expired():
-            # if token is expired we create a new one
-            _ = invitation_token.generate_token()
-            invitation_token.save()
+        # Only the token's hash is stored, so the raw token that went out in the
+        # first email cannot be sent again: every resend issues a new token (and
+        # a fresh expiry), which also invalidates the previous link.
+        raw_token = invitation_token.generate_token()
         send_invite_email(
             invited_by_user=invitation_token.invited_by,
             user_email=invitation_token.email,
-            invitation_token=invitation_token.token,
+            invitation_token=raw_token,
         )
+        serializer = self.serializer_class(invitation_token)
         return Response(serializer.data)
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def check_invitation_token(self, request):
         token = request.query_params.get("token")
-        invitation = get_object_or_404(self.queryset, token=token)
+        if not token:
+            return Response({"detail": "token missing"}, status=HTTP_400_BAD_REQUEST)
+        # incoming token is the raw UUID from the email; the model stores its hash
+        invitation = get_object_or_404(self.queryset, token=get_hashed_token(token))
         serializer = self.serializer_class(invitation)
         return Response(serializer.data)
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    # Admin only (the viewset default): it looks invitations up by email alone.
+    @action(detail=False, methods=["post"])
     def get_invitation_by_user(self, request):
         invitation = get_object_or_404(self.queryset, email=request.data["email"])
         serializer = self.serializer_class(invitation)
         return Response(serializer.data)
 
 
-class PasswordResetViewSet(viewsets.ModelViewSet):
+class PasswordResetViewSet(viewsets.GenericViewSet):
+    """Only the two reset actions below; no list, detail or edit routes.
+
+    As a ModelViewSet with the project's default permission
+    (DjangoModelPermissionsOrAnonReadOnly), its read-only routes were open to
+    anonymous callers, reset tokens included.
+    """
+
     serializer_class = PasswordResetSerializer
     queryset = PasswordResetToken.objects.all()
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def recover_password(self, request):
-        serializer = self.serializer_class(data={"user": request.data})
-        if serializer.is_valid():
-            invitation = serializer.save()
-        else:
-            return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+        # The answer is the same whether or not the email has an account, so this
+        # form can't be used to find out who is registered. Only a malformed
+        # request is an error; an unknown email simply gets no email.
+        email = request.data.get("email")
+        try:
+            validate_email(email)
+        except ValidationError:
+            return Response(
+                {"email": ["Ingresa un correo electrónico válido."]},
+                status=HTTP_400_BAD_REQUEST,
+            )
 
-        # send recovery email
-        send_recovery_email(
-            user_email=invitation.user.email, raw_token=invitation.token
-        )
-        return Response(serializer.data)
+        serializer = self.serializer_class(data={"user": {"email": email}})
+        if serializer.is_valid():
+            try:
+                reset_token = serializer.save()
+            except User.DoesNotExist:
+                # The email matched a user whose username differs; answering
+                # with an error here would single the address out as registered.
+                reset_token = None
+            if reset_token is not None:
+                # send recovery email with the raw token; only its hash is stored
+                try:
+                    send_recovery_email(
+                        user_email=reset_token.user.email,
+                        raw_token=reset_token._raw_token,
+                    )
+                except Exception:
+                    # A failed send must not change the answer either: an error
+                    # here would single the address out as registered. It is
+                    # logged for whoever runs the mail server.
+                    logger.exception("Password-reset email could not be sent")
+        return Response({"detail": RECOVERY_REQUESTED_DETAIL})
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def check_reset_token(self, request):
         token = request.query_params.get("token")
-        reset_token = get_object_or_404(self.queryset, token=token)
+        if not token:
+            return Response({"detail": "token missing"}, status=HTTP_400_BAD_REQUEST)
+        # incoming token is the raw UUID from the email; the model stores its hash
+        reset_token = get_object_or_404(self.queryset, token=get_hashed_token(token))
         serializer = self.serializer_class(reset_token)
         return Response(serializer.data)
 

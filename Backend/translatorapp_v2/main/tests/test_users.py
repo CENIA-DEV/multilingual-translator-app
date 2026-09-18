@@ -106,13 +106,13 @@ def test_change_status(api_client):
 @pytest.mark.django_db
 def test_create_by_invitation(api_client):
     token = InvitationToken(email="email@admin.com", role=Profile.ADMIN, organization="org", first_name="James", last_name="doe")
-    token.generate_token()
+    raw_token = token.generate_token()
     token.save()
     birth_date = (datetime.now() - timedelta(days=365*20)).strftime("%Y-%m-%d")
     response = api_client.post(
         "/api/users/create_by_invitation/",
         {
-            "token": token.token,
+            "token": raw_token,
             "email": "email@admin.com",
             "username": "email@admin.com",
             "password": "adminpassword",
@@ -146,13 +146,13 @@ def test_create_by_invitation_user_inactive(api_client):
         is_active=False,
     )
     token = InvitationToken(email="email@admin.com", role=Profile.NATIVEADMIN, organization="testorg", first_name="John", last_name="Doe")
-    token.generate_token()
+    raw_token = token.generate_token()
     token.save()
     birth_date = (datetime.now() - timedelta(days=365*20)).strftime("%Y-%m-%d")
     response = api_client.post(
         "/api/users/create_by_invitation/",
         {
-            "token": token.token,
+            "token": raw_token,
             "email": "email@admin.com",
             "username": "email@admin.com",
             "password": "newadminpassword",
@@ -185,13 +185,13 @@ def test_create_by_invitation_user_inactive(api_client):
 @pytest.mark.django_db
 def test_create_by_invitation_invalid_date_of_birth(api_client):
     token = InvitationToken(email="email@admin.com", role=Profile.ADMIN, organization="testorg", first_name="John", last_name="Doe")
-    token.generate_token()
+    raw_token = token.generate_token()
     token.save()
     birth_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     response = api_client.post(
         "/api/users/create_by_invitation/",
         {
-            "token": token.token,
+            "token": raw_token,
             "email": "email@admin.com",
             "username": "email@admin.com",
             "password": "adminpassword",
@@ -211,12 +211,12 @@ def test_create_by_invitation_invalid_date_of_birth(api_client):
 @pytest.mark.django_db
 def test_create_by_invitation_organization_not_required(api_client):
     token = InvitationToken(email="email@admin.com", role=Profile.ADMIN, first_name="John", last_name="Doe")
-    token.generate_token()
+    raw_token = token.generate_token()
     token.save()
     response = api_client.post(
         "/api/users/create_by_invitation/",
         {
-            "token": token.token,
+            "token": raw_token,
             "email": "email@admin.com",
             "username": "email@admin.com",
             "password": "adminpassword",
@@ -237,11 +237,11 @@ def test_create_by_invitation_organization_not_required(api_client):
 def test_update_password_with_token(api_client):
     user = create_user(username="user", password="oldpassword", role=Profile.USER)
     token = PasswordResetToken(user=user)
-    token.generate_token()
+    raw_token = token.generate_token()
     token.save()
     response = api_client.patch(
         "/api/users/update_password_token/",
-        {"token": token.token, "password": "newpassword"},
+        {"token": raw_token, "password": "newpassword"},
         format="json",
     )
     assert response.status_code == 200
@@ -252,14 +252,14 @@ def test_update_password_with_token(api_client):
 def test_update_password_token_expired_token(api_client):
     user = create_user(username="user", password="oldpassword", role=Profile.USER)
     token = PasswordResetToken(user=user)
-    token.generate_token()
+    raw_token = token.generate_token()
     token.save()
     token.expires_at = timezone.now() - timedelta(days=1)
     token.save()
     # mock timezone will give a date of now() = + 2 so token should be expired. 
     response = api_client.patch(
         "/api/users/update_password_token/",
-        {"token": token.token, "password": "newpassword"},
+        {"token": raw_token, "password": "newpassword"},
         format="json",
     )
     assert response.status_code == 400

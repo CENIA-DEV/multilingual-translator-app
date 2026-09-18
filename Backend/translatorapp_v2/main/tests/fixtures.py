@@ -87,7 +87,8 @@ def user():
 @pytest.fixture
 def reset_token(user):
     reset_token = PasswordResetToken(user=user)
-    reset_token.generate_token()
+    # The database keeps only the hash; tests act as the email recipient.
+    reset_token._raw_token = reset_token.generate_token()
     reset_token.save()
     return reset_token
 
@@ -102,7 +103,8 @@ def create_invitation(admin_auth):
         role="User",
         invited_by=admin_auth,  # Use the authenticated user
     )
-    invitation.generate_token()
+    # The database keeps only the hash; tests act as the email recipient.
+    invitation._raw_token = invitation.generate_token()
     invitation.save()
     return invitation
 

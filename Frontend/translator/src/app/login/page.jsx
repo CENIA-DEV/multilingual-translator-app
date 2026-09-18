@@ -15,14 +15,18 @@ limitations under the License. */
 import "./login.css"
 import api from "../api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react"
 import { API_ENDPOINTS , ACCESS_TOKEN } from '../constants';
-import { toast } from "sonner";
 import { VARIANT_LANG } from "../constants";
 import Image from "next/image";
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
+
 export default function Login(){
 
   const router = useRouter()
@@ -34,19 +38,14 @@ export default function Login(){
 
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const checkFormStatus = () => {
+  const checkFormStatus = useCallback(() => {
     if(!validateEmail(email) || !password){
       setDisableSubmit(true);
     }
     else{
       setDisableSubmit(false);
     }
-  }
-
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
+  }, [email, password]);
 
   const handleForgotPass = () => {
     router.push('/reset-password-request');
@@ -71,18 +70,10 @@ export default function Login(){
     } 
     catch(error) {
       if (error.response) {
-        console.log(error.response.data);
         if (error.response.status == 400) {
-          if(error.response.data.email){
-            toast("Inicio de sesión fallido", {
-              description: "El correo ingresado no se encuentra registrado en la plaforma",
-            });
-          }
-          else if(error.response.data.password){
-            toast("Inicio de sesión fallido", {
-              description: "El contraseña ingresada no corresponde es incorrecta",
-            });
-          }
+          // One message for every failed login. The API answers the same for
+          // an unknown email and a wrong password, and the page must not tell
+          // them apart either (it used to carry an "email not registered" one).
           setErrorMessage("Correo y/o contraseña incorrecto/s. Inténtalo nuevamente.");
         };
       }
@@ -94,7 +85,7 @@ export default function Login(){
   
   useEffect(() => {
     checkFormStatus();
-  }, [email, password, checkFormStatus])
+  }, [checkFormStatus])
 	
   return (
     <div className="bg-default w-full h-[100dvh] relative">

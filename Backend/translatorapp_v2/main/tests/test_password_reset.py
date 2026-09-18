@@ -12,11 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest.mock import ANY
 from urllib.parse import urlencode
 
 import pytest
 from fixtures import *
 from main.models import PasswordResetToken
+from main.utils import get_hashed_token
 
 
 # 1. recover_password - Success
@@ -28,13 +30,15 @@ def test_recover_password_success(api_client, user, mock_recovery_email):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == 200
-    assert "token" in response.data
+    # the token is a secret for the email only, never part of the response
+    assert "token" not in response.data
     # assert reset token was created correctly
     assert PasswordResetToken.objects.filter(user=user).exists()
-    # assert the email was sent with the correct info
-    mock_recovery_email.assert_called_once_with(
-        user_email=user.email, raw_token=response.data["token"]
-    )
+    # assert the email was sent with the raw token, whose hash is what is stored
+    mock_recovery_email.assert_called_once_with(user_email=user.email, raw_token=ANY)
+    raw_token = mock_recovery_email.call_args.kwargs["raw_token"]
+    stored = PasswordResetToken.objects.get(user=user).token
+    assert get_hashed_token(raw_token) == stored
 
 
 # 2. recover_password - Invalid Email
@@ -45,18 +49,51 @@ def test_recover_password_invalid_email(api_client, mock_recovery_email):
 
     response = api_client.post(url, data, format="json")
 
-    assert response.status_code == 400
-    assert "user" in response.data  # Expecting an error related to the 'user' field
+    assert response.status_code == 400  # malformed, so nothing is revealed
+    assert "email" in response.data
     assert PasswordResetToken.objects.count() == 0  # No object created
     # Assert that the email wasnt sent
     mock_recovery_email.assert_not_called()
+
+
+# 2b. recover_password - Unknown email answers exactly like a registered one
+@pytest.mark.django_db
+def test_recover_password_does_not_reveal_unknown_emails(
+    api_client, user, mock_recovery_email
+):
+    url = "/api/password_reset/recover_password/"
+
+    known = api_client.post(url, {"email": user.email}, format="json")
+    mock_recovery_email.reset_mock()
+    unknown = api_client.post(url, {"email": "nobody@example.com"}, format="json")
+
+    assert unknown.status_code == known.status_code == 200
+    assert unknown.data == known.data
+    # ...but only the registered address got a token and an email
+    assert PasswordResetToken.objects.count() == 1
+    mock_recovery_email.assert_not_called()
+
+
+# 2c. recover_password - A failed send answers like everything else
+@pytest.mark.django_db
+def test_recover_password_failed_send_is_not_an_error(api_client, user, mocker):
+    mocker.patch(
+        "main.views.send_recovery_email", side_effect=ConnectionError("smtp down")
+    )
+    url = "/api/password_reset/recover_password/"
+
+    registered = api_client.post(url, {"email": user.email}, format="json")
+    unknown = api_client.post(url, {"email": "nobody@example.com"}, format="json")
+
+    assert registered.status_code == unknown.status_code == 200
+    assert registered.data == unknown.data
 
 
 # 3. check_reset_token - Active Token
 @pytest.mark.django_db
 def test_check_reset_token_active(api_client, user, reset_token):
     url = "/api/password_reset/check_reset_token/"
-    params = {"token": reset_token.token}
+    params = {"token": reset_token._raw_token}
 
     response = api_client.get(f"{url}?{urlencode(params)}", format="json")
 
@@ -71,7 +108,7 @@ def test_check_reset_token_expired(api_client, user, reset_token, mock_timezone)
     # we dont want to modify the expiry date just to make sure that is properly set
 
     url = "/api/password_reset/check_reset_token/"
-    params = {"token": reset_token.token}
+    params = {"token": reset_token._raw_token}
 
     response = api_client.get(f"{url}?{urlencode(params)}", format="json")
 
