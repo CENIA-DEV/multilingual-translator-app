@@ -109,6 +109,31 @@ ALLOWED_HOSTS = (
     else ["*"]  # Use just the domain part of the URL
 )
 
+
+def _origin(url):
+    """Reduce a configured URL to the scheme://host[:port] form Django expects."""
+    parsed = urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else None
+
+
+# Origins trusted for unsafe (POST/PUT/PATCH/DELETE) requests that go through
+# Django's CSRF check. Derived from the same app URLs as CORS and ALLOWED_HOSTS
+# so no deployment domain is hard-coded here.
+CSRF_TRUSTED_ORIGINS = list(
+    dict.fromkeys(
+        origin
+        for origin in (
+            _origin(APP_SETTINGS.frontend_url),
+            _origin(APP_SETTINGS.backend_url),
+        )
+        if origin
+    )
+)
+
+# Tell Django it is safely behind a Google Cloud proxy/Load Balancer: Cloud Run
+# terminates TLS and forwards the request with X-Forwarded-Proto: https.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Configure logging
 LOGGING = {
     "version": 1,
