@@ -16,7 +16,9 @@ import pytest
 from fixtures import (admin_auth, api_client, create_invitation,
                       mock_invite_email, mock_timezone, user)
 from main.models import InvitationToken
+from main.utils import get_hashed_token
 from rest_framework.authtoken.models import Token
+from unittest.mock import ANY
 from urllib.parse import urlencode
 
 
@@ -35,7 +37,8 @@ def test_send_invitation(api_client, admin_auth, mock_invite_email):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == 200
-    assert "token" in response.data
+    # the token is a secret for the email only, never part of the response
+    assert "token" not in response.data
     assert InvitationToken.objects.filter(
         email="invited_user@example.com", invited_by=admin_auth
     )
@@ -44,8 +47,12 @@ def test_send_invitation(api_client, admin_auth, mock_invite_email):
     mock_invite_email.assert_called_once_with(
         invited_by_user=admin_auth,
         user_email="invited_user@example.com",
-        invitation_token=response.data["token"],
+        invitation_token=ANY,
     )
+    # the email carries the raw token; the database keeps only its hash
+    raw_token = mock_invite_email.call_args.kwargs["invitation_token"]
+    stored = InvitationToken.objects.get(email="invited_user@example.com").token
+    assert get_hashed_token(raw_token) == stored
 
 
 # 2. Duplicate invitation (Fail)
@@ -119,15 +126,19 @@ def test_resend_invitation(
     response = api_client.post(url)
 
     assert response.status_code == 200
-    assert "token" in response.data
-    assert response.data["token"] == create_invitation.token
+    assert "token" not in response.data
 
-    # Assert that the mocked function was called with the expected arguments
+    # Only the hash is stored, so the original token cannot be re-sent: a resend
+    # always emails a new token and replaces the stored hash.
     mock_invite_email.assert_called_once_with(
         invited_by_user=admin_auth,
         user_email="invited_user@example.com",
-        invitation_token=create_invitation.token,
+        invitation_token=ANY,
     )
+    raw_token = mock_invite_email.call_args.kwargs["invitation_token"]
+    assert raw_token != create_invitation._raw_token
+    create_invitation.refresh_from_db()
+    assert get_hashed_token(raw_token) == create_invitation.token
 
 
 # 7. Resend invitation - expired -> new (Success)
@@ -141,22 +152,26 @@ def test_resend_invitation_expired(
     response = api_client.post(url)
 
     assert response.status_code == 200
-    assert "token" in response.data
-    assert response.data["token"] != create_invitation.token  # new token generated
+    assert "token" not in response.data
 
     # Assert that the mocked function was called with the expected arguments
     mock_invite_email.assert_called_once_with(
         invited_by_user=admin_auth,
         user_email="invited_user@example.com",
-        invitation_token=response.data["token"],  # new correct token sent
+        invitation_token=ANY,
     )
+    raw_token = mock_invite_email.call_args.kwargs["invitation_token"]
+    assert raw_token != create_invitation._raw_token  # new token generated
+    create_invitation.refresh_from_db()
+    assert get_hashed_token(raw_token) == create_invitation.token
+    assert not create_invitation.is_expired()  # with a fresh expiry
 
 
 # 8. Check active invitation (Success)
 @pytest.mark.django_db
 def test_active_invitation_token(api_client, admin_auth, create_invitation):
     url = "/api/invitations/check_invitation_token/"
-    params = {"token": create_invitation.token}
+    params = {"token": create_invitation._raw_token}
 
     response = api_client.get(f"{url}?{urlencode(params)}", format="json")
 
@@ -175,7 +190,7 @@ def test_expired_invitation_token(
     api_client, admin_auth, create_invitation, mock_timezone
 ):
     # mock timezone will give a date of now() = + 2 so token should be expired
-    params = {"token": create_invitation.token}
+    params = {"token": create_invitation._raw_token}
     url = "/api/invitations/check_invitation_token/"
 
     response = api_client.get(f"{url}?{urlencode(params)}", format="json")
@@ -193,7 +208,8 @@ def test_get_invitation_by_user(api_client, admin_auth, create_invitation):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == 200
-    assert response.data["token"] == create_invitation.token  # check correct token
+    assert response.data["email"] == create_invitation.email
+    assert "token" not in response.data
 
     # test wrong email
     data = {"email": "example@test.cl"}
@@ -213,7 +229,7 @@ def test_update_user_role(api_client, admin_auth, create_invitation):
 
     assert response.status_code == 200
     assert response.data["role"] == "Admin"  # check correct user role update
-    assert response.data["token"] == create_invitation.token
+    assert "token" not in response.data
     assert response.data["invited_by"]["email"] == admin_auth.email
 
 

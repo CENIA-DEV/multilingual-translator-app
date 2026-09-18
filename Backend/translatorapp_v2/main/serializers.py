@@ -275,14 +275,14 @@ class InvitationSerializer(serializers.ModelSerializer):
             "id",
             "email",
             "role",
-            "token",
             "invited_by",
             "first_name",
             "last_name",
             "organization",
             "is_active",
         ]
-        extra_kwargs = {"token": {"read_only": True}}
+        # `token` is deliberately not a field: it is the hash of the secret
+        # emailed to the invitee and must never leave the server.
         depth = 1
 
     def get_is_active(self, obj):
@@ -293,8 +293,9 @@ class InvitationSerializer(serializers.ModelSerializer):
         # invited_by user is already validated by nested UserEmailSerializer
         invited_by = validated_data.pop("invited_by")
         invitation = InvitationToken(invited_by=invited_by, **validated_data)
-        invitation.generate_token()  # Generate token
-        invitation.save()
+        # generate_token returns the raw UUID token; store it on the instance for
+        # the caller to email. Only its hash is saved.
+        invitation._raw_token = invitation.generate_token()
         return invitation
 
 
@@ -305,8 +306,8 @@ class PasswordResetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PasswordResetToken
-        fields = ["user", "token", "is_active"]
-        read_only_fields = ["token"]
+        # `token` is deliberately not a field; see InvitationSerializer.
+        fields = ["user", "is_active"]
 
     def get_is_active(self, obj):
         # if token is expired, we set is_active to False
@@ -317,8 +318,9 @@ class PasswordResetSerializer(serializers.ModelSerializer):
         validated_user = validated_data.pop("user")
         user = User.objects.get(username=validated_user["email"])
         reset_token = PasswordResetToken(user=user)
-        reset_token.generate_token()  # Generate token
-        reset_token.save()
+        # generate_token returns the raw UUID token; store it on the instance for
+        # the caller to email. Only its hash is saved.
+        reset_token._raw_token = reset_token.generate_token()
         return reset_token
 
 
