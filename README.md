@@ -99,6 +99,10 @@ When restricted, non-authenticated users will see:
 - Disabled feedback section
 - Toast notifications when attempting to translate
 
+### Customizing the translator ("Administrar Traductor")
+
+`NEXT_PUBLIC_VARIANT` only picks the starting template (`rap`, `arn`, anything else = a neutral template). Names, colours, images, texts, languages, voice features and the whole landing page are edited from the site itself at `/manage-translator` by the technical team (role "Admin") or Django staff, with a live preview, drafts, publishing and version history. See [docs/translator-customization.md](docs/translator-customization.md).
+
 # Run Frontend
 Open the `Frontend/translator` folder and run `npm run dev`
 
