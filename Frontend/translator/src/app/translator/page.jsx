@@ -123,7 +123,13 @@ export default function Translator() {
 
   // Check if translation is restricted for current user
   const translationRestricted = isTranslationRestricted(currentUser);
-  const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(translationRestricted);
+  const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(false);
+
+  // The page renders before the login check finishes (currentUser is null
+  // until then), so open the dialog once we know the visitor isn't logged in.
+  useEffect(() => {
+    setTranslationRestrictedDialogOpen(translationRestricted && currentUser === false);
+  }, [translationRestricted, currentUser]);
 
 
   // Check if ASR and TTS are restricted for current user
@@ -474,6 +480,17 @@ export default function Translator() {
     }
   }
 
+  // `translate` and `startWaveformVisualization` are new functions on every
+  // render. The effects below must call the current ones without re-running
+  // (and restarting the auto-translate timer) on every render, so they read
+  // them through refs that always hold the latest version.
+  const translateRef = useRef(translate);
+  const startWaveformRef = useRef(startWaveformVisualization);
+  useEffect(() => {
+    translateRef.current = translate;
+    startWaveformRef.current = startWaveformVisualization;
+  });
+
   useEffect(() => {
     // Don't auto-translate if translation is restricted and user is not authenticated
     if (translationRestricted) {
@@ -496,7 +513,7 @@ export default function Translator() {
       autoTranslateTimerRef.current = null;
     }
     autoTranslateTimerRef.current = setTimeout(() => {
-      translate();
+      translateRef.current();
       autoTranslateTimerRef.current = null;
     }, 1500);
 
@@ -511,9 +528,10 @@ export default function Translator() {
   // Start/attach the waveform once the modal is open, recording is true, and the canvas is mounted
   useEffect(() => {
     if (showRecordModal && isRecording && mediaStreamRef.current && waveCanvasRef.current && !waveAnalyserRef.current) {
-      startWaveformVisualization(mediaStreamRef.current);
+      startWaveformRef.current(mediaStreamRef.current);
     }
-  }, [showRecordModal, isRecording]);
+    // The refs are stable objects; listing them doesn't add re-runs.
+  }, [showRecordModal, isRecording, mediaStreamRef, waveCanvasRef, waveAnalyserRef]);
 
   function inferHintFromSrcLang() {
     const code = (srcLang?.code || '').toLowerCase();
@@ -593,11 +611,14 @@ export default function Translator() {
 
   useEffect(() => {
     return () => {
-      if (lastRecordingUrl.current) {
-        URL.revokeObjectURL(lastRecordingUrl.current);
+      // Revoke whichever recording is current when the page unmounts, which is
+      // why the ref is read at cleanup time instead of copied earlier.
+      const url = lastRecordingUrl.current; // eslint-disable-line react-hooks/exhaustive-deps
+      if (url) {
+        URL.revokeObjectURL(url);
       }
     };
-  }, []);
+  }, [lastRecordingUrl]);
   
   const handleClearTexts = () => {
     setSrcText('');

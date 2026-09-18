@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 import axios from "axios";
-import { ACCESS_TOKEN } from "./constants";
+import { ACCESS_TOKEN, AUTH_EXPIRED_EVENT } from "./constants";
 
 const api = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL
@@ -21,7 +21,6 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-      console.log(`API call to: ${config.baseURL}${config.url}`)
       const token = localStorage.getItem(ACCESS_TOKEN);
       if (token) {
         config.headers.Authorization = `Token ${token}`;
@@ -42,36 +41,35 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    // Any status code that lie within the range of 2xx 
-    console.log(`API call success ${response.status}`)
-    console.log(response.data)
     return response;
   },
   (error) => {
-    // Any status codes that falls outside the range of 2xx cause this function to trigger
+    // 1. Silently ignore aborted requests so they don't clog the console
+    if (axios.isCancel(error)) {
+      return Promise.reject(error);
+    }
 
     if (error.response) {
       console.error(`API responded with error status: ${error.response.status}`);
     } else if (error.request) {
-      // The request was made but no response was received
-      console.error('Request error:', error.request);
+      console.error('Request error:', error.message);
     } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('Error', error.message);  
+      console.error('Error', error.message);
+    }
 
+    if (error.response?.status === 401) {
+      // 2. No window.location.href redirect: public pages (translator, about...)
+      // must keep working for anonymous visitors. Just clear the stale token and
+      // let ProtectedRoute decide, using Next.js's router.replace(), whether the
+      // current page needs a login.
+      if (localStorage.getItem(ACCESS_TOKEN)) {
+        localStorage.removeItem(ACCESS_TOKEN);
+        window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+      }
     }
-    
-    if (error.response.status === 400) { // Bad request
-      // Log api response data for debug
-      console.log(error.response.data)
-    } else if (error.response.status === 401) {
-      console.log("Unauthorized")
-      // redirect("/login")
-      window.location.href = "/login"
-    }
-    return Promise.reject(error)
+
+    return Promise.reject(error);
   }
 );
-  
 
 export default api;

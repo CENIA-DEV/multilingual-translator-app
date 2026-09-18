@@ -13,86 +13,96 @@ See the License for the specific language governing permissions and
 limitations under the License. */ 
   
 'use client'
-import { ACCESS_TOKEN, PUBLIC_PATHS } from "./constants";
+import { ACCESS_TOKEN, AUTH_EXPIRED_EVENT, PUBLIC_PATHS } from "./constants";
 import Loading from "./loading";
-import { redirect, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthContext } from "./contexts";
 import { API_ENDPOINTS } from "./constants";
 import api from "./api";
+import axios from "axios";
+
+const isPublicPath = (path) => PUBLIC_PATHS.some(route => path?.startsWith(route));
 
 export default function ProtectedRoute({ children }) {
   
   const path = usePathname();
+  const router = useRouter();
 
   const [currentUser, setCurrentUser] = useState(null);
+
+  // The API client clears the token when the backend rejects it (401). Drop the
+  // cached user so the check below runs again: protected pages go to login,
+  // public pages keep working for an anonymous visitor.
+  useEffect(() => {
+    const handleAuthExpired = () => setCurrentUser(null);
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, []);
   
   useEffect(() => {
+    let isMounted = true; // Cleanup flag to prevent race conditions
+
     // get user from token
     const auth = async() => {
-      if(typeof window !== 'undefined'){
-        const token = localStorage.getItem(ACCESS_TOKEN);
-        if (!token) {
-          if (PUBLIC_PATHS.some(route => path.startsWith(route))) {
-            setCurrentUser(false);
-          } 
-          else {
-            // Redirect to about path is root
-            if(path === '/'){
-              window.location.href = '/about';
-            }
-            else{ // Redirect to login if token is missing
-              window.location.href = '/login';
-            }
-          }
+      if (typeof window === 'undefined') return;
+      const token = localStorage.getItem(ACCESS_TOKEN);
+      if (!token) {
+        if (isPublicPath(path)) {
+          if (isMounted) setCurrentUser(false);
         } 
-        else {
-          try {
-            const res = await api.get(
-              API_ENDPOINTS.USERS+'get_by_token/'
-            )
-              setCurrentUser(res.data)
+        else if (path === '/') {
+          // Redirect root to the about page
+          router.replace('/about');
+        }
+        else { // Redirect to login if token is missing
+          router.replace('/login');
+        }
+        return;
+      } 
 
-              /* if (PUBLIC_PATHS.some(route => path.startsWith(route))){
-                if (path !== '/about'){
-                  window.location.href = '/about';
-                }
-              } */
+      try {
+        const res = await api.get(
+          API_ENDPOINTS.USERS+'get_by_token/'
+        )
+        if (isMounted) setCurrentUser(res.data);
+      } 
+      catch (error) {
+        if (!isMounted) return; // Prevent state updates on unmounted component
 
-            return
-          } 
-          catch (error) {
-            console.log(error.response.data)
-            // Invalid token, delete and redirect to login
-            console.error(`Invalid token`);
-            localStorage.removeItem(ACCESS_TOKEN);
-            //setCurrentUser(false);
-            window.location.href = '/login';
-          }
+        if (axios.isCancel(error)) {
+          return;
+        }
+
+        // Invalid token, delete it and redirect to login unless the page is public
+        console.error('Invalid token');
+        localStorage.removeItem(ACCESS_TOKEN);
+        if (isPublicPath(path)) {
+          setCurrentUser(false);
+        } else {
+          router.replace('/login');
         }
       }
     }
-    if (!currentUser) {
-      auth().catch(() => setCurrentUser(false));
-    }
-  }, [currentUser, path])
+
+    if (!currentUser) auth();
+
+    // Cleanup function that runs if the component unmounts or path changes
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser, path, router])
   
-  if (currentUser === null) {
+  // Public pages render right away (also on the server, so their HTML has the
+  // real content) and pick up the user once the check above finishes. Only
+  // protected pages wait for it. The context value is null while checking,
+  // false for anonymous visitors and the user object once logged in.
+  if (currentUser === null && !isPublicPath(path)) {
     return <Loading/>;
   }
-  if (currentUser) {
-    return  (
-      <AuthContext.Provider value={currentUser}>
-        {children}  
-      </AuthContext.Provider>
-    ) 
-  } 
-  else { 
-    return (
-      <>
-        {children}
-      </>
-    )
-  };
+  return (
+    <AuthContext.Provider value={currentUser}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
-

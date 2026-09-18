@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './langExtraSelector.css'
 import { VARIANT_LANG } from "@/app/constants";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,26 +35,30 @@ export default function LangExtraSelector(props) {
   //const dialects = [{'Language':'Huilliche','code':'h'},{'Language':'Lafkenche','code':'l'},{'Language':'Nguluche','code':'n'},{'Language':'Pewenche','code':'p'}];
 
 
-  const updateLangByCode = (grapheme, dialect) => {
+  const { lang: currentLang, handleLangChange } = props;
+
+  // Stable between renders, so the effect below runs when the language (or
+  // its change handler) changes rather than after every render.
+  const updateLangByCode = useCallback((grapheme, dialect) => {
 
     setSelectedGrapheme(grapheme);
     setSelectedDialect(dialect);
 
-    const code = `${props.lang.code.split("_")[0]}_${grapheme}_${dialect}`;
+    const code = `${currentLang.code.split("_")[0]}_${grapheme}_${dialect}`;
 
     const lang = languages.filter((e) => e.code === code)[0];
 
-    if(code !== props.lang.code){
-      props.handleLangChange(lang);
+    if(code !== currentLang.code){
+      handleLangChange(lang);
     }
 
-  }
+  }, [currentLang.code, handleLangChange]);
 
   useEffect(() => {
-    if (props.lang.code.split("_")[0] === "arn"){
-      updateLangByCode(props.lang.writing, props.lang.dialect);
+    if (currentLang.code.split("_")[0] === "arn"){
+      updateLangByCode(currentLang.writing, currentLang.dialect);
     }
-  }, [props.lang, updateLangByCode])
+  }, [currentLang, updateLangByCode])
 
   if(VARIANT_LANG === 'arn' && props.lang.code.split('_')[0] === 'arn'){
     return (

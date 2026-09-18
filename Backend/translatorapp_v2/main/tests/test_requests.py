@@ -130,6 +130,8 @@ def test_get_pending_requests_success(api_client, admin_auth):
     assert response.status_code == 200
     assert len(response.data) == 1  # Only one pending request
     assert response.data[0]["email"] == "pending@example.com"
+    # administrators see when the request arrived
+    assert response.data[0]["created_at"]
 
 
 # 6. get_pending_requests - Unauthorized

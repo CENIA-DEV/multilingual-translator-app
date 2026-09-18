@@ -78,6 +78,7 @@ class FullProfileSerializer(BaseProfileSerializer):
             "avatar",
             "date_of_birth",
             "proficiency",
+            "oral_proficiency",
             "organization",
             "age",
         ]
@@ -87,7 +88,14 @@ class FullProfileSerializer(BaseProfileSerializer):
 class ProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = Profile
-        fields = ["avatar", "date_of_birth", "organization", "age"]
+        fields = [
+            "avatar",
+            "date_of_birth",
+            "organization",
+            "proficiency",
+            "oral_proficiency",
+            "age",
+        ]
         extra_kwargs = {"age": {"read_only": True}}
 
 
@@ -398,7 +406,11 @@ class RequestSerializer(serializers.ModelSerializer):
             "reason",
             "approved",
             "organization",
+            # When the person asked for access, so administrators can tell how
+            # long a pending request has been waiting.
+            "created_at",
         ]
+        read_only_fields = ["created_at"]
 
     def validate(self, data):
         if (

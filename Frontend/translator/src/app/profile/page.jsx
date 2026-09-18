@@ -16,7 +16,7 @@ import "./profile.css"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { AuthContext } from "../contexts"
 import { API_ENDPOINTS } from "../constants";
 import { Eye, EyeOff , ChevronDown } from "lucide-react"
@@ -26,6 +26,7 @@ import DatePicker from "../components/datePicker/datePicker"
 import { toast } from "sonner";
 import Image from "next/image";
 import { VARIANT_LANG, LANG_TITLE } from "../constants";
+import { parseDate, getLocalYYYYMMDD, hasProfileChanges } from "@/lib/profile-utils";
 
 export default function Profile(){
 
@@ -34,19 +35,16 @@ export default function Profile(){
   const [email, setEmail]= useState(currentUser.email);
   const [firstName, setFirstName]= useState(currentUser.first_name);
   const [lastName, setLastName]= useState(currentUser.last_name);
-	const [phone, setPhone]= useState(currentUser.profile.phone);
-  const [languageProficiency, setLanguageProficiency] = useState(currentUser.profile.proficiency);
-  const [organization, setOrganization] = useState(currentUser.profile.organization? currentUser.profile.organization : '');
+	const [phone, setPhone]= useState(currentUser.profile?.phone);
+  const [languageProficiency, setLanguageProficiency] = useState(currentUser.profile?.proficiency || '');
+  const [oralProficiency, setOralProficiency] = useState(currentUser.profile?.oral_proficiency || '');
+  const [organization, setOrganization] = useState(currentUser.profile?.organization || '');
   const [passwords, setPasswords] = useState({
     current: '',
     new: '',
   });
 
-  const [dateOfBirth, setDateOfBirth] = useState(
-    new Date(
-      currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]
-    )
-  );
+  const [dateOfBirth, setDateOfBirth] = useState(parseDate(currentUser.profile?.date_of_birth));
 
   const proficiencyLevels = [
     {value: 'Non-Speaker', label: 'No hablante'},
@@ -54,29 +52,37 @@ export default function Profile(){
     {value: 'Fluent', label: 'Avanzado'}
   ]
 
+  const oralProficiencyLevels = [
+    {value: 'Non-Speaker', label: 'No hablante'},
+    {value: 'Basic', label: 'Básico'},
+    {value: 'Fluent', label: 'Fluido'}
+  ]
+
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const checkFormStatus = () => {
+  const profileChanged = useCallback(() => hasProfileChanges(currentUser, {
+    firstName,
+    lastName,
+    organization,
+    languageProficiency,
+    oralProficiency,
+    dateOfBirth,
+  }), [currentUser, firstName, lastName, organization, languageProficiency, oralProficiency, dateOfBirth]);
+
+  const checkFormStatus = useCallback(() => {
     if(!firstName || !lastName || !dateOfBirth){
       setDisableSubmit(true);
+      return;
     }
-    else{
+
+    const hasPasswordChanges = passwords.current !== '' || passwords.new !== '';
+
+    if (!profileChanged() && !hasPasswordChanges) {
+      setDisableSubmit(true);
+    } else {
       setDisableSubmit(false);
     }
-
-    if(
-      currentUser.first_name === firstName &&
-      currentUser.last_name === lastName &&
-      currentUser.profile.organization === (organization? organization : null) &&
-      currentUser.profile.proficiency === languageProficiency &&
-      new Date(currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]).getDate() === dateOfBirth.getDate() &&
-      passwords.current === '' &&
-      passwords.new == ''
-    ){
-      setDisableSubmit(true);
-    }
-
-  }
+  }, [firstName, lastName, dateOfBirth, passwords, profileChanged]);
 
   const handleDateUpdate = (date) => {
     setDateOfBirth(date);
@@ -93,14 +99,10 @@ export default function Profile(){
   }
 
   const handleSubmit = async () => {
+    let profileUpdated = false;
+    let passwordUpdated = false;
     
-    if(!(
-      currentUser.first_name === firstName &&
-      currentUser.last_name === lastName &&
-      currentUser.profile.organization === (organization? organization : null) &&
-      currentUser.profile.proficiency === languageProficiency &&
-      new Date(currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]).getDate() === dateOfBirth.getDate()
-    )){
+    if(profileChanged()){
     
       try {
         await api.patch(
@@ -110,8 +112,9 @@ export default function Profile(){
             first_name: firstName,
             last_name: lastName,
             profile: {
-              date_of_birth: dateOfBirth.toISOString().split('T')[0],
+              date_of_birth: getLocalYYYYMMDD(dateOfBirth),
               proficiency: languageProficiency,
+              oral_proficiency: oralProficiency,
               organization: organization? organization : null
             }
           }
@@ -120,10 +123,13 @@ export default function Profile(){
         toast("Actualización",{
           description: "Datos actualizados con éxito",
         });
+        profileUpdated = true;
 
       } 
       catch (error) {
-        console.log(error)
+        toast("Error", {
+          description: "No se pudieron actualizar los datos del perfil",
+        });
       }
 
     }
@@ -136,13 +142,13 @@ export default function Profile(){
         });
       }
       
-      if(!passwords.new){
+      else if(!passwords.new){
         toast("Error al actualizar contraseña", {
           description: "No se ha ingresado la nueva contraseña del usuario",
         });
       }
 
-      if (passwords.current && passwords.new){
+      else {
         try {
           await api.patch(API_ENDPOINTS.USERS + "update_password/", {
             old_password: passwords.current,
@@ -152,6 +158,7 @@ export default function Profile(){
           toast("Actualización de contraseña", {
             description: "Contraseña actualizada con éxito",
           });
+          passwordUpdated = true;
         } 
         catch (error) {
           console.log(error);
@@ -169,6 +176,14 @@ export default function Profile(){
       }
     }
 
+    if (profileUpdated || passwordUpdated) {
+      // The logged-in user is only loaded once; reload so the page shows the
+      // saved data. Small delay to let toasts be seen first.
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+
     setPasswords({
       current: "",
       new: "",
@@ -177,10 +192,6 @@ export default function Profile(){
     setIsEditing(false);
 
   }
-
-  useEffect(() => {
-    checkFormStatus();
-  }, [firstName, lastName, dateOfBirth, organization, languageProficiency, checkFormStatus])
 
   useEffect(() => {
     checkFormStatus();
@@ -258,15 +269,6 @@ export default function Profile(){
                 </label>
               </div>
 
-              <DatePicker
-                label={'Fecha de nacimiento'}
-                handleDateUpdate={handleDateUpdate}
-                selectedDate={dateOfBirth}
-                disabled={!isEditing}
-              />
-            </div>
-
-            <div className="flex gap-5">
               <div className="relative w-full h-[50px]">
                 <input
                   id="organization"
@@ -285,7 +287,18 @@ export default function Profile(){
                   Organización
                 </label>
               </div>
+            </div>
 
+            {/* Three dropdowns need the full width; squeezed into half a row
+                the chevrons covered the day and the year was cut off. */}
+            <DatePicker
+              label={'Fecha de nacimiento'}
+              handleDateUpdate={handleDateUpdate}
+              selectedDate={dateOfBirth}
+              disabled={!isEditing}
+            />
+
+            <div className="flex gap-5">
               <div className="relative w-full h-[50px]">
                 <select
                   id="languageProficiency"
@@ -302,15 +315,41 @@ export default function Profile(){
                   ))}
                 </select>
                 <label
-                  htmlFor="reason"
+                  htmlFor="languageProficiency"
                   className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
                 >
-                  Nivel de {LANG_TITLE}
+                  Nivel de manejo escrito de {LANG_TITLE}
                 </label>
 
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
               </div>
+            </div>
 
+            <div className="flex gap-5">
+              <div className="relative w-full h-[50px]">
+                <select
+                  id="oralProficiency"
+                  value={oralProficiency}
+                  onChange={(e) => setOralProficiency(e.target.value)}
+                  required
+                  disabled={!isEditing}
+                  className="block cursor-pointer h-full disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-default peer"
+                >
+                  {oralProficiencyLevels.map((proficiency) => (
+                    <option key={proficiency.value} value={proficiency.value}>
+                      {proficiency.label}
+                    </option>
+                  ))}
+                </select>
+                <label
+                  htmlFor="oralProficiency"
+                  className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
+                >
+                  Nivel de manejo oral de {LANG_TITLE}
+                </label>
+
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+              </div>
             </div>
             
           </div>
@@ -367,11 +406,10 @@ export default function Profile(){
                 setPasswords({ current: '', new: '', confirm: '' })
                 setFirstName(currentUser.first_name);
                 setLastName(currentUser.last_name);
-                setLanguageProficiency(currentUser.profile.proficiency);
-                setOrganization(currentUser.profile.organization? currentUser.profile.organization: '');
-                setDateOfBirth(new Date(
-                  currentUser.profile.date_of_birth.split('-').reverse().slice(0, 2).reverse().join('-') + '-' + currentUser.profile.date_of_birth.split('-')[0]
-                ))
+                setLanguageProficiency(currentUser.profile?.proficiency || '');
+                setOralProficiency(currentUser.profile?.oral_proficiency || '');
+                setOrganization(currentUser.profile?.organization || '');
+                setDateOfBirth(parseDate(currentUser.profile?.date_of_birth));
               };
               checkFormStatus();
             }}

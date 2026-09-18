@@ -44,6 +44,7 @@ import {
   faUserCheck,
   faTrash,
   faCircleInfo,
+  faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState, useContext, useCallback } from "react";
 import { AuthContext } from "../contexts";
@@ -52,6 +53,50 @@ import api from "../api";
 import { API_ENDPOINTS, REQUEST_ACCESS_REASONS , ROLES} from "../constants";
 import ActionIcon from "../components/actionIcon/actionIcon";
 import ActionButton from "../components/actionButton/actionButton";
+
+/** "12 sept 2026", or null when the backend sent no date. */
+const formatRequestDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("es-CL", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+/** The same date with the time, for the tooltip. */
+const formatRequestDateTime = (value) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toLocaleString("es-CL");
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Returns the first problem with the invite form, or "" when it can be sent.
+const validateInvite = (invite) => {
+  if (!invite.first_name.trim()) return "Ingresa el nombre de la persona invitada.";
+  if (!invite.last_name.trim()) return "Ingresa el apellido de la persona invitada.";
+  if (!invite.email.trim()) return "Ingresa el correo de la persona invitada.";
+  if (!EMAIL_REGEX.test(invite.email.trim())) return "El correo ingresado no es válido.";
+  if (!invite.role) return "Selecciona un rol para la invitación.";
+  return "";
+};
+
+// Builds a readable message from a DRF error response (field errors or detail).
+const getApiErrorMessage = (error, fallback) => {
+  const data = error?.response?.data;
+  if (data && typeof data === "object") {
+    const messages = Object.values(data)
+      .flat()
+      .filter((message) => typeof message === "string");
+    if (messages.length) return messages.join(" ");
+  }
+  return fallback;
+};
 
 export default function Manageaccess() {
 
@@ -128,14 +173,29 @@ export default function Manageaccess() {
   }, [getInvitations, getRequests, getUsers]);
 
   const handleSendInvite = async () => {
+    const validationError = validateInvite(newInvite);
+    if (validationError) {
+      toast({
+        title: "Faltan datos para la invitación",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSendingInvite(true);
-    await sendInvite(
-      newInvite.email,
+    const sent = await sendInvite(
+      newInvite.email.trim(),
       newInvite.role,
-      newInvite.first_name,
-      newInvite.last_name,
-      newInvite.organization
+      newInvite.first_name.trim(),
+      newInvite.last_name.trim(),
+      newInvite.organization.trim()
     );
+    setIsSendingInvite(false);
+
+    // Keep the dialog open with the entered data when sending fails
+    if (!sent) return;
+
     setNewInvite({
       first_name: "",
       last_name: "",
@@ -144,25 +204,34 @@ export default function Manageaccess() {
       organization: "",
     });
     setIsInviteModalOpen(false);
-    setIsSendingInvite(false);
   };
 
+  // Returns true when the invitation was sent
   const sendInvite = async (email, role, firstName, lastName, organization) => {
     try {
-      const res = await api.post(API_ENDPOINTS.SEND_INVITATION, {
+      const body = {
         email: email,
         role: role,
         first_name: firstName,
         last_name: lastName,
-        organization: organization,
-      });
+      };
+      // The API rejects a blank organization; omit it when empty
+      if (organization) body.organization = organization;
+
+      await api.post(API_ENDPOINTS.SEND_INVITATION, body);
       toast({
         title: "Invitación enviada",
         description: `La invitación ha sido enviada correctamente al usuario ${email}`,
       });
       await getInvitations();
+      return true;
     } catch (error) {
-      console.log("Error sending invite");
+      toast({
+        title: "No se pudo enviar la invitación",
+        description: getApiErrorMessage(error, "Inténtalo nuevamente."),
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
@@ -310,7 +379,7 @@ export default function Manageaccess() {
             <div className="flex items-center space-x-4">
               <Avatar className="h-12 w-12">
                 <AvatarImage
-                  src={currentUser.profile.avatar}
+                  src={currentUser.profile?.avatar}
                   alt={currentUser.first_name + " " + currentUser.last_name}
                 />
                 <AvatarFallback>
@@ -325,22 +394,22 @@ export default function Manageaccess() {
                   {currentUser.email}
                 </p>
                 <p className="text-sm font-medium text-default">
-                  {roles.find(role => role.value === currentUser.profile.role).name}
+                  {roles.find(role => role.value === currentUser.profile?.role)?.name}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="mb-4 py-10">
-            <TabsTrigger value="users" className="text-lg font-semibold">
+          <TabsList className="mb-4 py-2 sm:h-20">
+            <TabsTrigger value="users" className="text-sm sm:text-lg font-semibold">
               Usuarios Activos
             </TabsTrigger>
-            <TabsTrigger value="invitations" className="text-lg font-semibold">
+            <TabsTrigger value="invitations" className="text-sm sm:text-lg font-semibold">
               Invitaciones Activas
             </TabsTrigger>
-            <TabsTrigger value="requests" className="text-lg font-semibold">
-              Solicitudes de Acceso Pendientes
+            <TabsTrigger value="requests" className="text-sm sm:text-lg font-semibold">
+              Solicitudes Pendientes
             </TabsTrigger>
           </TabsList>
           <TabsContent value="users">
@@ -367,12 +436,12 @@ export default function Manageaccess() {
                   : users.map((user) => (
                       <div
                         key={user.id}
-                        className="flex items-center justify-between py-4 border-b last:border-b-0"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 border-b last:border-b-0 gap-3"
                       >
                         <div className="flex items-center space-x-4">
                           <Avatar>
                             <AvatarImage
-                              src={user.profile.avatar}
+                              src={user.profile?.avatar}
                               alt={user.username}
                             />
                             <AvatarFallback>
@@ -394,14 +463,16 @@ export default function Manageaccess() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Select
                             onValueChange={(newRole) =>
                               handleUserRoleChange(user.id, newRole)
                             }
-                            defaultValue={roles.find(role => role.value === user.profile.role).value}
+                            // Accounts made with `createsuperuser` have no profile; show them
+                            // without a role instead of crashing the whole list.
+                            defaultValue={roles.find(role => role.value === user.profile?.role)?.value}
                           >
-                            <SelectTrigger className="w-[160px]">
+                            <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[160px]">
                               <SelectValue placeholder="Seleccionar Rol" />
                             </SelectTrigger>
                             <SelectContent>
@@ -516,7 +587,7 @@ export default function Manageaccess() {
                           Rol
                         </Label>
                         <Select
-                          defaultValue={roles.find(role => role.value === newInvite.role)}
+                          value={newInvite.role}
                           onValueChange={(value) =>
                             setNewInvite({ ...newInvite, role: value })
                           }
@@ -549,7 +620,7 @@ export default function Manageaccess() {
                 {invitations.map((invite) => (
                   <div
                     key={invite.id}
-                    className="flex items-center justify-between py-4 border-b last:border-b-0"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 border-b last:border-b-0 gap-3"
                   >
                     <div className="flex items-center space-x-4">
                       <Avatar>
@@ -579,14 +650,14 @@ export default function Manageaccess() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Select
                         onValueChange={(newRole) =>
                           handleInvitationRoleChange(invite.id, newRole)
                         }
                         defaultValue={roles.find(role => role.value === invite.role).value}
                       >
-                        <SelectTrigger className="w-[160px]">
+                        <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[160px]">
                           <SelectValue placeholder=" Rol" />
                         </SelectTrigger>
                         <SelectContent>
@@ -630,7 +701,7 @@ export default function Manageaccess() {
                 {requests.map((request) => (
                   <div
                     key={request.id}
-                    className="flex items-center justify-between py-4 border-b last:border-b-0"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 border-b last:border-b-0 gap-3"
                   >
                     <div className="flex items-center space-x-4">
                       <Avatar>
@@ -649,9 +720,18 @@ export default function Manageaccess() {
                         <p className="text-sm text-gray-500">
                           {REQUEST_ACCESS_REASONS.find(reason => reason.value === request.reason)?.name} {request.organization ? `(${request.organization})` : ""}
                         </p>
+                        {formatRequestDate(request.created_at) && (
+                          <p
+                            className="text-xs text-gray-400 inline-flex items-center gap-1 mt-0.5"
+                            title={formatRequestDateTime(request.created_at)}
+                          >
+                            <FontAwesomeIcon icon={faClock} className="text-[10px]" />
+                            Recibida el {formatRequestDate(request.created_at)}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       
                       <Select
                         onValueChange={(newRole) =>
@@ -659,7 +739,7 @@ export default function Manageaccess() {
                         }
                         defaultValue={request.role? roles.find(role => role.value === request.role).value : "User"}
                       >
-                        <SelectTrigger className="w-[160px]">
+                        <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[160px]">
                           <SelectValue placeholder="Rol" />
                         </SelectTrigger>
                         <SelectContent>
