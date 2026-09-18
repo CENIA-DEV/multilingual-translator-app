@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from main.models import Profile
 from rest_framework import permissions
 
@@ -24,7 +25,16 @@ class VerifyRolePermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         # checks user is authenticated and verifies role
-        return request.user.is_authenticated and request.user.profile.role == self.role
+        if not request.user.is_authenticated:
+            return False
+
+        # Be defensive if the Profile is missing: a `createsuperuser` account has
+        # none, and raising here would 500 before `IsAdminUser` gets its turn in
+        # `IsNativeAdmin | IsAdmin | IsAdminUser`.
+        try:
+            return request.user.profile.role == self.role
+        except (AttributeError, ObjectDoesNotExist):
+            return False
 
 
 class IsNativeAdmin(VerifyRolePermission):

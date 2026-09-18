@@ -300,7 +300,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class LanguageViewSet(viewsets.ModelViewSet):
-    queryset = Lang.objects.all()
+    # select_related keeps the nested script/dialect from costing two extra
+    # queries per language on the list.
+    queryset = Lang.objects.select_related("script", "dialect").order_by("name")
     serializer_class = LanguageSerializer
     permission_classes = [AllowAny]
 
@@ -316,7 +318,12 @@ class LanguageViewSet(viewsets.ModelViewSet):
         code = request.query_params.get("code")
         script = request.query_params.get("script")
         dialect = request.query_params.get("dialect")
-        queryset = self.queryset
+        # `self.get_queryset()`, never `self.queryset`: the class attribute is one
+        # queryset instance built at import time, so serializing it directly makes
+        # Django reuse its result cache for the life of the worker. An unfiltered
+        # GET would then keep returning pre-rename (and pre-create/delete) rows
+        # until the process restarted.
+        queryset = self.get_queryset()
         # if code is not None then filter by code
         if code is not None:
             queryset = queryset.filter(code__icontains=code)
@@ -325,12 +332,12 @@ class LanguageViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(script__code=script)
         elif dialect is not None:
             queryset = queryset.filter(dialect__code=dialect)
-        serializer = self.serializer_class(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 
 class InvitationViewSet(viewsets.ModelViewSet):
-    queryset = InvitationToken.objects.all()
+    queryset = InvitationToken.objects.all().order_by("-created_at")
     serializer_class = InvitationSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
 
@@ -648,7 +655,7 @@ class SuggestionViewSet(viewsets.ModelViewSet):
 class RequestViewSet(viewsets.ModelViewSet):
     serializer_class = RequestSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
-    queryset = RequestAccess.objects.all()
+    queryset = RequestAccess.objects.all().order_by("-created_at")
 
     def get_permissions(self):
         """
@@ -663,7 +670,9 @@ class RequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def get_pending_requests(self, request):
-        pending_requests = RequestAccess.objects.filter(approved=None)
+        pending_requests = RequestAccess.objects.filter(approved=None).order_by(
+            "-created_at"
+        )
         serializer = self.get_serializer(pending_requests, many=True)
         return Response(serializer.data)
 
