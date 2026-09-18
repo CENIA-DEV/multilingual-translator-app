@@ -103,12 +103,12 @@ def test_create_by_invitation_with_oral_proficiency(api_client):
         first_name="John",
         last_name="Doe",
     )
-    token.generate_token()
-    token.save()
+    # the database keeps only the hash; the client sends the raw emailed token
+    raw_token = token.generate_token()
     response = api_client.post(
         "/api/users/create_by_invitation/",
         {
-            "token": token.token,
+            "token": raw_token,
             "email": "email@admin.com",
             "username": "email@admin.com",
             "password": "adminpassword",
