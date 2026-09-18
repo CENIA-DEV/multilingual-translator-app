@@ -189,6 +189,7 @@ MIDDLEWARE = [
 
 INSTALLED_APPS = [
     "main",
+    "customization",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

@@ -39,6 +39,7 @@ from .models import (
     Word,
     WordInformation,
 )
+from .roles import can_manage_translator
 
 
 # Serializers define the API representation.
@@ -173,6 +174,8 @@ class FullUserSerializer(BaseUserSerializer):
     last_name = serializers.CharField(
         allow_blank=False
     )  # User model name field allows empty strings
+    # Lets the frontend show "Administrar Traductor" only to those who may use it
+    can_manage_translator = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -185,8 +188,12 @@ class FullUserSerializer(BaseUserSerializer):
             "last_name",
             "profile",
             "is_active",
+            "can_manage_translator",
         ]
         extra_kwargs = {"password": {"write_only": True}}
+
+    def get_can_manage_translator(self, user):
+        return can_manage_translator(user)
 
 
 class UserEmailSerializer(serializers.ModelSerializer):
