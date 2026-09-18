@@ -123,7 +123,13 @@ export default function Translator() {
 
   // Check if translation is restricted for current user
   const translationRestricted = isTranslationRestricted(currentUser);
-  const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(translationRestricted);
+  const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(false);
+
+  // The page renders before the login check finishes (currentUser is null
+  // until then), so open the dialog once we know the visitor isn't logged in.
+  useEffect(() => {
+    setTranslationRestrictedDialogOpen(translationRestricted && currentUser === false);
+  }, [translationRestricted, currentUser]);
 
 
   // Check if ASR and TTS are restricted for current user

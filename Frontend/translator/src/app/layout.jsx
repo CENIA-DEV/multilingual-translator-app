@@ -21,17 +21,41 @@ import Menu from "./components/menu/menu";
 import ProtectedRoute from "./protected-route";
 import { Toaster } from "@/components/ui/sonner";
 import { Toaster as UIToaster } from "@/components/ui/toaster";
-import { VARIANT_LANG, LANG_TITLE } from "./constants";
+import { VARIANT_LANG, LANG_TITLE, BASE_URL } from "./constants";
 import Script from "next/script";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
 config.autoAddCss = false;
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
+const TITLE = `Traductor ${LANG_TITLE}`;
+const DESCRIPTION = `Proyecto que busca revitalizar la lengua ${LANG_TITLE} mediante un traductor.`;
+
 export const metadata = {
-  title: `Traductor ${LANG_TITLE}`,
+  metadataBase: new URL(BASE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  keywords: [
+    TITLE,
+    LANG_TITLE,
+    ...(VARIANT_LANG === "rap" ? ["Isla de Pascua", "Rapa Nui a español"] : ["Mapudungun", "mapuche"]),
+    "traductor",
+    "traducción",
+    "español",
+    "lenguas indígenas",
+    "pueblos originarios",
+    "revitalización lingüística",
+  ],
   icons: {
     icon: `/logo-${VARIANT_LANG}.ico`,
+  },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: TITLE,
+    locale: "es_CL",
+    type: "website",
+    url: BASE_URL,
   },
 };
 
@@ -40,8 +64,6 @@ export default function Layout({ children }) {
   return (
     <html lang="es" suppressHydrationWarning={true}>
       <head>
-        <title>{metadata.title}</title>
-        <meta name="description" content={`Proyecto que busca revitalizar la lengua ${LANG_TITLE} mediante un traductor.`} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet" />
@@ -69,7 +91,11 @@ export default function Layout({ children }) {
       <body>
         <ProtectedRoute>
           <Suspense fallback={<Loading />}>
-            <PageViewTracker />
+            {/* useSearchParams would otherwise turn every static page into a
+                client-only render of the Loading fallback */}
+            <Suspense fallback={null}>
+              <PageViewTracker />
+            </Suspense>
             <Menu />
             {children}
             <Toaster />

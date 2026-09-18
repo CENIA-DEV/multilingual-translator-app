@@ -45,6 +45,17 @@ export const MAX_WORDS_TRANSLATION = Number(process.env.NEXT_PUBLIC_MAX_WORDS_TR
 export const BASE_LANG = "spa";
 export const VARIANT_LANG = process.env.NEXT_PUBLIC_VARIANT;
 export const LANG_TITLE = VARIANT_LANG === 'rap' ? 'Rapa Nui' : 'Mapuzungun';
+// URL configuration for the sitemap, robots.txt and metadata. The deploy
+// workflow writes NEXT_PUBLIC_BASE_URL for production builds; fallback to the
+// development host otherwise.
+export const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  "http://localhost:3000";  // fallback for local dev
+
+// Search engines may only index a production build that knows its public URL
+export const ALLOW_INDEXING =
+  process.env.NODE_ENV === "production" && Boolean(process.env.NEXT_PUBLIC_BASE_URL);
+
 export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-request', '/request-access', '/invitation' , '/about', '/translator'];
 
 // Translation restriction configuration

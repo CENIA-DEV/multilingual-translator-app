@@ -141,12 +141,16 @@ jobs:
             echo "BACKEND_URL: ${BACKEND_URL}"
             echo "NEXT_PUBLIC_API_URL=${BACKEND_URL}" >> .env.production
           else
+            # Public site URL, used by the sitemap, robots.txt and metadata.
+            # Only production gets it, so other environments stay unindexed.
             if [ "${{ steps.set-variant.outputs.variant }}" = "rap" ]; then
               echo "BACKEND_URL: ${{ vars.URL_RAP }}"
               echo "NEXT_PUBLIC_API_URL=${{ vars.URL_RAP }}" >> .env.production
+              echo "NEXT_PUBLIC_BASE_URL=${{ vars.URL_RAP }}" >> .env.production
             elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" ]; then
               echo "BACKEND_URL: ${{ vars.URL_ARN }}"
               echo "NEXT_PUBLIC_API_URL=${{ vars.URL_ARN }}" >> .env.production
+              echo "NEXT_PUBLIC_BASE_URL=${{ vars.URL_ARN }}" >> .env.production
             fi
           fi
       - name: Build Docker Image

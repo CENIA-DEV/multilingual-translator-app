@@ -93,21 +93,16 @@ export default function ProtectedRoute({ children }) {
     };
   }, [currentUser, path, router])
   
-  if (currentUser === null) {
+  // Public pages render right away (also on the server, so their HTML has the
+  // real content) and pick up the user once the check above finishes. Only
+  // protected pages wait for it. The context value is null while checking,
+  // false for anonymous visitors and the user object once logged in.
+  if (currentUser === null && !isPublicPath(path)) {
     return <Loading/>;
   }
-  if (currentUser) {
-    return  (
-      <AuthContext.Provider value={currentUser}>
-        {children}  
-      </AuthContext.Provider>
-    ) 
-  } 
-  else { 
-    return (
-      <>
-        {children}
-      </>
-    )
-  };
+  return (
+    <AuthContext.Provider value={currentUser}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
