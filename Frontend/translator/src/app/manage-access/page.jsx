@@ -332,15 +332,15 @@ export default function Manageaccess() {
           </CardContent>
         </Card>
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="mb-4 py-10">
-            <TabsTrigger value="users" className="text-lg font-semibold">
+          <TabsList className="mb-4 py-2 sm:h-20">
+            <TabsTrigger value="users" className="text-sm sm:text-lg font-semibold">
               Usuarios Activos
             </TabsTrigger>
-            <TabsTrigger value="invitations" className="text-lg font-semibold">
+            <TabsTrigger value="invitations" className="text-sm sm:text-lg font-semibold">
               Invitaciones Activas
             </TabsTrigger>
-            <TabsTrigger value="requests" className="text-lg font-semibold">
-              Solicitudes de Acceso Pendientes
+            <TabsTrigger value="requests" className="text-sm sm:text-lg font-semibold">
+              Solicitudes Pendientes
             </TabsTrigger>
           </TabsList>
           <TabsContent value="users">
@@ -367,7 +367,7 @@ export default function Manageaccess() {
                   : users.map((user) => (
                       <div
                         key={user.id}
-                        className="flex items-center justify-between py-4 border-b last:border-b-0"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 border-b last:border-b-0 gap-3"
                       >
                         <div className="flex items-center space-x-4">
                           <Avatar>
@@ -394,14 +394,14 @@ export default function Manageaccess() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Select
                             onValueChange={(newRole) =>
                               handleUserRoleChange(user.id, newRole)
                             }
                             defaultValue={roles.find(role => role.value === user.profile.role).value}
                           >
-                            <SelectTrigger className="w-[160px]">
+                            <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[160px]">
                               <SelectValue placeholder="Seleccionar Rol" />
                             </SelectTrigger>
                             <SelectContent>
@@ -549,7 +549,7 @@ export default function Manageaccess() {
                 {invitations.map((invite) => (
                   <div
                     key={invite.id}
-                    className="flex items-center justify-between py-4 border-b last:border-b-0"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 border-b last:border-b-0 gap-3"
                   >
                     <div className="flex items-center space-x-4">
                       <Avatar>
@@ -579,14 +579,14 @@ export default function Manageaccess() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Select
                         onValueChange={(newRole) =>
                           handleInvitationRoleChange(invite.id, newRole)
                         }
                         defaultValue={roles.find(role => role.value === invite.role).value}
                       >
-                        <SelectTrigger className="w-[160px]">
+                        <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[160px]">
                           <SelectValue placeholder=" Rol" />
                         </SelectTrigger>
                         <SelectContent>
@@ -630,7 +630,7 @@ export default function Manageaccess() {
                 {requests.map((request) => (
                   <div
                     key={request.id}
-                    className="flex items-center justify-between py-4 border-b last:border-b-0"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 border-b last:border-b-0 gap-3"
                   >
                     <div className="flex items-center space-x-4">
                       <Avatar>
@@ -651,7 +651,7 @@ export default function Manageaccess() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       
                       <Select
                         onValueChange={(newRole) =>
@@ -659,7 +659,7 @@ export default function Manageaccess() {
                         }
                         defaultValue={request.role? roles.find(role => role.value === request.role).value : "User"}
                       >
-                        <SelectTrigger className="w-[160px]">
+                        <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[160px]">
                           <SelectValue placeholder="Rol" />
                         </SelectTrigger>
                         <SelectContent>
