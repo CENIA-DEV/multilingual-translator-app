@@ -20,8 +20,7 @@
 // association of each fütal mapu with its land, and must be reviewed by the
 // Instituto Aukiñ Mapu before they are published. The borders are not sharp:
 // a comuna listed under one territory can have communities of another.
-// The `arn` texts are by Flor (Instituto Aukiñ Mapu); Lafkenche's is still
-// Spanish, until its Mapuzungun translation.
+// The `arn` texts are by Flor (Instituto Aukiñ Mapu).
 
 /** Territories by the variant selector's codes, from the sea to the mountains. */
 export const TERRITORY_HELP = {
@@ -31,7 +30,7 @@ export const TERRITORY_HELP = {
       icon: "lafkenche",
       // no `where`: the coast is lafkenche well beyond Arauco–Toltén (the
       // Mapuche land once reached the north), so the card names no limits
-      meaning: { es: "Gente que vive cerca del mar", en: "People who live near the sea", arn: "Gente que vive cerca del mar" },
+      meaning: { es: "Gente que vive cerca del mar", en: "People who live near the sea", arn: "Pu che mülelu/tuwlu ina lafken" },
       comunas: [
         "Arauco", "Lebu", "Los Álamos", "Cañete", "Contulmo", "Tirúa",
         "Carahue", "Saavedra", "Puerto Saavedra", "Teodoro Schmidt", "Toltén", "Mariquina",
