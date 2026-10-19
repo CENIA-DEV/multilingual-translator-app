@@ -89,6 +89,9 @@ export function useEditorState() {
     setServer(state)
     if (resetDoc) {
       const resolved = resolveConfig(state.config)
+      // saved before "Visibilidad": start from the rules the API applies now,
+      // not from the preset's (publishing would otherwise open everything)
+      if (!state.config?.access && state.access) resolved.access = state.access
       setDoc(resolved)
       savedJson.current = json(resolved)
     }

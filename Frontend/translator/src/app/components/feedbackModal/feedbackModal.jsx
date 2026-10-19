@@ -23,6 +23,10 @@ import { toast } from 'sonner';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { Checkbox } from '@/components/ui/checkbox'; // Add this import
 import { useT } from '@/customization/useT';
+import { useEffect, useState } from 'react';
+import { useConfig } from '@/customization/ConfigProvider';
+import { useLanguageSides } from '@/customization/languages';
+import SuggestionLabels, { labelsOf, variantSide } from './suggestionLabels';
 
 export default function FeedbackModal(props){
 
@@ -34,6 +38,42 @@ export default function FeedbackModal(props){
   const isSuggestionOnly = props.isSuggestionOnly;
   const { trackEvent } = useAnalytics();
   const t = useT();
+  const { variantSelector } = useConfig().languages;
+  const sides = useLanguageSides();
+
+  // Administrators editing a suggestion ("Explorar datos") also set its
+  // territory, alphabet and comuna, for languages with variants
+  const prefix = variantSelector.enabled ? variantSelector.prefix : null;
+  const side = suggestionId ? variantSide(editingTranslation, prefix) : null;
+  const [labels, setLabels] = useState(null);
+  const [initialLabels, setInitialLabels] = useState(null);
+  const sideCode = side ? editingTranslation?.[side]?.code : null;
+  useEffect(() => {
+    if (!sideCode) {
+      setLabels(null);
+      setInitialLabels(null);
+      return;
+    }
+    const start = { ...labelsOf(sideCode), commune: editingTranslation?.commune || '' };
+    setLabels(start);
+    setInitialLabels(start);
+    // only when another suggestion is opened, not on each keystroke
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestionId, sideCode]);
+
+  /** The variant's code from the labels: no territory is the alphabet alone. */
+  const labelsCode = (value) =>
+    value.territory ? sides.codeFor(value.writing, value.territory) : `${prefix}_${value.writing}`;
+
+  const saveLabels = async () => {
+    if (!labels || !initialLabels) return;
+    const changed = ['territory', 'writing', 'commune'].some((key) => (labels[key] || '') !== (initialLabels[key] || ''));
+    if (!changed) return;
+    await api.patch(`${API_ENDPOINTS.SUGGESTIONS}${suggestionId}/relabel/`, {
+      lang: labelsCode(labels),
+      commune: labels.commune || null,
+    });
+  };
 
   const uploadSuggestion = async (suggestion) => {
     try {
@@ -87,6 +127,8 @@ export default function FeedbackModal(props){
 
   const editSuggestion = async (suggestion) => {
     try {
+      // first: accepting a correction copies the pair, labels included
+      await saveLabels();
       if(suggestion.validated){
         await api.patch(
           API_ENDPOINTS.SUGGESTIONS+suggestionId+'/',
@@ -257,6 +299,10 @@ export default function FeedbackModal(props){
             </div>
           </div>
           
+          {labels && (
+            <SuggestionLabels value={labels} onChange={setLabels} />
+          )}
+
           <DialogFooter className="pt-5 flex flex-row items-center">
             <div className="flex items-center gap-2 mr-auto">
               <Checkbox

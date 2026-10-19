@@ -14,7 +14,7 @@
 # limitations under the License.
 from datetime import datetime
 
-from django.conf import settings
+from customization.access import max_words as access_max_words
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -563,7 +563,8 @@ class TranslationPairSerializer(SuggestionSerializer):
         }
 
     def validate_src_text(self, src_text):
-        max_words = settings.MAX_WORDS_TRANSLATION
+        # set in "Visibilidad" (Administrar Traductor)
+        max_words = access_max_words()
         if len(src_text.strip().split()) > max_words:
             raise serializers.ValidationError(
                 f"El texto no puede tener más de {max_words} palabras", code=400
@@ -731,14 +732,33 @@ class WordInformationSerializer(serializers.ModelSerializer):
 class WordSerializer(serializers.ModelSerializer):
     definitions = DefinitionSerializer(many=True, read_only=True)
     information = WordInformationSerializer(read_only=True)
+    # Labels by code, as the variant selector names them ("nagche", "raguileo")
+    territories = serializers.SlugRelatedField(
+        many=True,
+        slug_field="code",
+        source="dialects",
+        queryset=Dialect.objects.all(),
+        required=False,
+    )
+    writings = serializers.SlugRelatedField(
+        many=True,
+        slug_field="code",
+        source="scripts",
+        queryset=Script.objects.all(),
+        required=False,
+    )
 
     class Meta:
         model = Word
-        fields = ["id", "text", "definitions", "information"]
+        fields = ["id", "text", "definitions", "information", "territories", "writings"]
 
     def create(self, validated_data):
         definitions_data = validated_data.pop("definitions", [])
+        dialects = validated_data.pop("dialects", [])
+        scripts = validated_data.pop("scripts", [])
         word = Word.objects.create(**validated_data)
+        word.dialects.set(dialects)
+        word.scripts.set(scripts)
         for definition_data in definitions_data:
             Definition.objects.create(word=word, **definition_data)
 

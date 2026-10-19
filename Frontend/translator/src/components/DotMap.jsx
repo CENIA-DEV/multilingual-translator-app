@@ -349,6 +349,17 @@ export default function DotMap({ pins = [], geoJsonUrl, contextUrl, label, color
             const dLon = (islandBox[2] - islandBox[0]) * 0.06
             box = [islandBox[0] - dLon, islandBox[1] - dLat, islandBox[2] + dLon, islandBox[3] + dLat]
           }
+          // Pins outside the region (a meeting in a neighbouring one) widen the
+          // frame, so every pin sits on the map rather than clamped to its edge.
+          if (pins.length) {
+            const margin = Math.max(islandBox[2] - islandBox[0], islandBox[3] - islandBox[1]) * 0.05
+            box = [
+              Math.min(box[0], ...pins.map((p) => p.lon - margin)),
+              Math.min(box[1], ...pins.map((p) => p.lat - margin)),
+              Math.max(box[2], ...pins.map((p) => p.lon + margin)),
+              Math.max(box[3], ...pins.map((p) => p.lat + margin)),
+            ]
+          }
           const [minLon, minLat, maxLon, maxLat] = box
           const cos = Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180)
           const ratio = ((maxLon - minLon) * cos) / (maxLat - minLat)

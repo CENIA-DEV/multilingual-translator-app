@@ -63,6 +63,12 @@ export const SECTION_IDS = [
   "contact",
 ]
 
+/** The document with the access rules in force (reported by the API, which
+ * enforces them) in place of its own. */
+export function withAccess(config, access) {
+  return access ? { ...config, access } : config
+}
+
 /** The document to render: `stored` (if any) laid over the `base` preset. */
 export function resolveWith(base, stored) {
   const merged = deepMerge(base, stored || undefined)

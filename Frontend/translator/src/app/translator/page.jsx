@@ -36,7 +36,8 @@ import {
 import Card from "../components/card/card.jsx"
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
-import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, WORD_INFORMATION_REQUIRES_AUTH, SEPARATE_GENDERS_REQUIRES_AUTH, MAINTENANCE_MODE } from '../constants';
+import { AUTOFILL_TRANSCRIPT, FORCED_MAINTENANCE, MAX_AUDIO_MB } from '../constants';
+import { useAccess } from '@/customization/access';
 import { useConfig, useIsPreview } from '@/customization/ConfigProvider';
 import { matchesPrefix, prefixOf, useLanguageSides, variantParts } from '@/customization/languages';
 import RichText from '@/customization/RichText';
@@ -54,6 +55,15 @@ import { useWaveform } from '../../hooks/useWaveform';
 import { validateTranscriptionApi } from '../services/asrService';
 import { useASR } from '../../hooks/useASR';
 import { getLanguages, translateText, submitPositiveFeedback } from '../services/translationService';
+
+// When to say a translation is slow. A normal one takes up to ~11 s on the
+// slowest model (p95 of the Mapuzungun model's inference time, Oct 2026), and
+// long texts take longer, so warn only past that: 12 s, plus 0.15 s per word
+// beyond the first 30.
+function slowTranslationMs(text) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return 12000 + Math.max(0, words - 30) * 150;
+}
 
 export default function Translator() {
 
@@ -155,7 +165,8 @@ export default function Translator() {
     setHelpFirst(false);
     if (texts.notice.enabled && !isPreview) setShowDevModal(true);
   };
-  const [showMaintenanceModal, setShowMaintenanceModal] = useState(MAINTENANCE_MODE);
+  // maintenance and who may use what: "Visibilidad" in Administrar Traductor
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(FORCED_MAINTENANCE || Boolean(config.access?.maintenance));
   
   // Record modal
   const [showRecordModal, setShowRecordModal] = useState(false);
@@ -172,11 +183,21 @@ export default function Translator() {
   const [isMobile, setIsMobile] = useState(false);
 
   const currentUser = useContext(AuthContext);
-  const isLoggedIn = !!currentUser;
 
-  // Check if translation is restricted for current user
-  const translationRestricted = isTranslationRestricted(currentUser);
+  // Who may use what ("Visibilidad"): the API enforces it, this shows it
+  const access = useAccess(currentUser || null);
+  const translationRestricted = !access.can('translation');
   const [translationRestrictedDialogOpen, setTranslationRestrictedDialogOpen] = useState(false);
+  // A logged-in user kept out by a role can't fix it by logging in: say so
+  const openRestricted = () => {
+    if (currentUser) toast(t('access.noRole'));
+    else setTranslationRestrictedDialogOpen(true);
+  };
+  // The page itself can be for logged-in users or some roles only
+  const pageAllowed = access.can('translatorPage');
+  useEffect(() => {
+    if (!pageAllowed && currentUser === false) router.replace('/login');
+  }, [pageAllowed, currentUser, router]);
 
   // The page renders before the login check finishes (currentUser is null
   // until then), so open the dialog once we know the visitor isn't logged in.
@@ -186,8 +207,8 @@ export default function Translator() {
 
 
   // Check if ASR and TTS are restricted for current user
-  const ASRRestricted = isASRRestricted(currentUser);
-  const TTSRestricted = isTTSRestricted(currentUser);
+  const ASRRestricted = !access.can('asr');
+  const TTSRestricted = !access.can('tts');
 
   // --- Which languages get voice features ("Idiomas y funciones" in Administrar Traductor) ---
   // TTS reads languages by prefix ('rap' covers every Rapa Nui variant)
@@ -225,10 +246,10 @@ export default function Translator() {
   
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
-  const WORD_INFORMATION_VISIBLE_D = !WORD_INFORMATION_REQUIRES_AUTH || isLoggedIn;
+  const WORD_INFORMATION_VISIBLE_D = access.can('wordInformation');
   
-  // Separate genders: allowed if not required for auth, or if auth is required and user is logged in
-  const SEPARATE_GENDERS_ALLOWED_D = !SEPARATE_GENDERS_REQUIRES_AUTH || isLoggedIn;
+  // Separate (male / female) voices: their own rule
+  const SEPARATE_GENDERS_ALLOWED_D = access.can('separateGenders');
 
   // ASR buttons: show if language is supported
   const ASR_MIC_VISIBLE_D = isASRLang(srcLang) || isASRLang(dstLang);
@@ -409,7 +430,7 @@ export default function Translator() {
   const handleTranslate = async () => {
     // Check if translation is restricted FIRST
     if (translationRestricted) {
-      setTranslationRestrictedDialogOpen(true);
+      openRestricted();
       return;
     }
     
@@ -459,8 +480,8 @@ export default function Translator() {
     
     // if the text is longer than the max words, limit the text to the max words
     // while preserving the structure (newlines)
-    if (wordCount > MAX_WORDS_TRANSLATION){
-      text = limitWordsPreserveLines(text, MAX_WORDS_TRANSLATION);
+    if (wordCount > access.maxWords){
+      text = limitWordsPreserveLines(text, access.maxWords);
       setSrcText(text);
       setShowSrcTextMessage(true);
       setTimeout(() => {
@@ -510,7 +531,7 @@ export default function Translator() {
   // TTS Wrapper Functions
   async function handleSpeak({ text, lang = 'es-ES', gender }) {
     if (TTSRestricted) {
-      setTranslationRestrictedDialogOpen(true);
+      openRestricted();
       toast(t('tts.loginRequired'), { duration: 4000 });
       return;
     }
@@ -537,14 +558,14 @@ export default function Translator() {
   }
 
   const translate = async () => {
-    if (translationRestricted) { setTranslationRestrictedDialogOpen(true); return; }
+    if (translationRestricted) { openRestricted(); return; }
     if (loadingState || isLoadingAudio) return;                      // extra guard
     if (srcText.length === 0) { setDstText(''); return; }
     setLoadingState(true);
     const startTime = performance.now();
     let timeoutId = setTimeout(() => {
       toast(t('translator.slow'), { duration: 20000 });
-    }, 5000);
+    }, slowTranslationMs(srcText));
 
     try {
       const requestId = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
@@ -715,6 +736,15 @@ export default function Translator() {
 
   const isBusy = asrStatus === 'transcribing' || asrStatus === 'processing';
 
+  if (!pageAllowed) {
+    // a visitor is on the way to the login page; a user without the role stays
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-default p-6 text-center text-white">
+        {currentUser && <p className="max-w-md text-lg font-semibold">{t('access.pageNoRole')}</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="translator-container relative min-h-[100dvh] overflow-hidden">
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
@@ -793,7 +823,7 @@ export default function Translator() {
                   hidden
                   onChange={async (e) => {
                     if (translationRestricted) {
-                      setTranslationRestrictedDialogOpen(true);
+                      openRestricted();
                       e.currentTarget.value = "";
                       return;
                     }
@@ -875,7 +905,7 @@ export default function Translator() {
 				className={`box-content w-[50px] h-[50px] rounded-full flex justify-center items-center bg-white z-[3] cursor-pointer border-[8px] border-default shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 max-[850px]:-translate-y-1 ${showRecordModal ? 'hidden' : ''}`}
 				onClick={async () => {
 				  if (ASRRestricted) {
-					setTranslationRestrictedDialogOpen(true);
+					openRestricted();
 					return;
 				  }
 				  

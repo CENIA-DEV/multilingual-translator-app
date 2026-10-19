@@ -475,6 +475,29 @@ class Landing(Strict):
         return self
 
 
+# ------------------------------------------------------------------- access
+# Who may use each feature ("Visibilidad"); enforced by the API (access.py)
+AccessLevel = Literal["public", "login", "roles"]
+RoleName = Literal["Admin", "NativeAdmin", "Annotator", "Native", "User"]
+
+
+class AccessRule(Strict):
+    level: AccessLevel
+    # with level "roles": who besides the top-tier admins, who always may
+    roles: Annotated[List[RoleName], Field(max_length=5)] = []
+
+
+class Access(Strict):
+    translatorPage: AccessRule
+    translation: AccessRule
+    tts: AccessRule
+    separateGenders: AccessRule
+    asr: AccessRule
+    wordInformation: AccessRule
+    maintenance: bool
+    maxWordsTranslation: Annotated[int, Field(ge=1, le=2000)]
+
+
 class TranslatorConfig(Strict):
     schemaVersion: Literal[SCHEMA_VERSION]
     identity: Identity
@@ -486,6 +509,8 @@ class TranslatorConfig(Strict):
     # Translations of the app's fixed texts, over the frontend's defaults
     ui: Annotated[Dict[UiKey, I18n], Field(max_length=500)] = {}
     landing: Landing
+    # Absent in documents saved before "Visibilidad": the API's defaults apply
+    access: Optional[Access] = None
 
 
 # ------------------------------------------------------------------- errors

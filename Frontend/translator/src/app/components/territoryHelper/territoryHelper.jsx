@@ -27,53 +27,17 @@ import { useT } from "@/customization/useT";
 // Its texts are the "territoryHelp.*" messages (messages.js); a deployment's own
 // language translates them in its `ui` map, like the other texts.
 
-/** Small pictures for the cards, drawn in the brand colour. */
+/** The card's picture, /public/images/territories/<icon>.svg, painted in the
+ * brand colour (the file is a mask, so it takes whatever colour the text has). */
 function TerritoryIcon({ icon, className = "h-9 w-9" }) {
-  const common = { className, viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true }
-  switch (icon) {
-    case "sea":
-      return (
-        <svg {...common}>
-          <path d="M4 22c4-4 8-4 12 0s8 4 12 0 8-4 12 0 4 2 4 2" />
-          <path d="M4 32c4-4 8-4 12 0s8 4 12 0 8-4 12 0 4 2 4 2" />
-          <path d="M4 42c4-4 8-4 12 0s8 4 12 0 8-4 12 0" />
-        </svg>
-      )
-    case "hills":
-      return (
-        <svg {...common}>
-          <path d="M2 40c6-10 12-14 18-14s10 6 14 6 8-8 12-8" />
-          <path d="M2 40h44" />
-          <circle cx="14" cy="14" r="4" />
-        </svg>
-      )
-    case "sun":
-      return (
-        <svg {...common}>
-          <circle cx="24" cy="20" r="7" />
-          <path d="M24 5v4M24 31v4M9 20h4M35 20h4M13.5 9.5l2.8 2.8M31.7 27.7l2.8 2.8M13.5 30.5l2.8-2.8M31.7 12.3l2.8-2.8" />
-          <path d="M4 42h40M8 37h32" />
-        </svg>
-      )
-    case "araucaria":
-      return (
-        <svg {...common}>
-          <path d="M24 44V10" />
-          <path d="M24 12c-6 0-10 3-12 6M24 12c6 0 10 3 12 6" />
-          <path d="M24 20c-5 0-9 2-11 5M24 20c5 0 9 2 11 5" />
-          <path d="M24 28c-4 0-7 2-9 4M24 28c4 0 7 2 9 4" />
-        </svg>
-      )
-    default: // south: islands and a boat
-      return (
-        <svg {...common}>
-          <path d="M4 38c4-3 8-3 12 0s8 3 12 0 8-3 12 0" />
-          <path d="M10 30c2-6 6-8 9-8s6 4 7 8" />
-          <path d="M30 26h12l-3 5h-6z" />
-          <path d="M36 26V14l6 9" />
-        </svg>
-      )
-  }
+  const url = `url(/images/territories/${icon}.svg)`
+  return (
+    <span
+      aria-hidden
+      className={`block bg-current ${className}`}
+      style={{ WebkitMask: `${url} center / contain no-repeat`, mask: `${url} center / contain no-repeat` }}
+    />
+  )
 }
 
 export default function TerritoryHelper({ open, onOpenChange, zones, current, currentCommune = null, onChoose, label }) {
@@ -210,10 +174,10 @@ export default function TerritoryHelper({ open, onOpenChange, zones, current, cu
                       <Check className="h-3 w-3 sm:h-4 sm:w-4" />
                     </span>
                   )}
-                  <span className="text-default"><TerritoryIcon icon={zone.icon} className="h-7 w-7 sm:h-9 sm:w-9" /></span>
+                  <span className="text-default"><TerritoryIcon icon={zone.icon} className="h-11 w-11 sm:h-14 sm:w-14" /></span>
                   <span className="text-[14px] font-bold text-slate-900 sm:text-[17px]">{label(zone.code)}</span>
                   <span className="text-[11.5px] leading-snug text-slate-600 sm:text-[13px]">{t.tr(zone.meaning)}</span>
-                  <span className="hidden text-[12px] leading-snug text-slate-500 sm:block">{t.tr(zone.where)}</span>
+                  {zone.where && <span className="hidden text-[12px] leading-snug text-slate-500 sm:block">{t.tr(zone.where)}</span>}
                 </button>
               )
             })}

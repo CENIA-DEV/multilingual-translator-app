@@ -16,6 +16,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
 import { themeCss } from "./theme"
+import { withAccess } from "./config"
 import { landingFontsHref } from "./fonts"
 import { LOCALE_COOKIE, resolveLocale } from "./locale"
 
@@ -76,7 +77,7 @@ export function ConfigProvider({ initial, children }) {
     ])
       .then(([body, { resolveConfig }]) => {
         if (!cancelled && body && body.version !== initial.version) {
-          setSite({ config: resolveConfig(body.config), version: body.version })
+          setSite({ config: withAccess(resolveConfig(body.config), body.access), version: body.version })
         }
       })
       .catch(() => {})

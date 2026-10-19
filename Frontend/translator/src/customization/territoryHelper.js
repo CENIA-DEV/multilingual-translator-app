@@ -20,20 +20,18 @@
 // association of each fütal mapu with its land, and must be reviewed by the
 // Instituto Aukiñ Mapu before they are published. The borders are not sharp:
 // a comuna listed under one territory can have communities of another.
-// The `arn` texts are Spanish for now, until their Mapuzungun translations.
+// The `arn` texts are by Flor (Instituto Aukiñ Mapu); Lafkenche's is still
+// Spanish, until its Mapuzungun translation.
 
 /** Territories by the variant selector's codes, from the sea to the mountains. */
 export const TERRITORY_HELP = {
   arn: [
     {
       code: "lafkenche",
-      icon: "sea",
-      meaning: { es: "Gente del mar", en: "People of the sea", arn: "Gente del mar" },
-      where: {
-        es: "La costa, desde Arauco hasta Toltén y el norte de Los Ríos",
-        en: "The coast, from Arauco to Toltén and northern Los Ríos",
-        arn: "La costa, desde Arauco hasta Toltén y el norte de Los Ríos",
-      },
+      icon: "lafkenche",
+      // no `where`: the coast is lafkenche well beyond Arauco–Toltén (the
+      // Mapuche land once reached the north), so the card names no limits
+      meaning: { es: "Gente que vive cerca del mar", en: "People who live near the sea", arn: "Gente que vive cerca del mar" },
       comunas: [
         "Arauco", "Lebu", "Los Álamos", "Cañete", "Contulmo", "Tirúa",
         "Carahue", "Saavedra", "Puerto Saavedra", "Teodoro Schmidt", "Toltén", "Mariquina",
@@ -41,12 +39,12 @@ export const TERRITORY_HELP = {
     },
     {
       code: "nagche",
-      icon: "hills",
-      meaning: { es: "Gente de las tierras bajas", en: "People of the lowlands", arn: "Gente de las tierras bajas" },
+      icon: "nagche",
+      meaning: { es: "Gente de las tierras bajas", en: "People of the lowlands", arn: "Pu che tuwlu lelfün naq mew" },
       where: {
         es: "Las lomas y valles junto a la cordillera de Nahuelbuta",
         en: "The hills and valleys by the Nahuelbuta range",
-        arn: "Las lomas y valles junto a la cordillera de Nahuelbuta",
+        arn: "Tuwlu lelfün mew mülelu ina fütxa mawiza Nawelfütxa",
       },
       comunas: [
         "Purén", "Lumaco", "Los Sauces", "Traiguén", "Galvarino", "Cholchol", "Chol Chol",
@@ -55,12 +53,12 @@ export const TERRITORY_HELP = {
     },
     {
       code: "wenteche",
-      icon: "sun",
-      meaning: { es: "Gente de los llanos altos", en: "People of the high plains", arn: "Gente de los llanos altos" },
+      icon: "wenteche",
+      meaning: { es: "Gente de los llanos altos", en: "People of the high plains", arn: "Pu che mülelu wente mapu mew" },
       where: {
         es: "El valle central, alrededor de Temuco",
         en: "The central valley, around Temuco",
-        arn: "El valle central, alrededor de Temuco",
+        arn: "Ragintu mapu ka wall Temuko mew",
       },
       comunas: [
         "Temuco", "Padre Las Casas", "Nueva Imperial", "Lautaro", "Perquenco", "Victoria",
@@ -69,12 +67,12 @@ export const TERRITORY_HELP = {
     },
     {
       code: "pewenche",
-      icon: "araucaria",
-      meaning: { es: "Gente del pewen (la araucaria)", en: "People of the pewen (monkey puzzle tree)", arn: "Gente del pewen (la araucaria)" },
+      icon: "pewenche",
+      meaning: { es: "Gente del pewen (la araucaria)", en: "People of the pewen (monkey puzzle tree)", arn: "Pu che mülelu pewen mapu chew" },
       where: {
         es: "La cordillera de los Andes, entre araucarias y volcanes",
         en: "The Andes, among monkey puzzle trees and volcanoes",
-        arn: "La cordillera de los Andes, entre araucarias y volcanes",
+        arn: "Los Andes fütxa mawiza mew, pu pewenentu ka pu zeqiñentu mew",
       },
       comunas: [
         "Alto Biobío", "Santa Bárbara", "Lonquimay", "Curacautín", "Melipeuco", "Curarrehue",
@@ -82,12 +80,12 @@ export const TERRITORY_HELP = {
     },
     {
       code: "williche",
-      icon: "south",
-      meaning: { es: "Gente del sur", en: "People of the south", arn: "Gente del sur" },
+      icon: "williche",
+      meaning: { es: "Gente del sur", en: "People of the south", arn: "Pu che mülelu willi mapu püle" },
       where: {
         es: "Los Ríos, Los Lagos y Chiloé",
         en: "Los Ríos, Los Lagos and Chiloé",
-        arn: "Los Ríos, Los Lagos y Chiloé",
+        arn: "Los Ríos, Los Lagos ka Chillwe mapu",
       },
       comunas: [
         "Valdivia", "La Unión", "Río Bueno", "Lago Ranco", "Osorno", "San Juan de la Costa",
