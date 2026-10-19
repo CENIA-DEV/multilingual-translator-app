@@ -23,9 +23,47 @@ import { Badge } from "@/components/ui/badge"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft , faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { useState , useEffect, useCallback } from "react";
-import { API_ENDPOINTS, BASE_LANG, VARIANT_LANG } from '../../constants.js';
+import { API_ENDPOINTS, BASE_LANG } from '../../constants.js';
+import { useConfig } from '@/customization/ConfigProvider';
+import { useLanguageSides } from '@/customization/languages';
+import { translate } from '@/customization/i18n';
 import api from '../../api.js';
 import { useToast } from "@/hooks/use-toast"
+
+/**
+ * The language of a suggestion. A variant (arn_raguileo_nagche) shows as its language,
+ * with the territory and alphabet it was translated in underneath, named as
+ * in the translator's selectors.
+ */
+function LangBadge({ lang, commune }) {
+  const { variantSelector } = useConfig().languages;
+  const sides = useLanguageSides();
+  const variant = sides.variantOf(lang);
+  const tone = lang.code !== 'spa_Latn'
+    ? 'bg-default hover:bg-defaultHover'
+    : 'bg-red-500 hover:bg-red-600';
+  return (
+    <div className="flex shrink-0 flex-col items-end gap-1">
+      <Badge variant="secondary" className={`${tone} text-white min-w-[90px] justify-center`}>
+        {sides.displayLanguage(lang).name}
+      </Badge>
+      {variant && (
+        <div className="text-right text-xs leading-4 text-gray-600">
+          {variant.dialect && (
+            <div>{translate(variantSelector.dialectLabel, 'es')}: <b className="text-xs font-semibold">{translate(variant.dialect, 'es')}</b></div>
+          )}
+          {variant.writing && (
+            <div>{translate(variantSelector.label, 'es')}: <b className="text-xs font-semibold">{translate(variant.writing, 'es')}</b></div>
+          )}
+          {/* the comuna the user picked in "Ayúdame a decidir", if any */}
+          {commune && (
+            <div>Comuna: <b className="text-xs font-semibold">{commune}</b></div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Rows per page. Sent to the API as `page_size` rather than assumed, so the
@@ -53,7 +91,8 @@ export default function ListSuggestions({validated, ...props}) {
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, totalCount);
 
   const srcLang = `${BASE_LANG}_Latn`
-  const dstLang = VARIANT_LANG === 'arn' ? 'arn_a0_n,arn_r0_n,arn_u0_n' : `${VARIANT_LANG}_Latn`;
+  // The translator's own language(s), from "Idiomas y funciones"
+  const dstLang = useConfig().languages.nativeCodes.join(',');
   
   const reorderSuggestions = useCallback((suggestions) => {
     return suggestions.map((suggestion) => {
@@ -227,21 +266,13 @@ export default function ListSuggestions({validated, ...props}) {
                       <TableCell className="font-medium">
                         <div className="flex items-center justify-between w-full">
                           <div className="max-h-24 overflow-y-auto pr-2">{suggestion.src_text}</div>
-                          {suggestion.src_lang.code !== 'spa_Latn' ? (
-                            <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-[90px] justify-center'>{suggestion.src_lang.name}</Badge>
-                          ) : (
-                            <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-[90px] justify-center'>{suggestion.src_lang.name}</Badge>
-                          )}
+                          <LangBadge lang={suggestion.src_lang} commune={suggestion.commune} />
                         </div>
                       </TableCell>
                       <TableCell> 
                         <div className="flex items-center justify-between w-full"> 
                           <div className="max-h-24 overflow-y-auto pr-2">{validated ? suggestion.dst_text : suggestion.suggestion}</div>
-                          {suggestion.dst_lang.code !== 'spa_Latn' ? (
-                            <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-[90px] justify-center'>{suggestion.dst_lang.name}</Badge>
-                          ) : (
-                            <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-[90px] justify-center'>{suggestion.dst_lang.name}</Badge>
-                          )}
+                          <LangBadge lang={suggestion.dst_lang} commune={suggestion.commune} />
                         </div>
                       </TableCell>
                       <TableCell className="text-right">

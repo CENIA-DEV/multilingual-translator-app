@@ -485,88 +485,94 @@
   { "name": "Mossi", "code": "mos_Latn", "writing": "Latn", "dialect": null },
   { "name": "Maori", "code": "mri_Latn", "writing": "Latn", "dialect": null },
   {
-    "name": "Huilliche Az\u00fcmchefe",
-    "code": "arn_a0_h",
-    "writing": "a0",
-    "dialect": "h"
-  },
-  {
-    "name": "Huilliche Ragileo",
-    "code": "arn_r0_h",
-    "writing": "r0",
-    "dialect": "h"
-  },
-  {
-    "name": "Huilliche Unificado",
-    "code": "arn_u0_h",
-    "writing": "u0",
-    "dialect": "h"
-  },
-  {
     "name": "Lafkenche Az\u00fcmchefe",
-    "code": "arn_a0_l",
-    "writing": "a0",
-    "dialect": "l"
+    "code": "arn_azumchefe_lafkenche",
+    "writing": "azumchefe",
+    "dialect": "lafkenche"
   },
   {
     "name": "Lafkenche Ragileo",
-    "code": "arn_r0_l",
-    "writing": "r0",
-    "dialect": "l"
+    "code": "arn_raguileo_lafkenche",
+    "writing": "raguileo",
+    "dialect": "lafkenche"
   },
   {
     "name": "Lafkenche Unificado",
-    "code": "arn_u0_l",
-    "writing": "u0",
-    "dialect": "l"
-  },
-  {
-    "name": "Nguluche Az\u00fcmchefe",
-    "code": "arn_a0_n",
-    "writing": "a0",
-    "dialect": "n"
-  },
-  {
-    "name": "Nguluche Ragileo",
-    "code": "arn_r0_n",
-    "writing": "r0",
-    "dialect": "n"
-  },
-  {
-    "name": "Nguluche Unificado",
-    "code": "arn_u0_n",
-    "writing": "u0",
-    "dialect": "n"
+    "code": "arn_amu_lafkenche",
+    "writing": "amu",
+    "dialect": "lafkenche"
   },
   {
     "name": "Pewenche Az\u00fcmchefe",
-    "code": "arn_a0_p",
-    "writing": "a0",
-    "dialect": "p"
+    "code": "arn_azumchefe_pewenche",
+    "writing": "azumchefe",
+    "dialect": "pewenche"
   },
   {
     "name": "Pewenche Ragileo",
-    "code": "arn_r0_p",
-    "writing": "r0",
-    "dialect": "p"
+    "code": "arn_raguileo_pewenche",
+    "writing": "raguileo",
+    "dialect": "pewenche"
   },
   {
     "name": "Pewenche Unificado",
-    "code": "arn_u0_p",
-    "writing": "u0",
-    "dialect": "p"
+    "code": "arn_amu_pewenche",
+    "writing": "amu",
+    "dialect": "pewenche"
   },
   {
-    "name": "Mapundungun Estandar 1",
-    "code": "arn_ave",
-    "writing": "ave",
+    "name": "Mapuzungun",
+    "code": "arn_Latn",
+    "writing": "Latn",
     "dialect": null
   },
   {
-    "name": "Mapundungun Estandar 2",
-    "code": "arn_jw",
-    "writing": "jw",
-    "dialect": null
+    "name": "Nagche Az\u00fcmchefe",
+    "code": "arn_azumchefe_nagche",
+    "writing": "azumchefe",
+    "dialect": "nagche"
+  },
+  {
+    "name": "Nagche Raguileo",
+    "code": "arn_raguileo_nagche",
+    "writing": "raguileo",
+    "dialect": "nagche"
+  },
+  {
+    "name": "Nagche Unificado",
+    "code": "arn_amu_nagche",
+    "writing": "amu",
+    "dialect": "nagche"
+  },
+  {
+    "name": "Wenteche Az\u00fcmchefe",
+    "code": "arn_azumchefe_wenteche",
+    "writing": "azumchefe",
+    "dialect": "wenteche"
+  },
+  {
+    "name": "Wenteche Raguileo",
+    "code": "arn_raguileo_wenteche",
+    "writing": "raguileo",
+    "dialect": "wenteche"
+  },
+  {
+    "name": "Wenteche Unificado",
+    "code": "arn_amu_wenteche",
+    "writing": "amu",
+    "dialect": "wenteche"
+  },
+  {
+    "name": "Williche Cacicado",
+    "code": "arn_cacicado-huilliche_williche",
+    "writing": "cacicado-huilliche",
+    "dialect": "williche"
+  },
+  {
+    "name": "Williche Rumian",
+    "code": "arn_rumian_williche",
+    "writing": "rumian",
+    "dialect": "williche"
   },
   { "name": "Burmese", "code": "mya_Mymr", "writing": "Mymr", "dialect": null },
   { "name": "Dutch", "code": "nld_Latn", "writing": "Latn", "dialect": null },

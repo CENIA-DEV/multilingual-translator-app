@@ -29,6 +29,7 @@ export default function robots() {
           "/manage-access",
           "/explore-data",
           "/manage-word-information",
+          "/manage-translator",
         ]
       : ["/"],
   };

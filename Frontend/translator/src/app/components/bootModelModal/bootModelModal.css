@@ -59,7 +59,7 @@ limitations under the License. */
   position: relative;
   font-family: inherit;
   color: #fff;
-  background-color: #0a8cde;
+  background-color: rgb(var(--brand));
   border: none;
   width: 90%;
   height: 50px;
@@ -75,7 +75,7 @@ limitations under the License. */
 }
 
 .close-btn::before {
-  background-color: #0e9ff8;
+  background-color: rgb(var(--brand-hover));
   width: 0;
   height: 100%;
   content: "";

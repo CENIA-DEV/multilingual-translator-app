@@ -15,11 +15,14 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import api from "@/app/api";
-import { API_ENDPOINTS } from "@/app/constants";
+import { API_ENDPOINTS, MAX_WORDS_TRANSLATION } from "@/app/constants";
 import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
-import Image from "next/image";
-import { VARIANT_LANG, LANG_TITLE } from "@/app/constants";
+import { useConfig } from "@/customization/ConfigProvider";
+import { matchesPrefix } from "@/customization/languages";
+import { useT } from "@/customization/useT";
+import { MediaImage } from "@/customization/media";
+import Backdrop from "@/customization/Backdrop";
 import {
   Tooltip,
   TooltipContent,
@@ -43,7 +46,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
-  const [showGenderOptions, setShowGenderOptions] = useState(false);
+  const { identity, translator, features, landing } = useConfig();
+  const t = useT();
+const [showGenderOptions, setShowGenderOptions] = useState(false);
   const [isLeftFocused, setIsLeftFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
@@ -64,12 +69,15 @@ export default function Card(props) {
   const isSpeaking = props.isSpeaking;
   const isLoadingAudio = props.isLoadingAudio;
   const wordInformationEnabled = !!props.wordInformationEnabled;
-  const isRapaNuiLanguage = (lang?.code || "").toLowerCase().startsWith("rap");
-  const isWordInformationActive = wordInformationEnabled && isRapaNuiLanguage;
+  // Word information exists for the languages listed in the customization
+  const hasWordInformation =
+    features.wordInformation.enabled &&
+    matchesPrefix(lang, features.wordInformation.languages);
+  const isWordInformationActive = wordInformationEnabled && hasWordInformation;
   const separateGendersAllowed = props.separateGendersAllowed !== false;
   const onSpeak = props.onSpeak;
   const onStop = props.onStop;
-  const speakerColor = side === "left" ? "#0a8cde" : "#ffffff";
+  const speakerColor = side === "left" ? "rgb(var(--brand))" : "#ffffff";
   const showSpeaker = ttsEnabled && !!ttsText?.trim();
   const showClearLeft = side === "left" && !!srcText?.trim();
   const [wordInfo, setWordInfo] = useState([]);
@@ -170,7 +178,7 @@ export default function Card(props) {
     }
 
     const dotColor = side === "left" ? "#000000" : "#ffffff";
-    const highlightBg = side === "left" ? "rgba(10, 140, 222, 0.15)" : "rgba(255, 255, 255, 0.2)";
+    const highlightBg = side === "left" ? "rgb(var(--brand) / 0.15)" : "rgba(255, 255, 255, 0.2)";
     const highlightTextColor = side === "left" ? "inherit" : "#ffffff";
     const regularTextColor = side === "left" ? "inherit" : "#ffffff";
 
@@ -238,17 +246,17 @@ export default function Card(props) {
               <button
                 type="button"
                 className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
-                aria-label="Información adicional"
+                aria-label={t("card.moreInfo")}
               >
                 <FontAwesomeIcon
                   icon={faInfoCircle}
-                  className={`h-6 w-6 ${speakerColor === "#ffffff" ? "text-white" : "text-[#0a8cde]"}`}
+                  className={`h-6 w-6 ${speakerColor === "#ffffff" ? "text-white" : "text-default"}`}
                 />
               </button>
             </TooltipTrigger>
           </PopoverTrigger>
           <TooltipContent className={infoTooltipClassName}>
-            <p>Información palabras</p>
+            <p>{t("card.wordInfo")}</p>
           </TooltipContent>
         </Tooltip>
         <PopoverContent
@@ -257,7 +265,7 @@ export default function Card(props) {
           className="w-80 p-4 bg-white/95 backdrop-blur-md border shadow-2xl rounded-xl z-50 text-black"
         >
           <h4 className="font-bold mb-3 border-b pb-2">
-            Información adicional
+            {t("card.moreInfo")}
           </h4>
           <div className="max-h-[300px] overflow-y-auto">
             {wordInfo.length > 0 ? (
@@ -268,7 +276,7 @@ export default function Card(props) {
                   </strong>
                   {w.information?.other_ways_to_say?.length > 0 && (
                     <p className="text-sm mt-1">
-                      <strong>Sinónimos:</strong>{" "}
+                      <strong>{t("card.synonyms")}</strong>{" "}
                       {w.information.other_ways_to_say.join(", ")}
                     </p>
                   )}
@@ -281,7 +289,7 @@ export default function Card(props) {
               ))
             ) : (
               <p className="text-sm text-slate-600">
-                No hay información disponible para esta traducción.
+                {t("card.noInfo")}
               </p>
             )}
           </div>
@@ -304,40 +312,64 @@ export default function Card(props) {
       className={`card-container flex flex-col items-center relative ${
         side === "left"
           ? "card-container-left bg-gradient-to-b from-white to-white/10 bg-bottom bg-no-repeat bg-contain bg-white shadow-[0px_0_70px_rgba(0,0,0,0.50)] z-[1] animate-[card-slide-in-left_1.5s_cubic-bezier(0.390,0.575,0.565,1.000)_0.1s_both]"
-          : "bg-gradient-to-b from-[rgb(10,141,222,1)] to-[rgba(10,141,222,0.1)] bg-bottom bg-no-repeat bg-contain z-0 animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]"
+          : "bg-gradient-to-b from-default to-default/10 bg-bottom bg-no-repeat bg-contain z-0 animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]"
       }`}
-      style={
-        side === "left"
-          ? { backgroundImage: `url('/images/${VARIANT_LANG}-white.png')` }
-          : { backgroundImage: `url('/images/${VARIANT_LANG}-2-blue.png')` }
-      }
+      // The right card sits on the brand colour; painting it too gives a tinted
+      // backdrop something to blend with.
+      style={side === "left" ? undefined : { backgroundColor: "rgb(var(--brand))" }}
     >
+      <Backdrop backdrop={side === "left" ? translator.leftCard : translator.rightCard} />
+      {/* Top band: the same height on both cards, so their language rows
+          (and the line under them) stay level whether or not the territory /
+          alphabet selectors are showing. The selectors sit at its bottom so
+          the space above them roughly matches the space down to the language
+          row; 80px is also the logo's height with its margins. */}
       <div
-        className={`flex h-[70px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
+        className={`flex items-end max-[850px]:items-center justify-between gap-4 h-[80px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
           side === "left"
-            ? "max-[850px]:h-[25px]"
-            : "w-full max-[850px]:h-[12px]"
+            ? landing.header.platformName
+              ? "max-[850px]:h-[44px]" // the title next to the logo needs the room
+              : "max-[850px]:h-[25px]"
+            : "max-[850px]:h-auto max-[850px]:min-h-[12px] max-[850px]:pt-3"
         }`}
       >
-        {side === "left" ? (
-          <Image
-            src={`/logo-${VARIANT_LANG}.png`}
-            alt={`logo-${LANG_TITLE}`}
-            priority={false}
-            width={100}
-            height={100}
-            className="m-[15px_30px] h-[50px] object-contain"
-          />
-        ) : (
-          <></>
+        {side === "left" && (
+          <div className="flex items-center gap-3 m-[15px_30px] max-[850px]:absolute max-[850px]:left-[60px] max-[850px]:top-[14px] max-[850px]:m-0 max-[850px]:gap-2">
+            <MediaImage
+              src={identity.logo}
+              alt={`logo-${identity.languageName}`}
+              priority={false}
+              width={100}
+              height={100}
+              className="h-[50px] w-auto object-contain max-[850px]:h-[40px]"
+            />
+            {/* The platform's name over the translated title, as in the about
+                page's header; only sites with a platform name show it */}
+            {landing.header.platformName && (
+              <div className="flex flex-col gap-[3px] leading-[1.1]">
+                <span
+                  className="text-[20px] font-semibold tracking-[0.01em] text-default max-[850px]:text-[16px]"
+                  style={{ fontFamily: "var(--lp-font-display)" }}
+                >
+                  {landing.header.platformName}
+                </span>
+                <span className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-gray-500 max-[850px]:text-[10px] max-[850px]:tracking-[0.06em]">
+                  {t.tr(landing.header.brandTitle)}
+                </span>
+              </div>
+            )}
+          </div>
         )}
+        <LangExtraSelector
+          side={side}
+          lang={lang}
+          handleLangChange={handleLangChange}
+          commune={props.commune}
+          onCommuneChange={props.onCommuneChange}
+          autoOpenHelp={props.autoOpenHelp}
+          onHelpClosed={props.onHelpClosed}
+        />
       </div>
-
-      <LangExtraSelector
-        side={side}
-        lang={lang}
-        handleLangChange={handleLangChange}
-      />
 
       <LangSelector
         side={side}
@@ -348,7 +380,7 @@ export default function Card(props) {
 
       {side === "left" ? (
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative">
+          <div data-swap className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]">
             <div className="relative flex-1 h-full min-w-0">
               {showLeftOverlay && (
                 <div
@@ -373,9 +405,7 @@ export default function Card(props) {
                 onScroll={handleLeftScroll}
                 value={srcText}
                 placeholder={
-                  lang?.code === "rap_Latn"
-                    ? "Ka pāpaꞌi ꞌa ruŋa nei te vānaŋa mo huri"
-                    : "Escriba aquí el texto a traducir"
+                  translator.placeholders[lang?.code] || t.tr(translator.placeholder)
                 }
                 onChange={handleLeftTextChange}
                 spellCheck={false}
@@ -416,15 +446,15 @@ export default function Card(props) {
                               setShowGenderOptions(false);
                               onSpeak("male");
                             }}
-                            aria-label="Voz masculina"
-                            title="Voz masculina"
+                            aria-label={t("card.maleVoice")}
+                            title={t("card.maleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👨🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="rounded-full">
-                          <p>Voz masculina</p>
+                          <p>{t("card.maleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
 
@@ -435,15 +465,15 @@ export default function Card(props) {
                               setShowGenderOptions(false);
                               onSpeak("female");
                             }}
-                            aria-label="Voz femenina"
-                            title="Voz femenina"
+                            aria-label={t("card.femaleVoice")}
+                            title={t("card.femaleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👩🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="rounded-full">
-                          <p>Voz femenina</p>
+                          <p>{t("card.femaleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -461,9 +491,9 @@ export default function Card(props) {
                             }
                           }}
                           aria-label={
-                            isSpeaking ? "Detener lectura" : "Seleccionar voz"
+                            isSpeaking ? t("card.stopReading") : t("card.chooseVoice")
                           }
-                          title={isSpeaking ? "Detener" : "Escuchar"}
+                          title={isSpeaking ? t("card.stop") : t("card.listen")}
                           className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
                           disabled={isLoadingAudio}
                         >
@@ -476,12 +506,12 @@ export default function Card(props) {
                                   : faVolumeHigh
                             }
                             className={isLoadingAudio ? "fa-spin" : ""}
-                            color={speakerColor}
+                            style={{ color: speakerColor }}
                           />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="rounded-full">
-                        <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+                        <p>{isSpeaking ? t("card.stop") : t("card.play")}</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}
@@ -494,15 +524,15 @@ export default function Card(props) {
                           if (isSpeaking) onStop?.();
                           props.onClearTexts?.();
                         }}
-                        aria-label="Borrar texto"
-                        title="Borrar texto"
+                        aria-label={t("card.clearText")}
+                        title={t("card.clearText")}
                         className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
                       >
-                        <FontAwesomeIcon icon={faTrash} color={speakerColor} />
+                        <FontAwesomeIcon icon={faTrash} style={{ color: speakerColor }} />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="rounded-full">
-                      <p>Limpiar</p>
+                      <p>{t("card.clear")}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -512,13 +542,13 @@ export default function Card(props) {
 
           {showTextMessage && (
             <p className="text-red-500 text-sm">
-              El texto no puede tener más de 150 palabras
+              {t("card.maxWords", { max: MAX_WORDS_TRANSLATION })}
             </p>
           )}
         </>
       ) : (
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
+          <div data-swap className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
             <div
               ref={rightOverlayRef}
               className="flex-1 h-full min-w-0 overflow-y-auto scrollbar-hide scrollbar-white-thumb px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light font-roboto tracking-normal break-words whitespace-pre-wrap"
@@ -554,15 +584,15 @@ export default function Card(props) {
                               setShowGenderOptions(false);
                               onSpeak("male");
                             }}
-                            aria-label="Voz masculina"
-                            title="Voz masculina"
+                            aria-label={t("card.maleVoice")}
+                            title={t("card.maleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👨🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                          <p>Voz masculina</p>
+                          <p>{t("card.maleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
 
@@ -573,15 +603,15 @@ export default function Card(props) {
                               setShowGenderOptions(false);
                               onSpeak("female");
                             }}
-                            aria-label="Voz femenina"
-                            title="Voz femenina"
+                            aria-label={t("card.femaleVoice")}
+                            title={t("card.femaleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👩🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                          <p>Voz femenina</p>
+                          <p>{t("card.femaleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -599,9 +629,9 @@ export default function Card(props) {
                             }
                           }}
                           aria-label={
-                            isSpeaking ? "Detener lectura" : "Seleccionar voz"
+                            isSpeaking ? t("card.stopReading") : t("card.chooseVoice")
                           }
-                          title={isSpeaking ? "Detener" : "Escuchar"}
+                          title={isSpeaking ? t("card.stop") : t("card.listen")}
                           className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
                           disabled={isLoadingAudio}
                         >
@@ -614,12 +644,12 @@ export default function Card(props) {
                                   : faVolumeHigh
                             }
                             className={isLoadingAudio ? "fa-spin" : ""}
-                            color={speakerColor}
+                            style={{ color: speakerColor }}
                           />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                        <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+                        <p>{isSpeaking ? t("card.stop") : t("card.play")}</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}
@@ -628,8 +658,8 @@ export default function Card(props) {
                   <TooltipTrigger asChild>
                     <button
                       onClick={handleCopyText}
-                      aria-label="Copiar traducción"
-                      title="Copiar traducción"
+                      aria-label={t("card.copy")}
+                      title={t("card.copy")}
                       className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
                     >
                       <FontAwesomeIcon
@@ -640,7 +670,7 @@ export default function Card(props) {
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                    <p>Copiar traducción</p>
+                    <p>{t("card.copy")}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>

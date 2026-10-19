@@ -39,6 +39,7 @@ from .models import (
     Word,
     WordInformation,
 )
+from .roles import can_manage_translator
 
 
 # Serializers define the API representation.
@@ -173,6 +174,8 @@ class FullUserSerializer(BaseUserSerializer):
     last_name = serializers.CharField(
         allow_blank=False
     )  # User model name field allows empty strings
+    # Lets the frontend show "Administrar Traductor" only to those who may use it
+    can_manage_translator = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -185,8 +188,12 @@ class FullUserSerializer(BaseUserSerializer):
             "last_name",
             "profile",
             "is_active",
+            "can_manage_translator",
         ]
         extra_kwargs = {"password": {"write_only": True}}
+
+    def get_can_manage_translator(self, user):
+        return can_manage_translator(user)
 
 
 class UserEmailSerializer(serializers.ModelSerializer):
@@ -484,6 +491,7 @@ class SuggestionSerializer(serializers.ModelSerializer):
             "user",
             "updated_suggestion",
             "is_uncertain",
+            "commune",
         ]
 
     def validate_src_lang(self, src_lang):
@@ -631,6 +639,9 @@ class SpeechToTextSerializer(serializers.ModelSerializer):
 
 class GeneralSuggestionSerializer(serializers.ModelSerializer):
     user = UserEmailSerializer(read_only=True)
+    # The languages being translated, if any ({"code": ...}, as for feedback)
+    src_lang = NameLanguageSerializer(required=False, allow_null=True)
+    dst_lang = NameLanguageSerializer(required=False, allow_null=True)
 
     class Meta:
         model = GeneralSuggestion
@@ -638,11 +649,28 @@ class GeneralSuggestionSerializer(serializers.ModelSerializer):
             "id",
             "comment",
             "user",
+            "src_lang",
+            "dst_lang",
+            "commune",
             "reviewed",
             "reviewed_by",
             "created_at",
         ]
         read_only_fields = ["reviewed", "reviewed_by", "created_at"]
+
+    def _lang(self, value):
+        if not value:
+            return None
+        lang = Lang.objects.filter(code=value.get("code")).first()
+        if lang is None:
+            raise serializers.ValidationError("Lengua no soportada")
+        return lang
+
+    def validate_src_lang(self, src_lang):
+        return self._lang(src_lang)
+
+    def validate_dst_lang(self, dst_lang):
+        return self._lang(dst_lang)
 
     def create(self, validated_data):
         user = validated_data.pop("user", None)
@@ -682,6 +710,7 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             "model_name",
             "model_version",
             "from_cache",
+            "commune",
             "created_at",
         ]
         read_only_fields = ["created_at"]

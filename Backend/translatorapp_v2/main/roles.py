@@ -49,6 +49,29 @@ class IsAdmin(VerifyRolePermission):
         super().__init__(role=Profile.ADMIN)
 
 
+def can_manage_translator(user):
+    """Top-tier admins: the technical team ("Admin") and Django staff/superusers.
+
+    Only they may change how the translator looks ("Administrar Traductor").
+    Community administrators (NativeAdmin) manage access and data, not branding.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_staff or user.is_superuser:
+        return True
+    try:
+        return user.profile.role == Profile.ADMIN
+    except (AttributeError, ObjectDoesNotExist):
+        return False
+
+
+class IsTranslatorManager(permissions.BasePermission):
+    message = "Solo el equipo técnico puede administrar el traductor."
+
+    def has_permission(self, request, view):
+        return can_manage_translator(request.user)
+
+
 class TranslationRequiresAuth(permissions.BasePermission):
     """
     Dynamic permission that requires authentication only if

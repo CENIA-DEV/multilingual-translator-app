@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { generateSpeech } from '../app/services/ttsService';
+import { useT } from '@/customization/useT';
 
 const MAX_AUDIO_CACHE_SIZE = 5; // Limit to 5 audio clips
 
 export const useAudioPlayer = () => {
+  const t = useT();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsError, setTtsError] = useState('');
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
@@ -115,7 +117,7 @@ export const useAudioPlayer = () => {
     } catch (err) {
       setIsLoadingAudio(false);
       console.error('TTS error:', err);
-      setTtsError(err?.message || 'Error al sintetizar');
+      setTtsError(err?.message || t('tts.error'));
       setIsSpeaking(false);
     }
   };

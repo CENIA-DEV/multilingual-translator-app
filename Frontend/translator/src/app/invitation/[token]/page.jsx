@@ -20,11 +20,14 @@ import ActionButton from "../../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff , ChevronDown } from "lucide-react"
 import api from "@/app/api";
-import { API_ENDPOINTS, LANG_TITLE, VARIANT_LANG } from "@/app/constants";
+import { API_ENDPOINTS } from "@/app/constants";
 import DatePicker from "../../components/datePicker/datePicker"
 import { toast } from "sonner";
 import { getLocalYYYYMMDD } from "@/lib/profile-utils";
+import { useConfig } from "@/customization/ConfigProvider";
+import { cssUrl } from "@/customization/media";
 export default function Invitation({params}){
+  const { authPages, identity } = useConfig();
 
   const router = useRouter();
   const invitationtoken = params.token;
@@ -180,10 +183,14 @@ export default function Invitation({params}){
   return (
   
     <div className="bg-default w-full h-[100dvh] relative">
-      <div 
+      <div
+        style={{
+          backgroundImage: cssUrl(authPages.formsImage),
+          mixBlendMode: authPages.tint ? "luminosity" : undefined,
+        }}
         className="
           animate-fade animate-once animate-duration-[1200ms] animate-delay-[700ms] animate-ease-in-out 
-          bg-[url('/images/${VARIANT_LANG}-2-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
+          w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
           max-[850px]:bg-left-top
         "
       />
@@ -213,7 +220,7 @@ export default function Invitation({params}){
             Crea tu cuenta
           </h2>
           <span>
-              ¡Felicidades! Has recibido una invitación para acceder al sistema de traducción {LANG_TITLE}
+              ¡Felicidades! Has recibido una invitación para acceder al sistema de traducción {identity.languageName}
           </span>
         </div>
 
@@ -312,7 +319,7 @@ export default function Invitation({params}){
               htmlFor="languageProficiency"
               className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
             >
-              Nivel de manejo escrito de {LANG_TITLE}
+              Nivel de manejo escrito de {identity.languageName}
             </label>
 
             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
@@ -336,7 +343,7 @@ export default function Invitation({params}){
               htmlFor="oralProficiency"
               className="absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-default peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1"
             >
-              Nivel de manejo oral de {LANG_TITLE}
+              Nivel de manejo oral de {identity.languageName}
             </label>
 
             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />

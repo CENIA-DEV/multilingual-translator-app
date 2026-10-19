@@ -34,7 +34,7 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-from .models import CacheTTS, Word
+from .models import CacheTTS, Lang, Word
 
 logger = logging.getLogger(__name__)
 
@@ -59,31 +59,74 @@ def filter_cache(src_lang, dst_lang, cache_results):
     return None, None
 
 
+def clean_commune(value):
+    """The comuna sent with a translation: trimmed text, at most 100 characters,
+    or None when there is none."""
+    if not isinstance(value, str):
+        return None
+    value = " ".join(value.split())[:100]
+    return value or None
+
+
+# ISO 15924 script codes (Latn, Arab, ...): a language's plain script, not one
+# of its alphabets (Raguileo, Azümchefe, ...)
+ISO_SCRIPT = re.compile(r"^[A-Z][a-z]{3}$")
+
+
+def model_language(code):
+    """
+    How the model is told a language: the code it gets and the extra inputs.
+
+    A language whose variants differ by territory or alphabet (Mapuzungun:
+    arn_raguileo_nagche) goes as its base language's code (arn_Latn) plus the
+    territory ("nagche") and the alphabet ("raguileo") as inputs of their own,
+    each only when the variant has it (arn_Latn itself has neither). Every
+    other language keeps its full code and no extra inputs.
+    """
+    prefix = code.split("_")[0]
+    family = Lang.objects.filter(code__startswith=f"{prefix}_")
+    alphabets = family.filter(script__isnull=False).values_list(
+        "script__code", flat=True
+    )
+    has_variants = family.filter(dialect__isnull=False).exists() or any(
+        not ISO_SCRIPT.match(script) for script in alphabets
+    )
+    if not has_variants:
+        return code, {}
+    # the base language: no territory, a plain (ISO) script -- arn_Latn
+    plain = family.filter(dialect__isnull=True, script__isnull=False).values_list(
+        "code", "script__code"
+    )
+    base = next(
+        (c for c, script in plain if ISO_SCRIPT.match(script)), f"{prefix}_Latn"
+    )
+    lang = Lang.objects.select_related("dialect", "script").filter(code=code).first()
+    extra = {}
+    if lang and lang.dialect:
+        extra["territory"] = lang.dialect.code
+    if lang and lang.script and not ISO_SCRIPT.match(lang.script.code):
+        extra["writing"] = lang.script.code
+    return base, extra
+
+
+def _bytes_input(name, value):
+    return {"name": name, "shape": [1, 1], "datatype": "BYTES", "data": [[value]]}
+
+
 def generate_payload(text, source_lang, target_lang):
-    payload = {
-        "id": "0",
-        "inputs": [
-            {
-                "name": "input_text",
-                "shape": [1, 1],
-                "datatype": "BYTES",
-                "data": [[text]],
-            },
-            {
-                "name": "source_lang",
-                "shape": [1, 1],
-                "datatype": "BYTES",
-                "data": [[source_lang]],
-            },
-            {
-                "name": "target_lang",
-                "shape": [1, 1],
-                "datatype": "BYTES",
-                "data": [[target_lang]],
-            },
-        ],
-    }
-    return payload
+    source_code, source_extra = model_language(source_lang)
+    target_code, target_extra = model_language(target_lang)
+    inputs = [
+        _bytes_input("input_text", text),
+        _bytes_input("source_lang", source_code),
+        _bytes_input("target_lang", target_code),
+    ]
+    # source_territory, target_writing, ...: only those the languages have
+    for side, extra in (("source", source_extra), ("target", target_extra)):
+        inputs.extend(
+            _bytes_input(f"{side}_{name}", value) for name, value in extra.items()
+        )
+    return {"id": "0", "inputs": inputs}
 
 
 def get_prediction(src_text, src_lang, dst_lang, deployment):

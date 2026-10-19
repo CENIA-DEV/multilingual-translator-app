@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from main.views import CustomAuthToken, ParticipateRequestEndpoint
@@ -25,5 +27,11 @@ urlpatterns = [
     ),
     path("api/users/token/", CustomAuthToken.as_view(), name="token"),
     path("api-auth/", include("rest_framework.urls")),
+    path("api/customization/", include("customization.urls")),
     path("api/", include("main.urls")),
 ]
+
+# When serving uploads from the local filesystem during development, Django must
+# also serve MEDIA_URL so the audio_url returned by the ASR endpoint resolves.
+if settings.DEBUG and settings.USE_LOCAL_FILE_STORAGE:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -2,6 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme of the translator. These are the historical colours; the published
+   customization overrides them (src/customization/theme.js renders the same
+   variables from the document). Brand colours are "R G B" triplets so both
+   Tailwind (bg-default/10) and plain CSS (rgb(var(--brand) / 0.1)) can add
+   opacity. */
+:root {
+  --brand: 10 140 222;
+  --brand-hover: 14 159 248;
+  --brand-strong: 6 122 193;
+  --on-brand: 255 255 255;
+  --line: 200 209 225;
+
+  --lp-page: #f4f7f9;
+  --lp-paper: #fdfdfc;
+  --lp-tint: #e9f0f5;
+  --lp-night: #0e2a40;
+  --lp-deepNight: #081a29;
+  --lp-heroBase: #0b1d2c;
+  --lp-heroOverlay: #06121e;
+  --lp-heading: #12283a;
+  --lp-body: #33454f;
+  --lp-subtle: #44566a;
+  --lp-muted: #5a6e7c;
+  --lp-accent: #2b7fc4;
+  --lp-link: #1e6fb8;
+  --lp-highlight: #17517e;
+  --lp-onDarkAccent: #7db4e0;
+  --lp-mapDots: #b7d3ea;
+  --lp-mapSurface: #f4f9fc;
+  --lp-font-display: 'Newsreader', Georgia, serif;
+  --lp-font-text: 'Archivo', system-ui, sans-serif;
+}
+
 body {
   font-family: 'Roboto', sans-serif;
 }
@@ -214,4 +247,12 @@ body {
   .scrollbar-white-thumb::-webkit-scrollbar-corner {
     background: transparent;
   }
+}
+
+/* Font Awesome sizes its icons with the font (height: 1em) and the icons were
+   designed with that rule winning over Tailwind's h-* utilities. Which one wins
+   used to depend on the order Next happened to emit the two stylesheets in;
+   pin it here, after the utilities, so it no longer does. */
+.svg-inline--fa {
+  height: 1em;
 }

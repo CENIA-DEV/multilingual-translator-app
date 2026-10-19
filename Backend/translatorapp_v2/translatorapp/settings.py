@@ -189,6 +189,7 @@ MIDDLEWARE = [
 
 INSTALLED_APPS = [
     "main",
+    "customization",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -336,9 +337,17 @@ if os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
 
 # Custom storage configuration with django-storages
 # https://django-storages.readthedocs.io/en/latest/django.html
-STORAGES = {
-    # For user-uploaded media files (e.g., audios)
-    "default": {
+# Uploaded audio normally lives in Google Cloud Storage. Local development has no
+# GCP credentials, so setting USE_LOCAL_FILE_STORAGE="True" writes to MEDIA_ROOT
+# instead. Defaults to the GCS backend, leaving deployments unchanged.
+USE_LOCAL_FILE_STORAGE = (
+    os.environ.get("USE_LOCAL_FILE_STORAGE", "False").lower() == "true"
+)
+
+_DEFAULT_STORAGE = (
+    {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+    if USE_LOCAL_FILE_STORAGE
+    else {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
         "OPTIONS": {
             "bucket_name": "platform-uploaded-audios",
@@ -346,7 +355,12 @@ STORAGES = {
             "querystring_auth": True,
             "credentials": GS_CREDENTIALS,
         },
-    },
+    }
+)
+
+STORAGES = {
+    # For user-uploaded media files (e.g., audios)
+    "default": _DEFAULT_STORAGE,
     # For static files (CSS, JS, etc.) used by `collectstatic`
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",

@@ -1,0 +1,441 @@
+{
+  "schemaVersion": 1,
+  "identity": {
+    "languageName": "Lengua originaria",
+    "organizationName": "la organización a cargo",
+    "siteTitle": "Traductor",
+    "siteDescription": "Proyecto que busca revitalizar una lengua originaria mediante un traductor automático.",
+    "keywords": [
+      "traductor",
+      "traducción",
+      "español",
+      "lenguas indígenas",
+      "pueblos originarios",
+      "revitalización lingüística"
+    ],
+    "logo": "",
+    "favicon": ""
+  },
+  "theme": {
+    "primary": "#0a8cde",
+    "primaryHover": "#0e9ff8",
+    "primaryStrong": "#067ac1",
+    "onPrimary": "#ffffff",
+    "line": "#c8d1e1",
+    "landing": {
+      "page": "#f4f7f9",
+      "paper": "#fdfdfc",
+      "tint": "#e9f0f5",
+      "night": "#0e2a40",
+      "deepNight": "#081a29",
+      "heroBase": "#0b1d2c",
+      "heroOverlay": "#06121e",
+      "heading": "#12283a",
+      "body": "#33454f",
+      "subtle": "#44566a",
+      "muted": "#5a6e7c",
+      "accent": "#2b7fc4",
+      "link": "#1e6fb8",
+      "highlight": "#17517e",
+      "onDarkAccent": "#7db4e0",
+      "mapDots": "#b7d3ea",
+      "mapSurface": "#f4f9fc",
+      "cta": "#2b7fc4"
+    },
+    "fonts": {
+      "display": "Newsreader",
+      "text": "Archivo"
+    }
+  },
+  "translator": {
+    "defaultSource": "spa_Latn",
+    "defaultTarget": "eng_Latn",
+    "leftCard": {
+      "image": "",
+      "fit": "contain",
+      "position": "bottom",
+      "opacity": 100,
+      "tint": false
+    },
+    "rightCard": {
+      "image": "",
+      "fit": "contain",
+      "position": "bottom",
+      "opacity": 100,
+      "tint": false
+    },
+    "placeholders": {},
+    "placeholder": "Escriba aquí el texto a traducir",
+    "notice": {
+      "enabled": true,
+      "title": "Modelo en desarrollo",
+      "body": "El traductor se encuentra en desarrollo y esta es una <strong>versión operativa de prueba</strong>. Se encuentra en un proceso de <strong>mejora continua</strong>, por lo que puede cometer errores o producir resultados inesperados. Los <strong>resultados siempre deben ser verificados por hablantes</strong>. Agradecemos su comprensión y su retroalimentación, que nos ayuda a mejorar su precisión y utilidad."
+    },
+    "restricted": {
+      "title": "Acceso restringido",
+      "body": "El traductor se encuentra en una fase preliminar de prueba por lo que debe <strong>iniciar sesión</strong> para usar el traductor en esta versión.",
+      "button": "Iniciar sesión"
+    },
+    "maintenance": {
+      "title": "Mantenimiento",
+      "body": "El traductor está en mantenimiento por lo que estará fuera servicio por unas horas...",
+      "button": "Entendido"
+    },
+    "feedbackPrompt": "Déjanos tu opinión"
+  },
+  "languages": {
+    "hidden": [],
+    "renamed": {},
+    "custom": [],
+    "nativeCodes": [],
+    "variantSelector": {
+      "enabled": false,
+      "prefix": "",
+      "sourceCode": "",
+      "label": "Grafemario",
+      "options": [],
+      "dialectLabel": "Variante territorial",
+      "dialects": []
+    }
+  },
+  "features": {
+    "tts": {
+      "enabled": false,
+      "languages": []
+    },
+    "asr": {
+      "enabled": false,
+      "languages": [],
+      "uploadLanguages": []
+    },
+    "wordInformation": {
+      "enabled": false,
+      "languages": []
+    }
+  },
+  "authPages": {
+    "loginImage": "",
+    "formsImage": "",
+    "profileImage": "",
+    "tint": false
+  },
+  "ui": {},
+  "landing": {
+    "locales": [
+      {
+        "code": "es",
+        "label": "Español"
+      },
+      {
+        "code": "en",
+        "label": "English"
+      }
+    ],
+    "defaultLocale": "es",
+    "sections": [
+      {
+        "id": "about",
+        "visible": true,
+        "tone": "tint"
+      },
+      {
+        "id": "validation",
+        "visible": false,
+        "tone": "paper"
+      },
+      {
+        "id": "focus",
+        "visible": true,
+        "tone": "dark"
+      },
+      {
+        "id": "owners",
+        "visible": true,
+        "tone": "paper"
+      },
+      {
+        "id": "collaborators",
+        "visible": true,
+        "tone": "tint"
+      },
+      {
+        "id": "funding",
+        "visible": false,
+        "tone": "paper"
+      },
+      {
+        "id": "contact",
+        "visible": true,
+        "tone": "dark"
+      }
+    ],
+    "header": {
+      "logo": "",
+      "logoAlt": {
+        "es": ""
+      },
+      "platformName": "",
+      "brandTitle": {
+        "es": "Traductor",
+        "en": "Translator"
+      },
+      "selectLanguageLabel": {
+        "es": "Selecciona tu idioma",
+        "en": "Select your language"
+      }
+    },
+    "hero": {
+      "image": "",
+      "imageAlt": {
+        "es": ""
+      },
+      "focalPoint": {
+        "x": 50,
+        "y": 50
+      },
+      "overlayOpacity": 100,
+      "title": {
+        "es": "Revitalicemos nuestra lengua con inteligencia artificial",
+        "en": "Revitalizing our language with artificial intelligence"
+      },
+      "subtitle": {
+        "es": "Proyecto que desarrolla modelos de traducción automática con la comunidad de hablantes",
+        "en": "A project developing machine translation models together with the speaker community"
+      },
+      "primaryCta": {
+        "es": "Probar el traductor",
+        "en": "Try the translator"
+      },
+      "secondaryCta": {
+        "es": "Acerca del proyecto",
+        "en": "About the project"
+      },
+      "showDeveloperBadge": true
+    },
+    "about": {
+      "title": {
+        "es": "ACERCA DE NUESTRO PROYECTO",
+        "en": "ABOUT OUR PROJECT"
+      },
+      "items": [
+        {
+          "text": {
+            "es": "Cuenta aquí la historia del proyecto: <strong>por qué nace</strong>, quiénes participan y cómo la comunidad puede colaborar.",
+            "en": "Tell the story of the project here: <strong>why it started</strong>, who takes part and how the community can help."
+          },
+          "image": "",
+          "imageAlt": {
+            "es": ""
+          },
+          "imageFit": "cover",
+          "focalPoint": {
+            "x": 50,
+            "y": 50
+          }
+        }
+      ]
+    },
+    "validation": {
+      "title": {
+        "es": "Validado por los hablantes que requieren usar la herramienta",
+        "en": "Validated with the people who actually need the tool"
+      },
+      "mapLabel": {
+        "es": "Mapa de los lugares de validación"
+      },
+      "geojson": "",
+      "closeUp": true,
+      "contextGeojson": "",
+      "pins": []
+    },
+    "focus": {
+      "title": {
+        "es": "Nuestro enfoque",
+        "en": "Our focus"
+      },
+      "items": [
+        {
+          "icon": "community",
+          "title": {
+            "es": "Colaboración con Comunidades",
+            "en": "Collaboration with Communities"
+          },
+          "text": {
+            "es": "Para su desarrollo ha sido fundamental el trabajo colaborativo y la validación del proceso con hablantes mapuche",
+            "en": "For its development, it has been fundamental the collaborative work and the validation of the process with native speakers of Mapuzungun."
+          }
+        },
+        {
+          "icon": "network",
+          "title": {
+            "es": "Inteligencia Artificial",
+            "en": "Artificial Intelligence"
+          },
+          "text": {
+            "es": "El traductor utiliza inteligencia artificial, específicamente técnicas de aprendizaje automático y NLP.",
+            "en": "The translator uses artificial intelligence, specifically machine learning and NLP techniques."
+          }
+        },
+        {
+          "icon": "open",
+          "title": {
+            "es": "Uso libre y gratuito",
+            "en": "Free and open source"
+          },
+          "text": {
+            "es": "Este es un proyecto sin fines de lucro, el uso del traductor es gratuito y los códigos serán de acceso libre.",
+            "en": "This is a non-profit project, the use of the translator is free and the codes will be freely accessible."
+          }
+        }
+      ]
+    },
+    "owners": {
+      "title": {
+        "es": "Un proyecto colaborativo",
+        "en": "A collaborative project"
+      },
+      "developedByLabel": {
+        "es": "Desarrollado por",
+        "en": "Developed by"
+      },
+      "partners": [
+        {
+          "logo": "/images/eaauc.png",
+          "name": {
+            "es": "Estudios Aplicados Antropología UC",
+            "en": "Applied Studies, Anthropology UC"
+          },
+          "url": "https://www.estudiosaplicados.cl",
+          "urlLabel": "www.estudiosaplicados.cl",
+          "logoHeight": 72
+        },
+        {
+          "logo": "/images/cenia.png",
+          "name": {
+            "es": "Centro Nacional de Inteligencia Artificial",
+            "en": "National Center for Artificial Intelligence"
+          },
+          "url": "https://www.cenia.cl",
+          "urlLabel": "www.cenia.cl",
+          "logoHeight": 72
+        }
+      ]
+    },
+    "developer": {
+      "enabled": true,
+      "name": "VOCES",
+      "logo": "/images/voces-logo.png",
+      "url": "https://tecnologiavoces.com",
+      "urlLabel": "www.tecnologiavoces.com"
+    },
+    "collaborators": {
+      "title": {
+        "es": "Colaboradores",
+        "en": "Collaborators"
+      },
+      "groups": [
+        {
+          "title": {
+            "es": "Centro Nacional de Inteligencia Artificial",
+            "en": "National Center for Artificial Intelligence"
+          },
+          "names": [
+            "Carlos Aspillaga",
+            "Sebastián Ricke",
+            "César Rivera",
+            "Martín Pizarro",
+            "Guillermo Figueroa",
+            "Hugo Zeballos",
+            "Canela Orellana",
+            "Estefanía Pakarati",
+            "Andrés Carvallo",
+            "Agustín Ghent"
+          ],
+          "hidden": false
+        },
+        {
+          "title": {
+            "es": "Estudios Aplicados Antropología UC",
+            "en": "Applied Studies, Anthropology UC"
+          },
+          "names": [
+            "Jaime Coquelet",
+            "Loreto Ulloa",
+            "Francisca del Valle",
+            "Tomás Pesce",
+            "Julianna Jimenez",
+            "Leonardo Ribeiro",
+            "Antonia Rivas"
+          ],
+          "hidden": false
+        }
+      ]
+    },
+    "funding": {
+      "title": {
+        "es": "Financiamiento",
+        "en": "Financing"
+      },
+      "items": []
+    },
+    "contact": {
+      "title": {
+        "es": "Contáctanos",
+        "en": "Contact us"
+      },
+      "subtitle": {
+        "es": "Únete a nuestro equipo o colabora en el proyecto",
+        "en": "Join our team or collaborate on the project"
+      },
+      "button": {
+        "es": "Contáctanos",
+        "en": "Contact us"
+      },
+      "form": {
+        "description": {
+          "es": "Llena los siguientes campos para contactarnos."
+        },
+        "firstName": {
+          "es": "Nombre"
+        },
+        "lastName": {
+          "es": "Apellido"
+        },
+        "email": {
+          "es": "Correo"
+        },
+        "organization": {
+          "es": "Organización"
+        },
+        "optional": {
+          "es": "Opcional"
+        },
+        "message": {
+          "es": "Mensaje"
+        },
+        "submit": {
+          "es": "Enviar"
+        },
+        "successTitle": {
+          "es": "Gracias por tu interés en colaborar con nosotros"
+        },
+        "successBody": {
+          "es": "Te contactaremos a la brevedad"
+        },
+        "errorTitle": {
+          "es": "Hubo un error al enviar tu solicitud"
+        },
+        "errorBody": {
+          "es": "Por favor corrobore los datos y vuelva a intentarlo"
+        }
+      }
+    },
+    "footer": {
+      "label": {
+        "es": "Proyecto de",
+        "en": "Project developed by"
+      },
+      "showPartnerNames": true
+    }
+  }
+}
