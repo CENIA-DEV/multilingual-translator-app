@@ -13,21 +13,32 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 "use client";
 import "./langsModal.css";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import languages_list_arn from "../../assets/languages_arn.json";
-import languages_list_rap from "../../assets/languages_rap.json";
-import { VARIANT_LANG } from "@/app/constants";
+import { useLanguageSides } from "@/customization/languages";
+import { useT } from "@/customization/useT";
 
 
 export default function LangsModal(props) {
 
-  const languages_list = VARIANT_LANG === 'arn'? languages_list_arn : languages_list_rap;
+  // Already filtered and renamed by the customization, with a language's
+  // variants as one entry; shown (and sorted) by their name in the visitor's
+  // language
+  const t = useT();
+  const sides = useLanguageSides();
+  const catalog = sides.selectorList;
+  const languages_list = useMemo(
+    () =>
+      catalog
+        .map((lang) => ({ lang, label: t.langName(lang) }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [catalog, t]
+  );
 
   const [characterSearch, setCharacterSearch] = useState("");
   const [langSearch, setLangSearch] = useState("");
@@ -47,7 +58,7 @@ export default function LangsModal(props) {
     else {
       setCharacterSearch(value);
 
-      const newArray = languages_list.filter((lang) => lang.name[0] === value);
+      const newArray = languages_list.filter((item) => item.label[0] === value);
 
       if (newArray.length === 0) {
         setLanguages(languages_list);
@@ -62,8 +73,8 @@ export default function LangsModal(props) {
     
     setLangSearch(value);
 
-    const newArray = languages_list.filter((lang) =>
-      lang.name.toLowerCase().includes(value.toLowerCase())
+    const newArray = languages_list.filter((item) =>
+      item.label.toLowerCase().includes(value.toLowerCase())
     );
 
     if (newArray.length === 0) {
@@ -74,10 +85,7 @@ export default function LangsModal(props) {
   };
 
   useEffect(() => {
-    const new_list = languages_list.sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-    setLanguages(new_list);
+    setLanguages(languages_list);
   }, [languages_list]);
 
   return (
@@ -86,7 +94,7 @@ export default function LangsModal(props) {
         <div className="flex flex-col w-11/12 content-center gap-4 h-full">
           <Input
             className="max-[850px]:mt-6"
-            placeholder="Buscar idioma"
+            placeholder={t("langs.search")}
             value={langSearch}
             onChange={(e) => handleSearchBox(e.target.value)}
           />
@@ -104,14 +112,14 @@ export default function LangsModal(props) {
             ))}
           </div>
           <div className="grid grid-cols-3 max-[850px]:grid-cols-1 gap-2 h-auto overflow-y-auto">
-            {languages.map((lang) => (
+            {languages.map(({ lang, label }) => (
               <Button
                 key={lang.code}
                 variant="outline"
                 onClick={() => props.handleSelectedLanguage(lang)}
-                className={`h-auto py-2 px-4 ${props.langModalSelected.code === lang.code ? "bg-default text-white font-bold" : "bg-white text-black"}`}
+                className={`h-auto py-2 px-4 ${sides.sameEntry(props.langModalSelected, lang) ? "bg-default text-white font-bold" : "bg-white text-black"}`}
               >
-                {lang.name}
+                {label}
               </Button>
             ))}
           </div>

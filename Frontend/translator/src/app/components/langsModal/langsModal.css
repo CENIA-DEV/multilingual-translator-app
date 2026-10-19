@@ -112,7 +112,7 @@ limitations under the License. */
 .langsModal-searchbox input:focus, input:hover {
   outline: none;
   border-radius: 30px;
-  border-color: #0a8cde;
+  border-color: rgb(var(--brand));
 }
 
 .langsModal-searchbox input::placeholder {
@@ -135,7 +135,7 @@ limitations under the License. */
 }
 
 .langsModal-characters-bar div{
-  color: #c8d1e1;
+  color: rgb(var(--line));
   margin: 0 10px;
   font-family: 'Roboto Condensed', sans-serif;
   font-size: 17px;
@@ -153,7 +153,7 @@ limitations under the License. */
   flex-wrap: wrap;
   gap: 10px;
   scroll-behavior: smooth;
-  scrollbar-color: #0a8cde white;
+  scrollbar-color: rgb(var(--brand)) white;
   scrollbar-width: thin;
   animation: fade-in 1.2s cubic-bezier(0.390, 0.575, 0.565, 1.000) 1.5s both;
 }
@@ -172,7 +172,7 @@ limitations under the License. */
 }
 
 .langsModal-languages-box div:hover{
-  background-color: #c8d1e1;
+  background-color: rgb(var(--line));
 }
 
 @media screen and (max-width: 800px) {

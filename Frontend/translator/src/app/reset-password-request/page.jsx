@@ -16,9 +16,11 @@ import "./resetpasswordrequest.css"
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import ActionButton from "../components/actionButton/actionButton";
-import { API_ENDPOINTS, VARIANT_LANG } from "../constants";
+import { API_ENDPOINTS } from "../constants";
 import api from "../api";
 import { toast } from "sonner";
+import { useConfig } from "@/customization/ConfigProvider";
+import { cssUrl } from "@/customization/media";
 
 const validateEmail = (email) => {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,6 +28,7 @@ const validateEmail = (email) => {
 };
 
 export default function Resetpasswordrequest(){
+  const { authPages } = useConfig();
 
   const router = useRouter();
 
@@ -77,10 +80,14 @@ export default function Resetpasswordrequest(){
 	
   return (
     <div className="bg-default w-full h-[100dvh] relative">
-      <div 
+      <div
+        style={{
+          backgroundImage: cssUrl(authPages.formsImage),
+          mixBlendMode: authPages.tint ? "luminosity" : undefined,
+        }}
         className="
           animate-fade animate-once animate-duration-[1200ms] animate-delay-[700ms] animate-ease-in-out 
-          bg-[url('/images/${VARIANT_LANG}-2-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
+          w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
           max-[850px]:bg-left-top
         "
       />

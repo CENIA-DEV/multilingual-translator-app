@@ -63,7 +63,7 @@ limitations under the License. */
 }
 
 .lang-grapheme-options label:has(input:checked)~.lang-grapheme-selected {
-  background-color: #0a8cde;
+  background-color: rgb(var(--brand));
   display: inline-block;
 }
 
@@ -128,7 +128,7 @@ limitations under the License. */
 }
 
 .lang-dialect-options label:has(input:checked)~.lang-dialect-selected {
-  background-color: #0a8cde;
+  background-color: rgb(var(--brand));
   display: inline-block;
 }
 

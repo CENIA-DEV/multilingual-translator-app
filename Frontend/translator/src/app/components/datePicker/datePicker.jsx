@@ -13,121 +13,108 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 'use client'
 
-import { Button } from "@/components/ui/button"
-import { format } from "date-fns"
-import { es } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import {
+  MONTHS,
+  availableDays,
+  availableMonths,
+  birthYears,
+  fromBirthDate,
+  reconcileBirthDate,
+  toBirthDate,
+} from "@/lib/birth-date";
 
-export default function DatePicker({disabled=false, align="end", ...props}) {
+// Birth date as three dropdowns (day / month / year), which is quicker on a
+// phone than paging a calendar back decades. Only real, past dates can be
+// picked; the rules live in lib/birth-date so voces-platform-frontend can
+// share them unchanged.
+//
+// `handleDateUpdate` receives a Date (at noon) once all three parts form a
+// valid date, and null while the selection is incomplete, so the form's own
+// "is the date set?" check keeps its submit button disabled until then.
+export default function DatePicker({ disabled = false, selectedDate = null, handleDateUpdate, label }) {
 
-  const [selectedMonth, setSelectedMonth] = useState(props.selectedDate? props.selectedDate : new Date());
+  const id = useId();
+  const [parts, setParts] = useState(() => fromBirthDate(selectedDate));
+  const [notice, setNotice] = useState(null);
 
-  const handleDateChange = (date) => {
-    props.handleDateUpdate(date);
-    setSelectedMonth(date);
-  }
+  // Follow the parent when it sets a date (initial load, "cancel" restoring the
+  // saved one). A null coming back is only our own "incomplete" report, so it
+  // must not wipe what the user has half-picked.
+  useEffect(() => {
+    if (!(selectedDate instanceof Date)) return;
+    setParts((current) => {
+      const shown = toBirthDate(current);
+      return shown && shown.getTime() === selectedDate.getTime()
+        ? current
+        : fromBirthDate(selectedDate);
+    });
+  }, [selectedDate]);
 
-  const handleMonthChange = (month) => {
+  const update = (key, value) => {
+    const next = reconcileBirthDate({ ...parts, [key]: value ? Number(value) : null });
+    setParts({ year: next.year, month: next.month, day: next.day });
+    setNotice(next.notice);
+    handleDateUpdate(toBirthDate(next));
+  };
 
-    const currentDate = selectedMonth? selectedMonth : new Date();
+  const days = availableDays(parts.year, parts.month);
+  const months = availableMonths(parts.year);
+  const years = birthYears();
 
-    setSelectedMonth(new Date(month+'/01/'+currentDate.getFullYear()));
-  }
-
-  const handleYearChange = (year) => {
-
-    const currentDate = selectedMonth? selectedMonth : new Date();
-
-    setSelectedMonth(new Date((currentDate.getMonth()+1)+'/01/'+year));
-  }
-
-  const months = [
-    { value: '01', label: 'Enero' },
-    { value: '02', label: 'Febrero' },
-    { value: '03', label: 'Marzo' },
-    { value: '04', label: 'Abril' },
-    { value: '05', label: 'Mayo' },
-    { value: '06', label: 'Junio' },
-    { value: '07', label: 'Julio' },
-    { value: '08', label: 'Agosto' },
-    { value: '09', label: 'Septiembre' },
-    { value: '10', label: 'Octubre' },
-    { value: '11', label: 'Noviembre' },
-    { value: '12', label: 'Diciembre' }
-  ]
-  const currentYear = new Date().getFullYear()
-  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i))
+  const selectClasses = "block h-full px-1 min-[400px]:px-2.5 pb-2.5 pt-4 w-full text-[13px] min-[400px]:text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed appearance-none focus:outline-none focus:ring-0 focus:border-default peer cursor-pointer";
+  const chevronClasses = "absolute right-1 min-[400px]:right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 min-[400px]:h-5 min-[400px]:w-5 text-gray-400 pointer-events-none";
 
   return (
-    <div className="relative w-full h-[50px]">
-      <label
-        htmlFor="date"
-        className='absolute text-sm rounded-full text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-1 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1'
-      >
-        {props.label}
-      </label>
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant={"outline"}
-            className="w-full justify-start px-2.5 pb-2.5 pt-4 text-left h-full font-normal disabled:cursor-not-allowed"
+    <fieldset className="flex flex-col gap-2 w-full" aria-describedby={notice ? `${id}-notice` : undefined}>
+      <legend className="text-sm text-gray-500 ml-1 mb-2">{label || 'Fecha de nacimiento'}</legend>
+      <div className="flex gap-1 min-[400px]:gap-3 h-[50px]">
+        <div className="relative flex-1 h-full">
+          <select
+            aria-label="Día"
+            value={parts.day ?? ''}
             disabled={disabled}
+            onChange={(e) => update('day', e.target.value)}
+            className={selectClasses}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            <span className={`text-sm ${disabled? "text-gray-500" : ""}`}>
-              {props.selectedDate ? 
-                format(props.selectedDate, "P", {locale: es}) 
-                : 
-                "Seleccione una fecha"
-              }
-            </span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align={align}>
-          <div className="flex p-3 h-[55px] gap-5">
-            <select
-              id="month"
-              value={selectedMonth? months[selectedMonth.getMonth()].value : ''}
-              onChange={(e) => handleMonthChange(e.target.value)}
-              className="block cursor-pointer px-2.5 pb-2.5 pt-1 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-default peer"
-            >
-              {months.map((month) => (
-                <option key={month.value} value={month.value}>
-                  {month.label}
-                </option>
-              ))}
-            </select>
+            <option value="" disabled>Día</option>
+            {days.map((d) => <option key={d} value={d}>{String(d).padStart(2, '0')}</option>)}
+          </select>
+          <ChevronDown className={chevronClasses} aria-hidden="true" />
+        </div>
 
-            <select
-              id="year"
-              value={selectedMonth? selectedMonth.getFullYear() : ''}
-              onChange={(e) => handleYearChange(e.target.value)}
-              className="block cursor-pointer px-2.5 pb-2.5 pt-1 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-default peer"
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="relative flex-[1.8] h-full">
+          <select
+            aria-label="Mes"
+            value={parts.month ?? ''}
+            disabled={disabled}
+            onChange={(e) => update('month', e.target.value)}
+            className={selectClasses}
+          >
+            <option value="" disabled>Mes</option>
+            {months.map((m) => <option key={m} value={m}>{MONTHS[m - 1]}</option>)}
+          </select>
+          <ChevronDown className={chevronClasses} aria-hidden="true" />
+        </div>
 
-          <Calendar
-            mode="single"
-            month={selectedMonth}
-            onMonthChange={setSelectedMonth}
-            selected={props.selectedDate}
-            onSelect={handleDateChange}
-            disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-            initialFocus
-            locale={es}
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
+        <div className="relative flex-[1.2] h-full">
+          <select
+            aria-label="Año"
+            value={parts.year ?? ''}
+            disabled={disabled}
+            onChange={(e) => update('year', e.target.value)}
+            className={selectClasses}
+          >
+            <option value="" disabled>Año</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <ChevronDown className={chevronClasses} aria-hidden="true" />
+        </div>
+      </div>
+      <p id={`${id}-notice`} aria-live="polite" className="text-xs text-amber-700 ml-1">
+        {notice}
+      </p>
+    </fieldset>
   )
 }

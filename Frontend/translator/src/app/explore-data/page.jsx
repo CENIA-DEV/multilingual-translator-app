@@ -40,11 +40,11 @@ export default function Exploredata()  {
           Sugerencias Ingresadas
         </h1>
         <Tabs defaultValue="not-validated" className="space-y-4">
-          <TabsList className="mb-4 py-10">
-            <TabsTrigger value="not-validated" className="text-lg font-semibold">
+          <TabsList className="mb-4 py-2 sm:h-20">
+            <TabsTrigger value="not-validated" className="text-sm sm:text-lg font-semibold">
               Sugerencias por Validar
             </TabsTrigger>
-            <TabsTrigger value="validated" className="text-lg font-semibold">
+            <TabsTrigger value="validated" className="text-sm sm:text-lg font-semibold">
               Sugerencias Validadas
             </TabsTrigger>
           </TabsList>
@@ -53,6 +53,7 @@ export default function Exploredata()  {
               handleEditSuggestion={handleEditSuggestion}
               validated={false}
               updateTable={updateTable}
+              onActionComplete={handleUpdateTable}
             />
 
           </TabsContent>
@@ -61,6 +62,7 @@ export default function Exploredata()  {
               handleEditSuggestion={handleEditSuggestion}
               validated={true}
               updateTable={updateTable}
+              onActionComplete={handleUpdateTable}
             />
           </TabsContent>
         </Tabs>

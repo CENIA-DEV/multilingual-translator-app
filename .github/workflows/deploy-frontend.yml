@@ -3,50 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: 'Variant language for deployment'
+        description: 'Language to deploy (rap = Rapa Nui, arn = Mapuzungun). The branch is chosen above, in "Use workflow from".'
         required: true
         type: choice
         options:
           - rap
           - arn
-      requires_auth:
-        description: 'Translation requires authentication'
-        required: true
-        type: boolean
-        default: false
-      max_words_translation:
-        description: 'Max words translation'
-        required: true
-        type: number
-        default: 150
-      tts_requires_auth:
-        description: 'Text-to-speech requires authentication'
-        required: true
-        type: boolean
-        default: false
-      asr_requires_auth:
-        description: 'Speech-to-text requires authentication'
-        required: true
-        type: boolean
-        default: false
-      word_information_requires_auth:
-        description: 'Word information requires authentication'
-        required: true
-        type: boolean
-        default: false
-      dictionary_enabled:
-        description: 'Enable dictionary feature'
-        required: true
-        type: boolean
-        default: true
-      separate_genders_requires_auth:
-        description: 'Separate gender selection requires authentication (false = default to female for non-auth)'
-        required: true
-        type: boolean
-        default: false
       maintenance_mode:
-        description: 'Enable maintenance mode'
-        required: true
+        description: 'Maintenance mode: show the maintenance notice in this build, even if the backend is down. Off: it follows "Visibilidad" in Administrar Traductor.'
+        required: false
         type: boolean
         default: false
 jobs:
@@ -64,7 +29,6 @@ jobs:
         VPC_NAME: ${{ vars.VPC_NAME }}
         SUBNET_NAME: ${{ vars.FRONTEND_SUBNET }}
         SERVICE_NAME_BACKEND: ${{ vars.SERVICE_NAME_BACKEND }}
-        MAX_WORDS_TRANSLATION: ${{ github.event.inputs.max_words_translation }}
     steps:
       - name: Set environment
         id: set-environment
@@ -117,20 +81,8 @@ jobs:
         run: |-
           echo "NEXT_PUBLIC_VARIANT=${{ steps.set-variant.outputs.variant }}" >> .env.production
           echo "NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ steps.set-ga-id.outputs.ga_id }}" >> .env.production
-          echo "NEXT_PUBLIC_MAX_WORDS_TRANSLATION=${{ env.MAX_WORDS_TRANSLATION }}" >> .env.production
-          # Set translation restriction based on environment
-          echo "NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH=${{ github.event.inputs.requires_auth }}" >> .env.production
-          # Set text-to-speech enablement
-          echo "NEXT_PUBLIC_TTS_REQUIRES_AUTH=${{ github.event.inputs.tts_requires_auth }}" >> .env.production
-          # Set speech-to-text enablement
-          echo "NEXT_PUBLIC_ASR_REQUIRES_AUTH=${{ github.event.inputs.asr_requires_auth }}" >> .env.production
-          # Set word information enablement
-          echo "NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH=${{ github.event.inputs.word_information_requires_auth }}" >> .env.production
-          # Set dictionary enablement
-          echo "NEXT_PUBLIC_DICTIONARY_ENABLED=${{ github.event.inputs.dictionary_enabled }}" >> .env.production
-          # Set separate gender selection (when false, non-auth users get female voice by default)
-          echo "NEXT_PUBLIC_SEPARATE_GENDERS_REQUIRES_AUTH=${{ github.event.inputs.separate_genders_requires_auth }}" >> .env.production
-          # Set maintenance mode
+          # Who may use each feature and the word limit are set in "Visibilidad"
+          # (Administrar Traductor); maintenance can also be forced here
           echo "NEXT_PUBLIC_MAINTENANCE_MODE=${{ github.event.inputs.maintenance_mode }}" >> .env.production
 
           # if not production, set the api url to the backend url so we dont use relative path
@@ -141,12 +93,16 @@ jobs:
             echo "BACKEND_URL: ${BACKEND_URL}"
             echo "NEXT_PUBLIC_API_URL=${BACKEND_URL}" >> .env.production
           else
+            # Public site URL, used by the sitemap, robots.txt and metadata.
+            # Only production gets it, so other environments stay unindexed.
             if [ "${{ steps.set-variant.outputs.variant }}" = "rap" ]; then
               echo "BACKEND_URL: ${{ vars.URL_RAP }}"
               echo "NEXT_PUBLIC_API_URL=${{ vars.URL_RAP }}" >> .env.production
+              echo "NEXT_PUBLIC_BASE_URL=${{ vars.URL_RAP }}" >> .env.production
             elif [ "${{ steps.set-variant.outputs.variant }}" = "arn" ]; then
               echo "BACKEND_URL: ${{ vars.URL_ARN }}"
               echo "NEXT_PUBLIC_API_URL=${{ vars.URL_ARN }}" >> .env.production
+              echo "NEXT_PUBLIC_BASE_URL=${{ vars.URL_ARN }}" >> .env.production
             fi
           fi
       - name: Build Docker Image

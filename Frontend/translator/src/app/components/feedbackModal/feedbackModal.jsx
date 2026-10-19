@@ -22,6 +22,11 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { Checkbox } from '@/components/ui/checkbox'; // Add this import
+import { useT } from '@/customization/useT';
+import { useEffect, useState } from 'react';
+import { useConfig } from '@/customization/ConfigProvider';
+import { useLanguageSides } from '@/customization/languages';
+import SuggestionLabels, { labelsOf, variantSide } from './suggestionLabels';
 
 export default function FeedbackModal(props){
 
@@ -32,6 +37,43 @@ export default function FeedbackModal(props){
   const setEditingTranslation = props.setEditingTranslation
   const isSuggestionOnly = props.isSuggestionOnly;
   const { trackEvent } = useAnalytics();
+  const t = useT();
+  const { variantSelector } = useConfig().languages;
+  const sides = useLanguageSides();
+
+  // Administrators editing a suggestion ("Explorar datos") also set its
+  // territory, alphabet and comuna, for languages with variants
+  const prefix = variantSelector.enabled ? variantSelector.prefix : null;
+  const side = suggestionId ? variantSide(editingTranslation, prefix) : null;
+  const [labels, setLabels] = useState(null);
+  const [initialLabels, setInitialLabels] = useState(null);
+  const sideCode = side ? editingTranslation?.[side]?.code : null;
+  useEffect(() => {
+    if (!sideCode) {
+      setLabels(null);
+      setInitialLabels(null);
+      return;
+    }
+    const start = { ...labelsOf(sideCode), commune: editingTranslation?.commune || '' };
+    setLabels(start);
+    setInitialLabels(start);
+    // only when another suggestion is opened, not on each keystroke
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestionId, sideCode]);
+
+  /** The variant's code from the labels: no territory is the alphabet alone. */
+  const labelsCode = (value) =>
+    value.territory ? sides.codeFor(value.writing, value.territory) : `${prefix}_${value.writing}`;
+
+  const saveLabels = async () => {
+    if (!labels || !initialLabels) return;
+    const changed = ['territory', 'writing', 'commune'].some((key) => (labels[key] || '') !== (initialLabels[key] || ''));
+    if (!changed) return;
+    await api.patch(`${API_ENDPOINTS.SUGGESTIONS}${suggestionId}/relabel/`, {
+      lang: labelsCode(labels),
+      commune: labels.commune || null,
+    });
+  };
 
   const uploadSuggestion = async (suggestion) => {
     try {
@@ -46,6 +88,7 @@ export default function FeedbackModal(props){
               comment: suggestion.comment,
               src_lang: suggestion.src_lang,
               dst_lang: suggestion.dst_lang,
+              commune: suggestion.commune || null,
             }
           : {
               ...suggestion,
@@ -58,8 +101,8 @@ export default function FeedbackModal(props){
 
         setEditingTranslation(null);
 
-        toast("Retroalimentación enviada con éxito",{
-          description: "Gracias por su retroalimentación",
+        toast(t('feedback.sent'),{
+          description: t('translator.feedbackThanks'),
         });
 
         trackEvent(isSuggestionOnly ? 'suggestion_only_submit_success' : 'negative_feedback_submit_success', {
@@ -70,8 +113,8 @@ export default function FeedbackModal(props){
     } 
     catch (error) {
       if (error?.response?.status === 401){
-        toast("Error",{
-          description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
+        toast(t('common.error'),{
+          description: t('common.loginRequired'),
         })
       }
       console.log(error?.response?.data || error)
@@ -84,6 +127,8 @@ export default function FeedbackModal(props){
 
   const editSuggestion = async (suggestion) => {
     try {
+      // first: accepting a correction copies the pair, labels included
+      await saveLabels();
       if(suggestion.validated){
         await api.patch(
           API_ENDPOINTS.SUGGESTIONS+suggestionId+'/',
@@ -93,10 +138,10 @@ export default function FeedbackModal(props){
           }
         )
 
-        toast("Retroalimentación actualizada",{
-          description: "La retroalimentación ha sido actualizada correctamente",
+        toast(t('feedback.updated'),{
+          description: t('feedback.updatedBody'),
           cancel: {
-            label: 'Cerrar',
+            label: t('common.close'),
             onClick: () => console.log('Pop up cerrado'),
           },
         })
@@ -110,10 +155,10 @@ export default function FeedbackModal(props){
           }
         )
 
-        toast("Retroalimentación actualizada y aceptada",{
-          description: "La retroalimentación ha sido actualizada y aceptada correctamente",
+        toast(t('feedback.accepted'),{
+          description: t('feedback.acceptedBody'),
           cancel: {
-            label: 'Cerrar',
+            label: t('common.close'),
             onClick: () => console.log('Pop up cerrado'),
           },
         }) 
@@ -126,10 +171,10 @@ export default function FeedbackModal(props){
     } 
     catch (error) {
       if (error.response.status === 401){
-        toast("Error",{
-          description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
+        toast(t('common.error'),{
+          description: t('common.loginRequired'),
           cancel: {
-            label: 'Cerrar',
+            label: t('common.close'),
             onClick: () => console.log('Pop up cerrado'),
           },
         })
@@ -144,16 +189,16 @@ export default function FeedbackModal(props){
       if (isSuggestionOnly) {
         // For general suggestions, check if comment is not empty
         if (!editingTranslation?.comment || editingTranslation.comment.trim() === '') {
-          toast("Campo vacío", {
-            description: "Deberías incluir una sugerencia antes de enviar.",
+          toast(t('feedback.emptyTitle'), {
+            description: t('feedback.emptyBody'),
           });
           return;
         }
       } else {
         // For negative feedback, check if suggestion is not empty
         if (!editingTranslation?.suggestion || editingTranslation.suggestion.trim() === '') {
-          toast("Campo vacío", {
-            description: "Deberías incluir una sugerencia antes de enviar.",
+          toast(t('feedback.emptyTitle'), {
+            description: t('feedback.emptyBody'),
           });
           return;
         }
@@ -175,13 +220,13 @@ export default function FeedbackModal(props){
     <Dialog open={!!editingTranslation} onOpenChange={() => setEditingTranslation(null)}>
     <DialogContent className={isSuggestionOnly ? 'h-fit w-3/4 gap-y-4 max-w-2xl' : 'h-3/4 w-3/4 gap-y-4'}>
       <DialogHeader>
-        <DialogTitle>{isSuggestionOnly ? 'Sugerencias o comentarios' : 'Enviar retroalimentación'}</DialogTitle>
+        <DialogTitle>{isSuggestionOnly ? t('feedback.suggestionsTitle') : t('feedback.title')}</DialogTitle>
         <DialogDescription>
-          <span>{isSuggestionOnly ? 'Comparte tus comentarios o sugerencias sobre la plataforma' : '¿Quieres sugerir una traducción alternativa?'}</span>
+          <span>{isSuggestionOnly ? t('feedback.suggestionsPrompt') : t('feedback.question')}</span>
           <br />
           {editingTranslation && suggestionId && (
             <span>
-              Retroalimentación ingresada por: {editingTranslation.user ? editingTranslation.user.email : 'Anónimo'}
+              {t('feedback.enteredBy', { user: editingTranslation.user ? editingTranslation.user.email : t('feedback.anonymous') })}
             </span>
           )}
         </DialogDescription>
@@ -197,7 +242,7 @@ export default function FeedbackModal(props){
                 value={editingTranslation?.comment || ''}
                 onChange={(e) => setEditingTranslation({...editingTranslation, comment: e.target.value})}
                 className="min-h-[200px] border shadow-sm resize-none"
-                placeholder="Escribe aquí..."
+                placeholder={t('feedback.writeHere')}
               />
             </div>
           </div>
@@ -207,7 +252,7 @@ export default function FeedbackModal(props){
             <ActionButton
               clickCallback={() => handleSaveEdit()} 
             >
-              Enviar
+              {t('common.send')}
             </ActionButton>
           </DialogFooter>
         </>
@@ -216,10 +261,10 @@ export default function FeedbackModal(props){
         <>
           <div className="flex flex-row max-[850px]:flex-col items-start gap-4 h-3/4 pt-5">
             <div className="flex flex-col items-center max-[850px]:w-full gap-4 w-1/2 h-full">
-              <label htmlFor="source" className="text-right font-semibold">Fuente {editingTranslation?.src_lang.code !== 'spa_Latn' ? (
-                <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{editingTranslation?.src_lang.name}</Badge>
+              <label htmlFor="source" className="text-right font-semibold">{t('feedback.source')} {editingTranslation?.src_lang.code !== 'spa_Latn' ? (
+                <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{t.langName(editingTranslation?.src_lang)}</Badge>
               ) : (
-                <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{editingTranslation?.src_lang.name}</Badge>
+                <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{t.langName(editingTranslation?.src_lang)}</Badge>
               )}
               </label>
               <Textarea
@@ -230,10 +275,10 @@ export default function FeedbackModal(props){
               />
             </div>
             <div className="flex flex-col items-center max-[850px]:w-full gap-4 w-1/2 h-full">
-              <label htmlFor="translation" className="text-right font-semibold">Traducción {editingTranslation?.dst_lang.code !== 'spa_Latn' ? (
-                <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{editingTranslation?.dst_lang.name}</Badge>
+              <label htmlFor="translation" className="text-right font-semibold">{t('feedback.translation')} {editingTranslation?.dst_lang.code !== 'spa_Latn' ? (
+                <Badge variant="secondary" className='bg-default hover:bg-defaultHover text-white min-w-fit'>{t.langName(editingTranslation?.dst_lang)}</Badge>
               ) : (
-                <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{editingTranslation?.dst_lang.name}</Badge>
+                <Badge variant="secondary" className='bg-red-500 hover:bg-red-600 text-white min-w-fit'>{t.langName(editingTranslation?.dst_lang)}</Badge>
               )}
               </label>
               {validatedSuggestion?
@@ -254,6 +299,10 @@ export default function FeedbackModal(props){
             </div>
           </div>
           
+          {labels && (
+            <SuggestionLabels value={labels} onChange={setLabels} />
+          )}
+
           <DialogFooter className="pt-5 flex flex-row items-center">
             <div className="flex items-center gap-2 mr-auto">
               <Checkbox
@@ -267,13 +316,13 @@ export default function FeedbackModal(props){
                 htmlFor="uncertain" 
                 className="text-sm font-medium leading-none cursor-pointer"
               >
-                Sé que está mal pero no sé cómo corregirlo
+                {t('feedback.uncertain')}
               </label>
             </div>
             <ActionButton
               clickCallback={() => handleSaveEdit()} 
             >
-              Enviar
+              {t('common.send')}
             </ActionButton>
           </DialogFooter>
         </>

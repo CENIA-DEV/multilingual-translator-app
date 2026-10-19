@@ -15,14 +15,22 @@ limitations under the License. */
 import "./requestaccess.css"
 import api from "../api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ActionButton from "../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react"
-import { API_ENDPOINTS, REQUEST_ACCESS_REASONS, LANG_TITLE, VARIANT_LANG } from '../constants';
+import { API_ENDPOINTS, REQUEST_ACCESS_REASONS } from '../constants';
 import { toast } from "sonner";
+import { useConfig } from "@/customization/ConfigProvider";
+import { cssUrl } from "@/customization/media";
+
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
 
 export default function RequestAccess(){
+  const { authPages, identity } = useConfig();
 
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -35,12 +43,7 @@ export default function RequestAccess(){
 
   const [disableSubmit, setDisableSubmit] = useState(false);
 
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
-
-  const checkFormStatus = () => {
+  const checkFormStatus = useCallback(() => {
     if(!firstName || !lastName || !validateEmail(email)){
       setDisableSubmit(true);
     }
@@ -53,7 +56,7 @@ export default function RequestAccess(){
         setDisableSubmit(false);
       } 
     }
-  }
+  }, [firstName, lastName, email, accessReason, organization]);
 
   const handleLogin = () => {
     router.push('/login')
@@ -106,14 +109,18 @@ export default function RequestAccess(){
 
   useEffect(() => {
     checkFormStatus();
-  }, [firstName, lastName, organization, checkFormStatus])
+  }, [checkFormStatus])
 
   return (
     <div className="bg-default w-full h-[100dvh] relative">
-      <div 
+      <div
+        style={{
+          backgroundImage: cssUrl(authPages.formsImage),
+          mixBlendMode: authPages.tint ? "luminosity" : undefined,
+        }}
         className="
           animate-fade animate-once animate-duration-[1200ms] animate-delay-[700ms] animate-ease-in-out 
-          bg-[url('/images/${VARIANT_LANG}-2-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain max-[850px]:scale-y-90 -scale-x-100
+          w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain max-[850px]:scale-y-90 -scale-x-100
           max-[850px]:bg-left-top
         "
       />
@@ -152,7 +159,7 @@ export default function RequestAccess(){
           <Button 
             className="
               h-7 
-              bg-[#068cdc1a] 
+              bg-default/10 
               text-default text-xs font-bold 
               hover:bg-default hover:text-white
               "
@@ -169,7 +176,7 @@ export default function RequestAccess(){
                 Solicitud enviada
               </h2>
               <span className="text-sm ">
-              Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la <strong>Academia de la Lengua {LANG_TITLE}</strong>. 
+              Gracias por enviar tu solicitud. Tu solicitud será revisada por personal del la <strong>{identity.organizationName}</strong>. 
               Una vez aceptada tu solicitud se te enviará un <strong>correo electrónico</strong> confirmando aquello junto a un enlace para que puedas registrar tu cuenta.
               </span>
             </div>

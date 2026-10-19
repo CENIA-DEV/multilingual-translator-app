@@ -14,17 +14,20 @@ limitations under the License. */
 'use client'
 import "./resetpassword.css"
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useEffect } from "react";
 import ActionButton from "../../components/actionButton/actionButton";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react"
-import { API_ENDPOINTS, VARIANT_LANG } from "@/app/constants";
+import { API_ENDPOINTS } from "@/app/constants";
 import api from "@/app/api";
 import { toast } from "sonner";
+import { useConfig } from "@/customization/ConfigProvider";
+import { cssUrl } from "@/customization/media";
 
 
 export default function Resetpassword({params}){
+  const { authPages } = useConfig();
 
   const router = useRouter();
   const resetPasswordToken = params.token;
@@ -36,14 +39,14 @@ export default function Resetpassword({params}){
   
   const [disableSubmit, setDisableSubmit] = useState(false);
   
-  const checkFormStatus = () => {
+  const checkFormStatus = useCallback(() => {
     if(!password){
       setDisableSubmit(true);
     }
     else{
       setDisableSubmit(false);
     }
-  }
+  }, [password]);
 
   const handleSubmit = async () => {
 
@@ -94,14 +97,18 @@ export default function Resetpassword({params}){
 	
   useEffect(() => {
     checkFormStatus();
-  }, [password, checkFormStatus])
+  }, [checkFormStatus])
 
   return (
 	  <div className="bg-default w-full h-[100dvh] relative">
-      <div 
+      <div
+        style={{
+          backgroundImage: cssUrl(authPages.formsImage),
+          mixBlendMode: authPages.tint ? "luminosity" : undefined,
+        }}
         className="
           animate-fade animate-once animate-duration-[1200ms] animate-delay-[700ms] animate-ease-in-out 
-          bg-[url('/images/${VARIANT_LANG}-2-blue.png')] w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
+          w-full h-full absolute bg-left-bottom bg-no-repeat bg-contain -scale-x-100
           max-[850px]:bg-left-top
         "
       />
@@ -199,7 +206,7 @@ export default function Resetpassword({params}){
               clickCallback={handleSubmit}
               className="w-full h-[50px] text-md border-hidden"
             >
-              Restrablecer contraseña
+              Restablecer contraseña
             </ActionButton>
 
           </form>

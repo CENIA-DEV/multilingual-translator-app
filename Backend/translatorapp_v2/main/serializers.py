@@ -14,7 +14,7 @@
 # limitations under the License.
 from datetime import datetime
 
-from django.conf import settings
+from customization.access import max_words as access_max_words
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -39,6 +39,7 @@ from .models import (
     Word,
     WordInformation,
 )
+from .roles import can_manage_translator
 
 
 # Serializers define the API representation.
@@ -78,6 +79,7 @@ class FullProfileSerializer(BaseProfileSerializer):
             "avatar",
             "date_of_birth",
             "proficiency",
+            "oral_proficiency",
             "organization",
             "age",
         ]
@@ -87,7 +89,14 @@ class FullProfileSerializer(BaseProfileSerializer):
 class ProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = Profile
-        fields = ["avatar", "date_of_birth", "organization", "age"]
+        fields = [
+            "avatar",
+            "date_of_birth",
+            "organization",
+            "proficiency",
+            "oral_proficiency",
+            "age",
+        ]
         extra_kwargs = {"age": {"read_only": True}}
 
 
@@ -165,6 +174,8 @@ class FullUserSerializer(BaseUserSerializer):
     last_name = serializers.CharField(
         allow_blank=False
     )  # User model name field allows empty strings
+    # Lets the frontend show "Administrar Traductor" only to those who may use it
+    can_manage_translator = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -177,8 +188,12 @@ class FullUserSerializer(BaseUserSerializer):
             "last_name",
             "profile",
             "is_active",
+            "can_manage_translator",
         ]
         extra_kwargs = {"password": {"write_only": True}}
+
+    def get_can_manage_translator(self, user):
+        return can_manage_translator(user)
 
 
 class UserEmailSerializer(serializers.ModelSerializer):
@@ -202,6 +217,8 @@ class ScriptSerializer(serializers.ModelSerializer):
             # Remove default uniqueness validator
             # this is handled in create method
             "code": {"validators": []},
+            # name falls back to the code when omitted (see _resolve_by_code)
+            "name": {"required": False},
         }
 
 
@@ -214,27 +231,74 @@ class DialectSerializer(serializers.ModelSerializer):
             # Remove default uniqueness validator
             # this is handled in create method
             "code": {"validators": []},
+            "name": {"required": False},
         }
 
 
+def _resolve_by_code(model, data):
+    """Look up `model` by its unique `code`, creating the row if it is new.
+
+    `get_or_create(code=..., name=...)` would raise IntegrityError whenever a row
+    with that code already exists under a different name, so the code alone is
+    used for the lookup. The name is a creation default only: Script and Dialect
+    rows are shared by many languages, so one language's payload must not
+    rename them for everyone.
+    """
+    if not data:
+        return None
+
+    code = (data.get("code") or "").strip()
+    if not code:
+        return None
+
+    name = (data.get("name") or "").strip() or code
+    obj, _ = model.objects.get_or_create(code=code, defaults={"name": name})
+    return obj
+
+
 class LanguageSerializer(serializers.ModelSerializer):
-    script = ScriptSerializer()
-    dialect = DialectSerializer()
+    # Optional on write so a PATCH can touch `name` alone without having to
+    # re-send the whole script/dialect payload.
+    script = ScriptSerializer(required=False, allow_null=True)
+    dialect = DialectSerializer(required=False, allow_null=True)
 
     class Meta:
         model = Lang
         fields = ["id", "script", "code", "dialect", "name"]
+        extra_kwargs = {
+            # Let validate_name own the empty case so the client gets the
+            # Spanish message rather than DRF's default English one.
+            "name": {"allow_blank": True},
+        }
+
+    def validate_name(self, name):
+        """The name is what the whole site displays, so keep it trimmed and set."""
+        if name is None:
+            return name
+        name = name.strip()
+        if not name:
+            raise serializers.ValidationError(
+                "El nombre del idioma no puede estar vacío"
+            )
+        return name
 
     def create(self, validated_data):
-        # Get or create script to avoid unique constraint error
-        script_data = validated_data.pop("script")
-        script, _ = Script.objects.get_or_create(**script_data)
-
-        # Get or create dialect to avoid unique constraint error
-        dialect_data = validated_data.pop("dialect")
-        dialect, _ = Dialect.objects.get_or_create(**dialect_data)
+        script = _resolve_by_code(Script, validated_data.pop("script", None))
+        dialect = _resolve_by_code(Dialect, validated_data.pop("dialect", None))
 
         return Lang.objects.create(script=script, dialect=dialect, **validated_data)
+
+    def update(self, instance, validated_data):
+        """Explicit update: ModelSerializer refuses to write nested fields."""
+        if "script" in validated_data:
+            instance.script = _resolve_by_code(Script, validated_data.pop("script"))
+        if "dialect" in validated_data:
+            instance.dialect = _resolve_by_code(Dialect, validated_data.pop("dialect"))
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
 class NameLanguageSerializer(serializers.ModelSerializer):
@@ -349,7 +413,11 @@ class RequestSerializer(serializers.ModelSerializer):
             "reason",
             "approved",
             "organization",
+            # When the person asked for access, so administrators can tell how
+            # long a pending request has been waiting.
+            "created_at",
         ]
+        read_only_fields = ["created_at"]
 
     def validate(self, data):
         if (
@@ -423,6 +491,7 @@ class SuggestionSerializer(serializers.ModelSerializer):
             "user",
             "updated_suggestion",
             "is_uncertain",
+            "commune",
         ]
 
     def validate_src_lang(self, src_lang):
@@ -456,7 +525,7 @@ class SuggestionSerializer(serializers.ModelSerializer):
                     correct=False,
                     validated=True,
                     validated_by=validated_user,
-                    **validated_data
+                    **validated_data,
                 )
             validated_data["correct"] = True
             validated_data["validated"] = True
@@ -494,9 +563,11 @@ class TranslationPairSerializer(SuggestionSerializer):
         }
 
     def validate_src_text(self, src_text):
-        if len(src_text.strip().split()) > settings.MAX_WORDS_TRANSLATION:
+        # set in "Visibilidad" (Administrar Traductor)
+        max_words = access_max_words()
+        if len(src_text.strip().split()) > max_words:
             raise serializers.ValidationError(
-                "El texto no puede tener más de 150 palabras", code=400
+                f"El texto no puede tener más de {max_words} palabras", code=400
             )
         return src_text
 
@@ -569,6 +640,9 @@ class SpeechToTextSerializer(serializers.ModelSerializer):
 
 class GeneralSuggestionSerializer(serializers.ModelSerializer):
     user = UserEmailSerializer(read_only=True)
+    # The languages being translated, if any ({"code": ...}, as for feedback)
+    src_lang = NameLanguageSerializer(required=False, allow_null=True)
+    dst_lang = NameLanguageSerializer(required=False, allow_null=True)
 
     class Meta:
         model = GeneralSuggestion
@@ -576,11 +650,28 @@ class GeneralSuggestionSerializer(serializers.ModelSerializer):
             "id",
             "comment",
             "user",
+            "src_lang",
+            "dst_lang",
+            "commune",
             "reviewed",
             "reviewed_by",
             "created_at",
         ]
         read_only_fields = ["reviewed", "reviewed_by", "created_at"]
+
+    def _lang(self, value):
+        if not value:
+            return None
+        lang = Lang.objects.filter(code=value.get("code")).first()
+        if lang is None:
+            raise serializers.ValidationError("Lengua no soportada")
+        return lang
+
+    def validate_src_lang(self, src_lang):
+        return self._lang(src_lang)
+
+    def validate_dst_lang(self, dst_lang):
+        return self._lang(dst_lang)
 
     def create(self, validated_data):
         user = validated_data.pop("user", None)
@@ -620,6 +711,7 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             "model_name",
             "model_version",
             "from_cache",
+            "commune",
             "created_at",
         ]
         read_only_fields = ["created_at"]
@@ -640,14 +732,33 @@ class WordInformationSerializer(serializers.ModelSerializer):
 class WordSerializer(serializers.ModelSerializer):
     definitions = DefinitionSerializer(many=True, read_only=True)
     information = WordInformationSerializer(read_only=True)
+    # Labels by code, as the variant selector names them ("nagche", "raguileo")
+    territories = serializers.SlugRelatedField(
+        many=True,
+        slug_field="code",
+        source="dialects",
+        queryset=Dialect.objects.all(),
+        required=False,
+    )
+    writings = serializers.SlugRelatedField(
+        many=True,
+        slug_field="code",
+        source="scripts",
+        queryset=Script.objects.all(),
+        required=False,
+    )
 
     class Meta:
         model = Word
-        fields = ["id", "text", "definitions", "information"]
+        fields = ["id", "text", "definitions", "information", "territories", "writings"]
 
     def create(self, validated_data):
         definitions_data = validated_data.pop("definitions", [])
+        dialects = validated_data.pop("dialects", [])
+        scripts = validated_data.pop("scripts", [])
         word = Word.objects.create(**validated_data)
+        word.dialects.set(dialects)
+        word.scripts.set(scripts)
         for definition_data in definitions_data:
             Definition.objects.create(word=word, **definition_data)
 

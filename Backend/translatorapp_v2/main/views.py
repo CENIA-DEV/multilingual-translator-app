@@ -18,6 +18,7 @@ from functools import reduce
 from operator import or_
 
 import numpy as np
+from customization.access import can_use, feature_access
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -28,6 +29,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -49,7 +51,7 @@ from .models import (
     Word,
     WordInformation,
 )
-from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
+from .roles import IsAdmin, IsNativeAdmin
 from .serializers import (
     FullUserSerializer,
     GeneralSuggestionSerializer,
@@ -68,12 +70,14 @@ from .serializers import (
     WordSerializer,
 )
 from .utils import (
+    clean_commune,
     filter_cache,
     find_cached_tts_normalized,
     generate_asr,
     generate_tts,
     get_hashed_token,
     get_word_candidates,
+    model_language,
     send_invite_email,
     send_participate_email,
     send_recovery_email,
@@ -300,7 +304,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class LanguageViewSet(viewsets.ModelViewSet):
-    queryset = Lang.objects.all()
+    # select_related keeps the nested script/dialect from costing two extra
+    # queries per language on the list.
+    queryset = Lang.objects.select_related("script", "dialect").order_by("name")
     serializer_class = LanguageSerializer
     permission_classes = [AllowAny]
 
@@ -316,7 +322,12 @@ class LanguageViewSet(viewsets.ModelViewSet):
         code = request.query_params.get("code")
         script = request.query_params.get("script")
         dialect = request.query_params.get("dialect")
-        queryset = self.queryset
+        # `self.get_queryset()`, never `self.queryset`: the class attribute is one
+        # queryset instance built at import time, so serializing it directly makes
+        # Django reuse its result cache for the life of the worker. An unfiltered
+        # GET would then keep returning pre-rename (and pre-create/delete) rows
+        # until the process restarted.
+        queryset = self.get_queryset()
         # if code is not None then filter by code
         if code is not None:
             queryset = queryset.filter(code__icontains=code)
@@ -325,12 +336,12 @@ class LanguageViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(script__code=script)
         elif dialect is not None:
             queryset = queryset.filter(dialect__code=dialect)
-        serializer = self.serializer_class(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 
 class InvitationViewSet(viewsets.ModelViewSet):
-    queryset = InvitationToken.objects.all()
+    queryset = InvitationToken.objects.all().order_by("-created_at")
     serializer_class = InvitationSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
 
@@ -447,10 +458,50 @@ class PasswordResetViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
 
+class SuggestionPageNumberPagination(PageNumberPagination):
+    """Page the suggestions table by the size the client asks for.
+
+    The table used to guess the page size from the length of the page it got
+    back, so the last page (which is shorter) inflated the page count and the
+    footer offered pages that did not exist. The client now sends `page_size`,
+    and the envelope echoes `page_size` and `page` so no client has to guess.
+
+    Ported from `OptInPageNumberPagination` in voces-platform-backend (commit
+    322e1b22). That version pages only callers that send `page` or
+    `page_size`, because its endpoint used to answer with a plain array. This
+    endpoint has always answered paged, so the opt-in gate is left out and the
+    rest is kept identical.
+    """
+
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+    def paginate_queryset(self, queryset, request, view=None):
+        try:
+            return super().paginate_queryset(queryset, request, view)
+        except NotFound:
+            # The list shrinks under the viewer -- rows get validated, accepted
+            # and deleted from the page that lists them -- so a page number that
+            # was valid when it was rendered can point past the end by the time
+            # it is used. Answer with the last page instead of a 404 that the
+            # table has no way to recover from.
+            page_size = self.get_page_size(request) or self.page_size
+            paginator = self.django_paginator_class(queryset, page_size)
+            self.page = paginator.page(paginator.num_pages)
+            self.request = request
+            return list(self.page)
+
+    def get_paginated_response(self, data):
+        response = super().get_paginated_response(data)
+        response.data["page_size"] = self.get_page_size(self.request) or self.page_size
+        response.data["page"] = self.page.number
+        return response
+
+
 class SuggestionViewSet(viewsets.ModelViewSet):
     serializer_class = SuggestionSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
-    pagination_class = PageNumberPagination
+    pagination_class = SuggestionPageNumberPagination
 
     def get_permissions(self):
         if self.action in [
@@ -467,10 +518,20 @@ class SuggestionViewSet(viewsets.ModelViewSet):
         queryset = TranslationPair.objects.all()
         language_param = self.request.query_params.get("lang")
         validated = self.request.query_params.get("validated")
+        # Filter by feedback polarity. `correct` stays null until someone says
+        # whether the output was right, so "none" is a third value worth asking
+        # for rather than a missing one. (Same parsing as voces-platform-backend;
+        # this used to read anything but "true" as False, so `correct=null`
+        # returned the incorrect rows.)
         correct = self.request.query_params.get("correct")
         if correct is not None:
-            correct = correct.lower() == "true"
-            queryset = queryset.filter(correct=correct)
+            wanted = correct.strip().lower()
+            if wanted in ("null", "none", ""):
+                queryset = queryset.filter(correct__isnull=True)
+            elif wanted in ("true", "1", "yes"):
+                queryset = queryset.filter(correct=True)
+            elif wanted in ("false", "0", "no"):
+                queryset = queryset.filter(correct=False)
         if language_param is not None:
             language_codes = [
                 code.strip() for code in language_param.split(",") if code.strip()
@@ -484,10 +545,28 @@ class SuggestionViewSet(viewsets.ModelViewSet):
                     ],
                 )
                 queryset = queryset.filter(lang_query)
+        # every language of a family ("arn"): the codes in use and older ones
+        prefix_param = self.request.query_params.get("lang_prefix")
+        if prefix_param:
+            prefixes = [
+                p.strip() for p in prefix_param.split(",") if p.strip().isalpha()
+            ]
+            if prefixes:
+                queryset = queryset.filter(
+                    reduce(
+                        or_,
+                        (
+                            Q(src_lang__code__startswith=f"{p}_")
+                            | Q(dst_lang__code__startswith=f"{p}_")
+                            for p in prefixes
+                        ),
+                    )
+                )
         if validated is not None:
             validated = validated.lower() == "true"
             queryset = queryset.filter(validated=validated)
-        return queryset.order_by("-created_at")
+        # `-id` breaks created_at ties so pages never overlap or skip rows
+        return queryset.order_by("-created_at", "-id")
 
     def create(self, request):
         # add the user thats adding the suggestion
@@ -572,6 +651,7 @@ class SuggestionViewSet(viewsets.ModelViewSet):
                     user=suggestion.user,
                     model_name=suggestion.model_name,
                     model_version=suggestion.model_version,
+                    commune=suggestion.commune,
                     correct=True,
                     validated=True,
                     validated_by=request.user,
@@ -579,6 +659,36 @@ class SuggestionViewSet(viewsets.ModelViewSet):
                 return Response(self.get_serializer(new_suggestion).data)
         else:
             return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["patch"])
+    def relabel(self, request, pk):
+        """Set the territory and alphabet (as the variant's code, e.g.
+        arn_raguileo_nagche) and the comuna of a pair. The side replaced is the
+        one in the same language family, whichever direction the pair has."""
+        pair = self.get_object()
+        code = request.data.get("lang")
+        lang = Lang.objects.filter(code=code).first() if isinstance(code, str) else None
+        if lang is None:
+            return Response(
+                {"lang": "Lengua no soportada"}, status=HTTP_400_BAD_REQUEST
+            )
+        family = lang.code.split("_")[0]
+        same = (
+            lambda other: other is not None and other.code.split("_")[0] == family
+        )  # noqa: E731
+        if same(pair.dst_lang):
+            pair.dst_lang = lang
+        elif same(pair.src_lang):
+            pair.src_lang = lang
+        else:
+            return Response(
+                {"lang": "La sugerencia no es de esa lengua"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        if "commune" in request.data:
+            pair.commune = clean_commune(request.data.get("commune"))
+        pair.save(update_fields=["src_lang", "dst_lang", "commune"])
+        return Response(self.get_serializer(pair).data)
 
     @action(detail=True, methods=["patch"])
     def reject_suggestion(self, request, pk):
@@ -648,7 +758,7 @@ class SuggestionViewSet(viewsets.ModelViewSet):
 class RequestViewSet(viewsets.ModelViewSet):
     serializer_class = RequestSerializer
     permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
-    queryset = RequestAccess.objects.all()
+    queryset = RequestAccess.objects.all().order_by("-created_at")
 
     def get_permissions(self):
         """
@@ -663,14 +773,17 @@ class RequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def get_pending_requests(self, request):
-        pending_requests = RequestAccess.objects.filter(approved=None)
+        pending_requests = RequestAccess.objects.filter(approved=None).order_by(
+            "-created_at"
+        )
         serializer = self.get_serializer(pending_requests, many=True)
         return Response(serializer.data)
 
 
 class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     # since we only want to implement create endpoint we inherit create mixin
-    permission_classes = [TranslationRequiresAuth]  # any user can translate
+    # who may translate: "Visibilidad" in Administrar Traductor
+    permission_classes = [feature_access("translatorPage", "translation")]
     serializer_class = TranslationPairSerializer
 
     def get_queryset(self, src_lang=None, dst_lang=None, src_text=None):
@@ -772,6 +885,8 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 "model_name": model_name or "unknown",
                 "model_version": model_version or "unknown",
                 "from_cache": from_cache,
+                # the comuna the user picked in "Ayúdame a decidir", if any
+                "commune": clean_commune(request.data.get("commune")),
             }
             try:
                 if idem_key:
@@ -815,7 +930,7 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     ViewSet for text-to-speech functionality
     """
 
-    permission_classes = [TranslationRequiresAuth]
+    permission_classes = [feature_access("translatorPage", "tts")]
     serializer_class = TextToSpeechSerializer
 
     def get_queryset(self, text=None, lang=None):
@@ -836,6 +951,11 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             text = serializer.validated_data["text"]
             base_language_code = serializer.validated_data["language"]
             gender = serializer.validated_data.get("gender")
+            if gender and not can_use(request.user, "separateGenders"):
+                return Response(
+                    {"detail": "No tienes acceso a las voces por género."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             model_name = serializer.validated_data.get("model_name")
             model_version = serializer.validated_data.get("model_version")
 
@@ -964,7 +1084,7 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     ViewSet for speech-to-text functionality
     """
 
-    permission_classes = [TranslationRequiresAuth]
+    permission_classes = [feature_access("translatorPage", "asr")]
     serializer_class = SpeechToTextSerializer
     parser_classes = [MultiPartParser, FormParser]
 
@@ -1155,17 +1275,27 @@ class TranslationRequestViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class WordViewSet(viewsets.ModelViewSet):
-    queryset = Word.objects.all().prefetch_related("definitions")
+    queryset = Word.objects.all().prefetch_related("definitions", "dialects", "scripts")
     serializer_class = WordSerializer
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
         else:
-            permission_classes = [AllowAny]
+            # reading them is "word information"; admins also for their page
+            permission_classes = [
+                feature_access("wordInformation")
+                | IsNativeAdmin
+                | IsAdmin
+                | IsAdminUser
+            ]
         return [permission() for permission in permission_classes]
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[feature_access("translatorPage", "wordInformation")],
+    )
     def analyze_sentence(self, request):
 
         sentence = request.data.get("sentence", "")
@@ -1190,6 +1320,21 @@ class WordViewSet(viewsets.ModelViewSet):
         query = reduce(or_, [Q(text__iexact=word) for word in candidates])
         found_words = self.get_queryset().filter(query)
 
+        # Only the words of the variant the text is in: a word labelled with
+        # territories (or alphabets) shows for those only; unlabelled, for all
+        lang_code = request.data.get("lang")
+        if isinstance(lang_code, str) and lang_code:
+            _, variant = model_language(lang_code)
+            if variant.get("territory"):
+                found_words = found_words.filter(
+                    Q(dialects__isnull=True) | Q(dialects__code=variant["territory"])
+                )
+            if variant.get("writing"):
+                found_words = found_words.filter(
+                    Q(scripts__isnull=True) | Q(scripts__code=variant["writing"])
+                )
+            found_words = found_words.distinct()
+
         serializer = self.get_serializer(found_words, many=True)
         return Response(
             {
@@ -1208,5 +1353,10 @@ class WordInformationViewSet(viewsets.ModelViewSet):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
         else:
-            permission_classes = [AllowAny]
+            permission_classes = [
+                feature_access("wordInformation")
+                | IsNativeAdmin
+                | IsAdmin
+                | IsAdminUser
+            ]
         return [permission() for permission in permission_classes]

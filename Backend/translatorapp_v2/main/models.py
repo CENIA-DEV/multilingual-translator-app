@@ -100,6 +100,9 @@ class TranslationPair(models.Model):
     model_name = models.CharField(max_length=100, null=True)
     model_version = models.CharField(max_length=100, null=True)
     is_uncertain = models.BooleanField(default=False, null=True)  # TODO: ask about this
+    # The comuna the user said they come from ("Ayúdame a decidir"), when they
+    # picked one; the territory and alphabet are those of the language variant
+    commune = models.CharField(max_length=100, null=True, blank=True)
 
     user = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="user"
@@ -191,6 +194,7 @@ class Profile(models.Model):
     NON_SPEAKER = "Non-Speaker"
     FLUENT = "Fluent"
     BEGINNER = "Beginner"
+    BASIC = "Basic"
     ROLES = [
         (ADMIN, "Administrator"),
         (NATIVEADMIN, "Native-Administrator"),
@@ -203,6 +207,11 @@ class Profile(models.Model):
         (FLUENT, "Fluent"),
         (BEGINNER, "Beginner"),
     ]
+    ORAL_PROFICIENCY = [
+        (NON_SPEAKER, "Non-Speaker"),
+        (BASIC, "Basic"),
+        (FLUENT, "Fluent"),
+    ]
     date_joined = models.DateField(default=timezone.now)
     date_of_birth = models.DateField(null=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -211,6 +220,9 @@ class Profile(models.Model):
     organization = models.CharField(max_length=120, default=None, null=True)
     proficiency = models.CharField(
         max_length=120, default="Non-Speaker", choices=PROFICIENCY
+    )
+    oral_proficiency = models.CharField(
+        max_length=120, default="Non-Speaker", choices=ORAL_PROFICIENCY
     )
 
     def has_role(self, role):
@@ -308,21 +320,25 @@ class GeneralSuggestion(models.Model):
     )
     comment = models.TextField(max_length=5000)
 
-    # Optional: Keep language context if user was translating
-    # src_lang = models.ForeignKey(
-    #    Lang,
-    #    related_name="suggestion_src_lang",
-    #    on_delete=models.SET_NULL,
-    #    null=True,
-    #    blank=True
-    # )
-    # dst_lang = models.ForeignKey(
-    #    Lang,
-    #    related_name="suggestion_dst_lang",
-    #    on_delete=models.SET_NULL,
-    #    null=True,
-    #    blank=True
-    # )
+    # The languages the user was translating between, if any: for a variant they
+    # say its territory and alphabet
+    src_lang = models.ForeignKey(
+        Lang,
+        related_name="suggestion_src_lang",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    dst_lang = models.ForeignKey(
+        Lang,
+        related_name="suggestion_dst_lang",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    # The comuna the user said they come from ("Ayúdame a decidir"), when they
+    # picked one; the territory and alphabet are those of the language variant
+    commune = models.CharField(max_length=100, null=True, blank=True)
 
     # Admin review fields
     reviewed = models.BooleanField(default=False)
@@ -399,6 +415,9 @@ class TranslationRequest(models.Model):
 
     src_text = models.TextField(max_length=10000)
     dst_text = models.TextField(max_length=10000)
+    # The comuna the user said they come from ("Ayúdame a decidir"), when they
+    # picked one; the territory and alphabet are those of the language variant
+    commune = models.CharField(max_length=100, null=True, blank=True)
 
     # Track which user made the request (null for anonymous)
     user = models.ForeignKey(
@@ -437,6 +456,10 @@ class TranslationRequest(models.Model):
 
 class Word(models.Model):
     text = models.CharField(max_length=100, unique=True, db_index=True)
+    # The territories and alphabets the word belongs to, for languages with
+    # variants (Mapuzungun); none means it isn't labelled
+    dialects = models.ManyToManyField(Dialect, blank=True, related_name="words")
+    scripts = models.ManyToManyField(Script, blank=True, related_name="words")
 
     def __str__(self):
         return self.text

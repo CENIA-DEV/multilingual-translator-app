@@ -14,101 +14,40 @@ limitations under the License. */
 'use client'
 
 import "./langSelector.css"
-import { useCallback, useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowDown } from "@fortawesome/free-solid-svg-icons";
-import { VARIANT_LANG } from "@/app/constants";
+import { useT } from "@/customization/useT";
+import { useLanguageSides } from "@/customization/languages";
 
-import languages_list_arn from "../../assets/languages_arn.json";
-import languages_list_rap from "../../assets/languages_rap.json";
-
-export default function LangSelector({lang, ...props}) {
-
-  //const lang = props.lang;
-  const side = props.side;
-  const handleLangChange = props.handleLangChange;
-  const handleLangModalBtn = props.handleLangModalBtn;
-  const languages = VARIANT_LANG === 'arn'? languages_list_arn : languages_list_rap;
-
-  const [lastLanguages, setLastLanguages] = useState(
-    side === 'left'?
-      VARIANT_LANG === 'arn'?
-        [{"name": "Huilliche Azümchefe", "code": "arn_a0_h", "writing": "a0", "dialect": "h"}, {"name": "Inglés", "code": "eng_Latn", "writing": "Latn", "dialect": null}]
-        :
-        [{"name": "Rapa Nui", "code": "rap_Latn", "writing": "Latn", "dialect": null}, {"name": "Maori", "code": "mri_Latn", "writing": "Latn", "dialect": null}]
-      :
-      VARIANT_LANG === 'arn'?
-        [{"name": "Castellano", "code": "spa_Latn", "writing": "Latn", "dialect": null}, {"name": "Inglés", "code": "eng_Latn", "writing": "Latn", "dialect": null}]
-        :
-        [{"name": "Castellano", "code": "spa_Latn", "writing": "Latn", "dialect": null}, {"name": "Maori", "code": "mri_Latn", "writing": "Latn", "dialect": null}]
-  );
-
-  const [lastLanguage, setLastLanguage] = useState(lang);
-
-  const getLangByCode = useCallback((code) => {
-
-    if(code !== lastLanguage.code){
-
-      const lang = languages.filter((e) => e.code === code)[0];
-
-      const lastLangsAux = [...lastLanguages];
-
-      if (lastLangsAux[0].code === code){
-        setLastLanguages([lastLanguage, lastLangsAux[1]]);
-      }
-      else if (lastLangsAux[1].code === code){
-        setLastLanguages([lastLanguage, lastLangsAux[0]]);
-      }
-      else{
-        setLastLanguages([lastLanguage, lastLangsAux[0]]);
-      }
-      setLastLanguage(lang);
-    }
-  }, [lastLanguage, lastLanguages, languages]);
-
-  useEffect( () => {
-    getLangByCode(lang.code);
-  },[lang, getLangByCode])
-
-  return(
-	
-	<div 
-	  className={`lang-container ${side === 'right' ? 'is-right' : 'is-left'}`} 
-	  style={{
-         borderColor: side === 'left' ? '#c8d1e1' : '#ffffff',
-      }} 
-	  key={lang.code}
-	>
-	
-	
+export default function LangSelector({ lang, side, handleLangModalBtn }) {
+  const t = useT();
+  // A variant shows as its language; the territory and alphabet have their own selectors
+  const shown = useLanguageSides().displayLanguage(lang);
+  return (
+    <div
+      data-swap
+      className={`lang-container ${side === 'right' ? 'is-right' : 'is-left'}`}
+      // No key on the language: remounting would replay the fade-in on every
+      // language, territory or alphabet change instead of only on page load
+      style={{ borderColor: side === 'left' ? 'rgb(var(--line))' : '#ffffff' }}
+    >
       {/* TO DO: Fix responsive view with large languages names */}
-      <span className="lang-selected" style={side === 'left'? {color: "#0a8cde"} : {color: "#fff"}}>{lang.name}</span>
+      <span
+        className="lang-selected"
+        style={{ color: side === 'left' ? 'rgb(var(--brand))' : '#fff' }}
+      >
+        {t.langName(shown)}
+      </span>
 
-      {/*<div className="lang-last-elements">
-        
-        {lastLanguages.map(lang => (
-        
-          <span 
-            key={lang.code} 
-            className={`${side==='left'? 'lang-span-left' : 'lang-span-right'}`}
-            onClick={() => handleLangChange(lang)}  
-          >
-            {lang.name}
-          </span>
-        
-        ))}
-
-      </div>*/}
-
-      <div 
+      <div
         className="lang-modal-btn"
-        style={side==='left'? {background: "#0a8cde", color: "#fff"} : {background: "#fff", color: "#0a8cde"}}
+        style={side === 'left'
+          ? { background: 'rgb(var(--brand))', color: '#fff' }
+          : { background: '#fff', color: 'rgb(var(--brand))' }}
         onClick={handleLangModalBtn}
       >
         <FontAwesomeIcon icon={faArrowDown} />
       </div>
-
     </div>
   )
-
 };

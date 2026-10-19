@@ -11,7 +11,8 @@ export const getLanguages = async (code = null, script = null, dialect = null) =
   return res.data;
 };
 
-export const translateText = async (srcText, srcLang, dstLang, requestId) => {
+// `commune`: the comuna picked in "Ayúdame a decidir", or null
+export const translateText = async (srcText, srcLang, dstLang, requestId, commune = null) => {
   const res = await api.post(
     API_ENDPOINTS.TRANSLATION,
     {
@@ -19,12 +20,13 @@ export const translateText = async (srcText, srcLang, dstLang, requestId) => {
       src_lang: srcLang,
       dst_lang: dstLang,
       request_id: requestId,
+      commune,
     }
   );
   return res.data;
 };
 
-export const submitPositiveFeedback = async (srcText, dstText, srcLang, dstLang, modelName, modelVersion) => {
+export const submitPositiveFeedback = async (srcText, dstText, srcLang, dstLang, modelName, modelVersion, commune = null) => {
   const res = await api.post(
     API_ENDPOINTS.SUGGESTIONS + 'accept_translation/',
     {
@@ -33,7 +35,8 @@ export const submitPositiveFeedback = async (srcText, dstText, srcLang, dstLang,
       src_lang: srcLang,
       dst_lang: dstLang,
       model_name: modelName,
-      model_version: modelVersion
+      model_version: modelVersion,
+      commune,
     }
   );
   return res.data;

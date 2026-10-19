@@ -22,7 +22,7 @@ limitations under the License. */
 }
 
 .nav-menu-button:hover {
-  color: #0a8cde;
+  color: rgb(var(--brand));
 }
 
 @media screen and (max-width: 850px) {

@@ -56,7 +56,7 @@ export function RecordingModal({
             <div className="flex items-center gap-4">
               <button
                 onClick={startRecording}
-                className="w-14 h-14 rounded-full bg-[#0a8cde] flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0a8cde] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                className="w-14 h-14 rounded-full bg-default flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-default focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 title="Iniciar grabación"
                 aria-label="Iniciar grabación"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -66,7 +66,7 @@ export function RecordingModal({
               <div>
                 <button
                   onClick={startRecording}
-                  className="text-[#0a8cde] font-medium"
+                  className="text-default font-medium"
                 >
                   Iniciar grabación
                 </button>
@@ -84,7 +84,7 @@ export function RecordingModal({
                     onClick={() => setTranscribeChoice('source')}
                     className={`px-3 py-1 text-sm rounded-full transition border ${
                       transcribeChoice === 'source'
-                        ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                        ? 'bg-default text-white border-default'
                         : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                     }`}
                   >
@@ -95,7 +95,7 @@ export function RecordingModal({
                     disabled={!dstHint}
                     className={`ml-1 px-3 py-1 text-sm rounded-full transition border ${
                       transcribeChoice === 'target'
-                        ? 'bg-[#0a8cde] text-white border-[#0a8cde]'
+                        ? 'bg-default text-white border-default'
                         : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                     } ${!dstHint ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -152,7 +152,7 @@ export function RecordingModal({
                 Transcripción ({transcribeChoice === 'source' ? srcDisplay : dstDisplay})
               </label>
               <textarea
-                className="w-full h-40 p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0a8cde]"
+                className="w-full h-40 p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-default"
                 value={reviewTranscript}
                 onChange={(e) => setReviewTranscript(e.target.value)}
                 placeholder="Revisa o edita la transcripción…"
@@ -178,7 +178,7 @@ export function RecordingModal({
               </Button>
               <div className="flex gap-2">
                 <Button
-                  className="bg-[#068cdc1a] text-default text-sm font-medium hover:bg-default hover:text-white"
+                  className="bg-default/10 text-default text-sm font-medium hover:bg-default hover:text-white"
                   onClick={() => {
                     safeUnloadReviewAudio();
                     lastRecordingBlobRef.current = null;
@@ -192,7 +192,7 @@ export function RecordingModal({
                   Volver a grabar
                 </Button>
                 <Button
-                  className="bg-[#0a8cde] text-white text-sm font-medium hover:bg-[#067ac1]"
+                  className="bg-default text-white text-sm font-medium hover:bg-defaultStrong"
                   onClick={startTranslationFromReview}
                   disabled={isSubmittingValidation}
                 >

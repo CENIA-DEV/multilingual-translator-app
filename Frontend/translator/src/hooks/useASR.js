@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
-import { generateText, warmupASRModel, validateTranscriptionApi } from '../app/services/asrService';
+import { generateText, warmupASRModel, validateTranscriptionApi, isRequestCancelled } from '../app/services/asrService';
 import { toast } from 'sonner';
+import { useT } from '@/customization/useT';
 
 export function useASR({ getAudioContext, trackEvent }) {
+  const t = useT();
   const [isRecording, setIsRecording] = useState(false);
   const [asrStatus, setAsrStatus] = useState('idle');
   const [transcribeChoice, setTranscribeChoice] = useState('source');
@@ -230,18 +232,24 @@ export function useASR({ getAudioContext, trackEvent }) {
 
   async function transcribeForReview(blob, hint, filename = 'audio.webm') {
     setAsrStatus('transcribing');
+    const controller = new AbortController();
+    asrAbortRef.current = controller;
     try {
-      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename);
+      const data = await generateText(blob, hint, "mms_meta_asr", "v1", filename, { signal: controller.signal });
       updateASRActivity();
       setReviewTranscript((data?.text || '').trim());
       setCurrentAsrId(data?.id || null);
       setAsrStatus('reviewing');
     } catch (err) {
+      // Cancelled from the modal: cancelTranscription already reset the state
+      if (isRequestCancelled(err)) return;
       console.error(err);
       setAsrStatus('error');
-      toast('Error al transcribir.', {
-        description: err?.response?.data?.error || 'Reintenta con otro archivo.',
+      toast(t('asr.error'), {
+        description: err?.response?.data?.error || t('asr.retryFile'),
       });
+    } finally {
+      if (asrAbortRef.current === controller) asrAbortRef.current = null;
     }
   }
   
@@ -253,8 +261,8 @@ export function useASR({ getAudioContext, trackEvent }) {
 
       try {
         timeoutId = setTimeout(() => {
-          toast("La transcripción está tardando más tiempo de lo esperado...", {
-            description: "Por favor, espere un momento",
+          toast(t('asr.slow'), {
+            description: t('asr.pleaseWait'),
             duration: 20000,
           });
         }, 5000);
@@ -267,16 +275,16 @@ export function useASR({ getAudioContext, trackEvent }) {
         const transcript = data?.text || '';
         
         if (typeof onSuccess === 'function') onSuccess(transcript);
-        toast('Transcripción lista.');
+        toast(t('asr.ready'));
       } catch (err) {
         clearTimeout(timeoutId);
-        console.error(err);
-        if (err?.name === 'AbortError') {
-          toast('Transcripción cancelada.');
+        if (isRequestCancelled(err)) {
+          toast(t('asr.cancelled'));
           return;
         }
-        toast('Error al transcribir.', {
-          description: err?.response?.data?.error || 'Reintenta con otro archivo.',
+        console.error(err);
+        toast(t('asr.error'), {
+          description: err?.response?.data?.error || t('asr.retryFile'),
         });
       } finally {
         asrAbortRef.current = null;
@@ -308,8 +316,8 @@ export function useASR({ getAudioContext, trackEvent }) {
     } catch (err) {
       console.error('Failed to validate transcription:', err);
       if (err?.response?.status && err.response.status !== 200) {
-        toast('No se pudo guardar la validación', {
-          description: 'La transcripción se usará de todas formas.',
+        toast(t('asr.validationFailed'), {
+          description: t('asr.validationFailedBody'),
         });
       }
       return false;
@@ -336,7 +344,7 @@ export function useASR({ getAudioContext, trackEvent }) {
       if (onShowModal) onShowModal();
 	  
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast('Tu navegador no soporta grabación de audio.');
+        toast(t('asr.unsupportedBrowser'));
         recorderBusyRef.current = false;
         return;
       }
@@ -388,7 +396,7 @@ export function useASR({ getAudioContext, trackEvent }) {
         await new Promise(resolve => setTimeout(resolve, 120)); 
 
         if (!chunksRef.current.length || chunksRef.current.every(c => c.size === 0)) {
-          toast('No se grabó audio. Intente nuevamente.');
+          toast(t('asr.empty'));
           resetAudioState();
           return;
         }
@@ -452,12 +460,12 @@ export function useASR({ getAudioContext, trackEvent }) {
           forceUpdate(x => x + 1);
           recorderBusyRef.current = false;
 
-          if (wasTruncated) toast('El audio fue truncado a 30 segundos.');
+          if (wasTruncated) toast(t('asr.truncated'));
 
           await transcribeForReview(finalBlob, hintChosen || 'spa_Latn', 'grabacion.webm');
         } catch (err) {
           console.error('Finalizing recording failed:', err);
-          toast('No se pudo procesar la grabación.');
+          toast(t('asr.recordingFailed'));
           resetAudioState();
         }
       };
@@ -474,16 +482,16 @@ export function useASR({ getAudioContext, trackEvent }) {
       }, 1000);
 
       recorder.start(200);
-      toast('Grabación iniciada');
+      toast(t('asr.started'));
 
       if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
       recordingTimeoutRef.current = setTimeout(() => {
         stopRecording();
-        toast('El audio no debe superar los 30 segundos.');
+        toast(t('asr.tooLong'));
       }, 30000);
     } catch (err) {
       console.error('Error starting recording:', err);
-      toast('Error al iniciar grabación: ' + (err.message || err.name));
+      toast(t('asr.startFailed', { error: err.message || err.name }));
       if (onStopMicTracksNow) onStopMicTracksNow();
       else stopMicTracksNow();
 	  recorderBusyRef.current = false;
@@ -500,7 +508,7 @@ export function useASR({ getAudioContext, trackEvent }) {
     const duration = performance.now() - recordingStartedAtRef.current;
     if (r && r.state === 'recording' && duration < 500) {
       resetAudioState();
-      toast('Grabación cancelada.');
+      toast(t('asr.recordingCancelled'));
       return;
     }
 

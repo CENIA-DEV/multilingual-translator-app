@@ -109,6 +109,31 @@ ALLOWED_HOSTS = (
     else ["*"]  # Use just the domain part of the URL
 )
 
+
+def _origin(url):
+    """Reduce a configured URL to the scheme://host[:port] form Django expects."""
+    parsed = urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else None
+
+
+# Origins trusted for unsafe (POST/PUT/PATCH/DELETE) requests that go through
+# Django's CSRF check. Derived from the same app URLs as CORS and ALLOWED_HOSTS
+# so no deployment domain is hard-coded here.
+CSRF_TRUSTED_ORIGINS = list(
+    dict.fromkeys(
+        origin
+        for origin in (
+            _origin(APP_SETTINGS.frontend_url),
+            _origin(APP_SETTINGS.backend_url),
+        )
+        if origin
+    )
+)
+
+# Tell Django it is safely behind a Google Cloud proxy/Load Balancer: Cloud Run
+# terminates TLS and forwards the request with X-Forwarded-Proto: https.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Configure logging
 LOGGING = {
     "version": 1,
@@ -164,6 +189,7 @@ MIDDLEWARE = [
 
 INSTALLED_APPS = [
     "main",
+    "customization",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -311,9 +337,17 @@ if os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
 
 # Custom storage configuration with django-storages
 # https://django-storages.readthedocs.io/en/latest/django.html
-STORAGES = {
-    # For user-uploaded media files (e.g., audios)
-    "default": {
+# Uploaded audio normally lives in Google Cloud Storage. Local development has no
+# GCP credentials, so setting USE_LOCAL_FILE_STORAGE="True" writes to MEDIA_ROOT
+# instead. Defaults to the GCS backend, leaving deployments unchanged.
+USE_LOCAL_FILE_STORAGE = (
+    os.environ.get("USE_LOCAL_FILE_STORAGE", "False").lower() == "true"
+)
+
+_DEFAULT_STORAGE = (
+    {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+    if USE_LOCAL_FILE_STORAGE
+    else {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
         "OPTIONS": {
             "bucket_name": "platform-uploaded-audios",
@@ -321,7 +355,12 @@ STORAGES = {
             "querystring_auth": True,
             "credentials": GS_CREDENTIALS,
         },
-    },
+    }
+)
+
+STORAGES = {
+    # For user-uploaded media files (e.g., audios)
+    "default": _DEFAULT_STORAGE,
     # For static files (CSS, JS, etc.) used by `collectstatic`
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",

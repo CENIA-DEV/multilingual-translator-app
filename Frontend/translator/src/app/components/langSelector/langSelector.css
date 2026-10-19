@@ -15,7 +15,8 @@ limitations under the License. */
     display: flex;
     align-items: center;
     width: calc(100% - 80px);
-    border: 0px solid #c8d1e1;
+    border: 0px solid;
+    border-color: rgb(var(--line));
     padding: 15px 0px 5px 0px;
     border-bottom-width: medium;
     animation: fade-in 1.2s cubic-bezier(0.39, 0.575, 0.565, 1) 1.5s both;
@@ -30,25 +31,15 @@ limitations under the License. */
 }
 
 .lang-selected {
-    font-family: "Roboto Condensed", sans-serif;
+    /* The browser's sans-serif (Arial on Windows), not Roboto Condensed: this
+       rule used to name Roboto Condensed while the site didn't load that font,
+       so the name was drawn in the fallback, which is the intended look; the
+       real condensed face looks squeezed here. */
+    font-family: sans-serif;
     font-size: 18px;
+    font-weight: 700;
     margin-right: 10px;
     cursor: default;
-}
-
-.lang-selected {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 19px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-
-    margin-right: 10px;
-    cursor: default;
-    white-space: nowrap;
-
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
 }
 
 .lang-last-elements {
@@ -59,18 +50,18 @@ limitations under the License. */
 
 .lang-span-left {
     cursor: pointer;
-    color: #c8d1e1;
+    color: rgb(var(--line));
     transition: all 1s;
 }
 
 .lang-span-left:hover {
     cursor: pointer;
-    color: #0a8cde;
+    color: rgb(var(--brand));
 }
 
 .lang-span-right {
     cursor: pointer;
-    color: #c8d1e1;
+    color: rgb(var(--line));
     transition: all 1s;
 }
 
@@ -83,9 +74,11 @@ limitations under the License. */
     display: flex;
     align-items: center;
     justify-content: center;
+    /* fixed size: a long language name beside it must not squeeze the circle */
+    flex: 0 0 25px;
     width: 25px;
     height: 25px;
-    border-radius: 100%;
+    border-radius: 50%;
     cursor: pointer;
 }
 
