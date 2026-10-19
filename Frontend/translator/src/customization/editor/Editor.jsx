@@ -46,6 +46,7 @@ import {
   Palette,
   Redo2,
   Rocket,
+  ShieldCheck,
   Undo2,
   Users,
   Wand2,
@@ -61,6 +62,7 @@ import { EditorContext } from "./fields"
 import { STATUS, useEditorState } from "./useEditorState"
 import PreviewPane from "./PreviewPane"
 import { AppearanceSection, AuthPagesSection, IdentitySection, LanguagesSection, TranslatorSection } from "./sectionsGeneral"
+import { AccessSection } from "./sectionsAccess"
 import {
   AboutSection,
   CollaboratorsSection,
@@ -89,6 +91,7 @@ const NAV = [
       { id: "translator", label: "Tarjetas y textos", icon: Columns2, page: "/translator", render: () => <TranslatorSection /> },
       { id: "languages", label: "Idiomas y funciones", icon: Languages, page: "/translator", render: () => <LanguagesSection /> },
       { id: "auth", label: "Páginas de acceso", icon: LogIn, page: "/login", render: () => <AuthPagesSection /> },
+      { id: "access", label: "Visibilidad", icon: ShieldCheck, page: "/translator", render: () => <AccessSection /> },
     ],
   },
   {
@@ -124,6 +127,7 @@ function sectionOfError(path) {
   if (root === "translator") return "translator"
   if (root === "languages" || root === "features") return "languages"
   if (root === "authPages") return "auth"
+  if (root === "access") return "access"
   if (/^landing\.(locales|defaultLocale|sections)/.test(path) || path === "landing") return "structure"
   return sectionForPath(path)
 }

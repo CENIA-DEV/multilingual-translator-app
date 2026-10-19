@@ -437,5 +437,33 @@
       },
       "showPartnerNames": true
     }
+  },
+  "access": {
+    "translatorPage": {
+      "level": "public",
+      "roles": []
+    },
+    "translation": {
+      "level": "public",
+      "roles": []
+    },
+    "tts": {
+      "level": "public",
+      "roles": []
+    },
+    "separateGenders": {
+      "level": "public",
+      "roles": []
+    },
+    "asr": {
+      "level": "public",
+      "roles": []
+    },
+    "wordInformation": {
+      "level": "public",
+      "roles": []
+    },
+    "maintenance": false,
+    "maxWordsTranslation": 150
   }
 }

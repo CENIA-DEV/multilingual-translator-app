@@ -49,6 +49,9 @@ function LangBadge({ lang, commune }) {
       </Badge>
       {variant && (
         <div className="text-right text-xs leading-4 text-gray-600">
+          {!variant.dialect && sides.dialects.length > 0 && (
+            <div>{translate(variantSelector.dialectLabel, 'es')}: <i>sin definir</i></div>
+          )}
           {variant.dialect && (
             <div>{translate(variantSelector.dialectLabel, 'es')}: <b className="text-xs font-semibold">{translate(variant.dialect, 'es')}</b></div>
           )}
@@ -91,8 +94,10 @@ export default function ListSuggestions({validated, ...props}) {
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, totalCount);
 
   const srcLang = `${BASE_LANG}_Latn`
-  // The translator's own language(s), from "Idiomas y funciones"
-  const dstLang = useConfig().languages.nativeCodes.join(',');
+  // The translator's own language(s) as families ("arn"): every code of them,
+  // including those of feedback saved before the territory selector existed
+  // (asking for the codes in use only would hide it)
+  const dstLang = [...new Set(useConfig().languages.nativeCodes.map((code) => code.split('_')[0]))].join(',');
   
   const reorderSuggestions = useCallback((suggestions) => {
     return suggestions.map((suggestion) => {
@@ -117,7 +122,7 @@ export default function ListSuggestions({validated, ...props}) {
           // Sending `page_size` is what makes the footer's page count true: the
           // server pages by this number instead of the client guessing at one.
           page_size: PAGE_SIZE,
-          lang: dstLang,
+          lang_prefix: dstLang,
           validated: validated,
         }
         if (validated) {

@@ -50,7 +50,8 @@ async function fetchPublished() {
     })
     if (!response.ok) throw new Error(`config ${response.status}`)
     const body = await response.json()
-    cache = { stored: body.config ?? null, version: body.version ?? 0, at: Date.now() }
+    // `access`: the rules the API enforces, in place of the document's own
+    cache = { stored: body.config ?? null, version: body.version ?? 0, access: body.access ?? null, at: Date.now() }
     failedAt = 0
     return cache
   } catch (error) {
@@ -82,13 +83,13 @@ export async function loadPublishedConfig() {
   const now = Date.now()
   if (cache) {
     if (now - cache.at > FRESH_MS && now - failedAt > RETRY_MS) refresh()
-    return { stored: cache.stored, version: cache.version, source: "server" }
+    return { stored: cache.stored, version: cache.version, access: cache.access, source: "server" }
   }
   if (now - failedAt < RETRY_MS) return { stored: null, version: 0, source: "fallback" }
 
   const loaded = await refresh()
   return loaded
-    ? { stored: loaded.stored, version: loaded.version, source: "server" }
+    ? { stored: loaded.stored, version: loaded.version, access: loaded.access, source: "server" }
     : { stored: null, version: 0, source: "fallback" }
 }
 

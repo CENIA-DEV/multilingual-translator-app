@@ -23,6 +23,7 @@ import { PATHS, NO_USER_PATHS, ACCESS_TOKEN, isAdminUser, canManageTranslator, T
 import ActionButton from '../actionButton/actionButton';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useT } from '@/customization/useT';
+import { useAccess } from '@/customization/access';
 import './menu.css'
 
 const iconMap = {
@@ -41,8 +42,12 @@ export default function Menu(){
   const path = usePathname();
   const currentUser = useContext(AuthContext);
   // set paths to public (no user), else check if admin or not
+  const access = useAccess(currentUser || null);
   const baseOptions = currentUser ? (isAdminUser(currentUser) ? PATHS.ADMIN : PATHS.USER) : NO_USER_PATHS;
-  const menuOptions = canManageTranslator(currentUser) ? [...baseOptions, TRANSLATOR_ADMIN_PATH] : baseOptions;
+  // the translator's link only if this person may open it, or could by logging in
+  const showTranslator = access.can('translatorPage') || access.needsLogin('translatorPage');
+  const visibleOptions = baseOptions.filter((option) => option.route !== '/translator' || showTranslator);
+  const menuOptions = canManageTranslator(currentUser) ? [...visibleOptions, TRANSLATOR_ADMIN_PATH] : visibleOptions;
   
   const [isOpen, setIsOpen] = useState(false);
   const t = useT();

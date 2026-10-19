@@ -10,6 +10,7 @@ import { faPlus, faEdit, faTrash, faSave, faTimes, faCircleInfo, faChevronLeft, 
 import ActionIcon from "../components/actionIcon/actionIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "../api";
+import { VariantLabelsPicker, VariantLabelsView, useVariantOptions } from "./variantLabels";
 import { API_ENDPOINTS } from "../constants";
 
 export default function ManageWordInformation() {
@@ -28,6 +29,12 @@ export default function ManageWordInformation() {
   const [editSinonimos, setEditSinonimos] = useState([]);
   const [editSinonimoInput, setEditSinonimoInput] = useState('');
   
+  // Territories and alphabets of a word, for a language with variants
+  const variantOptions = useVariantOptions();
+  const noLabels = { territories: [], writings: [] };
+  const [newLabels, setNewLabels] = useState(noLabels);
+  const [editLabels, setEditLabels] = useState(noLabels);
+
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast() || { toast: console.log };
 
@@ -59,7 +66,10 @@ export default function ManageWordInformation() {
     if (!newWordText.trim()) return;
 
     try {
-      const { data: wordData } = await api.post(API_ENDPOINTS.WORDS, { text: newWordText });
+      const { data: wordData } = await api.post(API_ENDPOINTS.WORDS, {
+        text: newWordText,
+        ...(variantOptions ? newLabels : {}),
+      });
       
       await api.post(API_ENDPOINTS.WORD_INFORMATION, {
         word: wordData.id,
@@ -73,6 +83,7 @@ export default function ManageWordInformation() {
       setNewWordExplanation('');
       setNewSinonimos([]);
       setSinonimoInput('');
+      setNewLabels(noLabels);
     } catch (error) {
       console.error('Error adding word:', error);
       toast?.({ title: "Error", description: "Error al agregar la palabra", variant: "destructive" });
@@ -84,10 +95,14 @@ export default function ManageWordInformation() {
     setEditExplanation(word.information?.additional_explanation || '');
     setEditSinonimos(word.information?.other_ways_to_say || []);
     setEditSinonimoInput('');
+    setEditLabels({ territories: word.territories || [], writings: word.writings || [] });
   };
 
   const saveEdit = async (word) => {
     try {
+      if (variantOptions) {
+        await api.patch(`${API_ENDPOINTS.WORDS}${word.id}/`, editLabels);
+      }
       const infoId = word.information?.id;
 
       if (infoId) {
@@ -178,7 +193,7 @@ export default function ManageWordInformation() {
             <CardTitle className="text-xl text-gray-800">Agregar Palabra Nueva</CardTitle>
           </CardHeader>
           <CardContent className="bg-white rounded-b-lg pt-6 overflow-visible">
-            <form onSubmit={handleAddWord} className="flex flex-col md:flex-row gap-4 items-start">
+            <form onSubmit={handleAddWord} className="flex flex-col md:flex-row md:flex-wrap gap-4 items-start">
               <div className="flex-1 w-full space-y-2">
                 <label className="text-base font-semibold text-gray-800">Palabra</label>
                 <Input
@@ -238,6 +253,14 @@ export default function ManageWordInformation() {
                   )}
                 </div>
               </div>
+              {variantOptions && (
+                <div className="w-full md:order-last md:basis-full rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-2 text-sm text-gray-600">
+                    Variantes (opcional): marca los territorios y grafemarios donde se usa la palabra. Sin marcar, vale para todas.
+                  </p>
+                  <VariantLabelsPicker options={variantOptions} value={newLabels} onChange={setNewLabels} />
+                </div>
+              )}
               <div className="pt-[32px]">
                 <Button type="submit" className="bg-[#0092d8] hover:bg-[#007ba8] text-white">
                   <FontAwesomeIcon icon={faPlus} className="mr-2" />
@@ -272,7 +295,7 @@ export default function ManageWordInformation() {
                   {currentWords.map((word) => (
                     <div 
                       key={word.id} 
-                      className="flex flex-col md:flex-row md:items-center py-4 px-6 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors bg-white text-[15px]"
+                      className="flex flex-col md:flex-row md:flex-wrap md:items-center py-4 px-6 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors bg-white text-[15px]"
                     >
                       {editingWord === word.id ? (
                         <>
@@ -330,11 +353,17 @@ export default function ManageWordInformation() {
                                 )}
                              </div>
                           </div>
+                          {variantOptions && (
+                            <div className="order-last mt-3 w-full md:basis-full">
+                              <VariantLabelsPicker options={variantOptions} value={editLabels} onChange={setEditLabels} />
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
                           <div className="w-full md:w-[25%] pr-4 mb-2 md:mb-0">
                              <p className="text-[15px] font-medium text-gray-900">{word.text}</p>
+                             {variantOptions && <VariantLabelsView options={variantOptions} word={word} />}
                           </div>
                           <div className="w-full md:w-[35%] pr-4 mb-2 md:mb-0">
                              <p className="text-[15px] text-gray-800 break-words flex items-center">

@@ -30,6 +30,7 @@ import { resolveConfig } from "@/customization/presets";
 import { landingFontsHref } from "@/customization/fonts";
 import { resolveMedia } from "@/customization/media";
 import { loadPublishedConfig } from "@/customization/server";
+import { withAccess } from "@/customization/config";
 import { LOCALE_COOKIE, resolveLocale } from "@/customization/locale";
 config.autoAddCss = false;
 
@@ -63,8 +64,8 @@ export async function generateMetadata() {
 }
 
 export default async function Layout({ children }) {
-  const { stored, version, source } = await loadPublishedConfig();
-  const config = resolveConfig(stored);
+  const { stored, version, source, access } = await loadPublishedConfig();
+  const config = withAccess(resolveConfig(stored), access);
   const landingFonts = landingFontsHref(config.theme.fonts);
   // The language the visitor picked, so the first HTML is already in it
   const chosenLocale = cookies().get(LOCALE_COOKIE)?.value || null;

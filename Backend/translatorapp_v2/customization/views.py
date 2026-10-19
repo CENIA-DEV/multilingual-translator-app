@@ -33,6 +33,7 @@ Writes carry the ``baseVersion`` the client last saw; a mismatch answers 409
 with the current state instead of overwriting another admin's work.
 """
 import hashlib
+import json
 
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseNotModified
@@ -45,6 +46,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .access import effective_access
 from .assets import AssetError, inspect_upload
 from .models import CustomizationAsset, CustomizationRevision, TranslatorCustomization
 from .schema import SCHEMA_VERSION, ConfigValidationError, validate_config
@@ -68,6 +70,8 @@ def _state(customization):
         "publishedAt": customization.published_at,
         "publishedBy": _user_label(customization.published_by),
         "schemaVersion": SCHEMA_VERSION,
+        # the rules in force, for a working copy saved before "Visibilidad"
+        "access": effective_access(),
     }
 
 
@@ -106,7 +110,12 @@ class PublishedConfigView(APIView):
 
     def get(self, request):
         customization = TranslatorCustomization.load()
-        etag = f'W/"config-{customization.published_version}"'
+        access = effective_access()
+        # the rules can also come from the defaults: they are part of the tag
+        rules = hashlib.sha1(json.dumps(access, sort_keys=True).encode()).hexdigest()[
+            :10
+        ]
+        etag = f'W/"config-{customization.published_version}-{rules}"'
         if request.headers.get("If-None-Match") == etag:
             response = HttpResponseNotModified()
         else:
@@ -115,6 +124,9 @@ class PublishedConfigView(APIView):
                     "version": customization.published_version,
                     "config": customization.published,
                     "publishedAt": customization.published_at,
+                    # who may use what, as the API enforces it (also when no
+                    # document with rules has been published yet)
+                    "access": access,
                 }
             )
         response["ETag"] = etag

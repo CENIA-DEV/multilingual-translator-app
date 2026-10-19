@@ -45,6 +45,13 @@ class TranslatorCustomization(models.Model):
         verbose_name = "personalización del traductor"
         verbose_name_plural = "personalización del traductor"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # a publish (or restore) may change who can use what: apply it at once
+        from .access import clear_cache
+
+        clear_cache()
+
     @classmethod
     def load(cls):
         """Read-only access; an unsaved blank instance until the first save."""

@@ -202,7 +202,10 @@ export default function LangExtraSelector({ lang, side, handleLangChange, commun
           <TabsList className="flex rounded-[25px] bg-gray-50 ">
             {writings.map((option) => (
               <TabsTrigger
-                className="rounded-[25px] font-semibold text-gray-400"
+                // keyboard focus as a soft ring inside the pill, not the kit's
+                // dark ring around it (Chrome also shows it after a click when
+                // a key is pressed next, or a popup hands focus back)
+                className="rounded-[25px] font-semibold text-gray-400 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 focus-visible:ring-offset-0"
                 key={option.code}
                 value={option.code}
                 onClick={() => choose(option.code, dialect)}

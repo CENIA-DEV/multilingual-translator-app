@@ -18,6 +18,7 @@ from functools import reduce
 from operator import or_
 
 import numpy as np
+from customization.access import can_use, feature_access
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -50,7 +51,7 @@ from .models import (
     Word,
     WordInformation,
 )
-from .roles import IsAdmin, IsNativeAdmin, TranslationRequiresAuth
+from .roles import IsAdmin, IsNativeAdmin
 from .serializers import (
     FullUserSerializer,
     GeneralSuggestionSerializer,
@@ -76,6 +77,7 @@ from .utils import (
     generate_tts,
     get_hashed_token,
     get_word_candidates,
+    model_language,
     send_invite_email,
     send_participate_email,
     send_recovery_email,
@@ -543,6 +545,23 @@ class SuggestionViewSet(viewsets.ModelViewSet):
                     ],
                 )
                 queryset = queryset.filter(lang_query)
+        # every language of a family ("arn"): the codes in use and older ones
+        prefix_param = self.request.query_params.get("lang_prefix")
+        if prefix_param:
+            prefixes = [
+                p.strip() for p in prefix_param.split(",") if p.strip().isalpha()
+            ]
+            if prefixes:
+                queryset = queryset.filter(
+                    reduce(
+                        or_,
+                        (
+                            Q(src_lang__code__startswith=f"{p}_")
+                            | Q(dst_lang__code__startswith=f"{p}_")
+                            for p in prefixes
+                        ),
+                    )
+                )
         if validated is not None:
             validated = validated.lower() == "true"
             queryset = queryset.filter(validated=validated)
@@ -632,6 +651,7 @@ class SuggestionViewSet(viewsets.ModelViewSet):
                     user=suggestion.user,
                     model_name=suggestion.model_name,
                     model_version=suggestion.model_version,
+                    commune=suggestion.commune,
                     correct=True,
                     validated=True,
                     validated_by=request.user,
@@ -639,6 +659,36 @@ class SuggestionViewSet(viewsets.ModelViewSet):
                 return Response(self.get_serializer(new_suggestion).data)
         else:
             return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["patch"])
+    def relabel(self, request, pk):
+        """Set the territory and alphabet (as the variant's code, e.g.
+        arn_raguileo_nagche) and the comuna of a pair. The side replaced is the
+        one in the same language family, whichever direction the pair has."""
+        pair = self.get_object()
+        code = request.data.get("lang")
+        lang = Lang.objects.filter(code=code).first() if isinstance(code, str) else None
+        if lang is None:
+            return Response(
+                {"lang": "Lengua no soportada"}, status=HTTP_400_BAD_REQUEST
+            )
+        family = lang.code.split("_")[0]
+        same = (
+            lambda other: other is not None and other.code.split("_")[0] == family
+        )  # noqa: E731
+        if same(pair.dst_lang):
+            pair.dst_lang = lang
+        elif same(pair.src_lang):
+            pair.src_lang = lang
+        else:
+            return Response(
+                {"lang": "La sugerencia no es de esa lengua"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        if "commune" in request.data:
+            pair.commune = clean_commune(request.data.get("commune"))
+        pair.save(update_fields=["src_lang", "dst_lang", "commune"])
+        return Response(self.get_serializer(pair).data)
 
     @action(detail=True, methods=["patch"])
     def reject_suggestion(self, request, pk):
@@ -732,7 +782,8 @@ class RequestViewSet(viewsets.ModelViewSet):
 
 class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     # since we only want to implement create endpoint we inherit create mixin
-    permission_classes = [TranslationRequiresAuth]  # any user can translate
+    # who may translate: "Visibilidad" in Administrar Traductor
+    permission_classes = [feature_access("translatorPage", "translation")]
     serializer_class = TranslationPairSerializer
 
     def get_queryset(self, src_lang=None, dst_lang=None, src_text=None):
@@ -879,7 +930,7 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     ViewSet for text-to-speech functionality
     """
 
-    permission_classes = [TranslationRequiresAuth]
+    permission_classes = [feature_access("translatorPage", "tts")]
     serializer_class = TextToSpeechSerializer
 
     def get_queryset(self, text=None, lang=None):
@@ -900,6 +951,11 @@ class TextToSpeechViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             text = serializer.validated_data["text"]
             base_language_code = serializer.validated_data["language"]
             gender = serializer.validated_data.get("gender")
+            if gender and not can_use(request.user, "separateGenders"):
+                return Response(
+                    {"detail": "No tienes acceso a las voces por género."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             model_name = serializer.validated_data.get("model_name")
             model_version = serializer.validated_data.get("model_version")
 
@@ -1028,7 +1084,7 @@ class SpeechToTextViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     ViewSet for speech-to-text functionality
     """
 
-    permission_classes = [TranslationRequiresAuth]
+    permission_classes = [feature_access("translatorPage", "asr")]
     serializer_class = SpeechToTextSerializer
     parser_classes = [MultiPartParser, FormParser]
 
@@ -1219,17 +1275,27 @@ class TranslationRequestViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class WordViewSet(viewsets.ModelViewSet):
-    queryset = Word.objects.all().prefetch_related("definitions")
+    queryset = Word.objects.all().prefetch_related("definitions", "dialects", "scripts")
     serializer_class = WordSerializer
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
         else:
-            permission_classes = [AllowAny]
+            # reading them is "word information"; admins also for their page
+            permission_classes = [
+                feature_access("wordInformation")
+                | IsNativeAdmin
+                | IsAdmin
+                | IsAdminUser
+            ]
         return [permission() for permission in permission_classes]
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[feature_access("translatorPage", "wordInformation")],
+    )
     def analyze_sentence(self, request):
 
         sentence = request.data.get("sentence", "")
@@ -1254,6 +1320,21 @@ class WordViewSet(viewsets.ModelViewSet):
         query = reduce(or_, [Q(text__iexact=word) for word in candidates])
         found_words = self.get_queryset().filter(query)
 
+        # Only the words of the variant the text is in: a word labelled with
+        # territories (or alphabets) shows for those only; unlabelled, for all
+        lang_code = request.data.get("lang")
+        if isinstance(lang_code, str) and lang_code:
+            _, variant = model_language(lang_code)
+            if variant.get("territory"):
+                found_words = found_words.filter(
+                    Q(dialects__isnull=True) | Q(dialects__code=variant["territory"])
+                )
+            if variant.get("writing"):
+                found_words = found_words.filter(
+                    Q(scripts__isnull=True) | Q(scripts__code=variant["writing"])
+                )
+            found_words = found_words.distinct()
+
         serializer = self.get_serializer(found_words, many=True)
         return Response(
             {
@@ -1272,5 +1353,10 @@ class WordInformationViewSet(viewsets.ModelViewSet):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
         else:
-            permission_classes = [AllowAny]
+            permission_classes = [
+                feature_access("wordInformation")
+                | IsNativeAdmin
+                | IsAdmin
+                | IsAdminUser
+            ]
         return [permission() for permission in permission_classes]

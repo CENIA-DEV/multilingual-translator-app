@@ -201,6 +201,16 @@ const MESSAGES = {
   "asr.startFailed": { es: "Error al iniciar grabación: {error}", en: "The recording could not start: {error}" },
   "asr.recordingCancelled": { es: "Grabación cancelada.", en: "Recording cancelled." },
 
+  // ------------------------------------------------- access ("Visibilidad")
+  "access.noRole": {
+    es: "Tu cuenta no tiene acceso a esta función.",
+    en: "Your account doesn't have access to this feature.",
+  },
+  "access.pageNoRole": {
+    es: "Tu cuenta no tiene acceso al traductor. Si crees que es un error, contacta a las personas que administran el sitio.",
+    en: "Your account doesn't have access to the translator. If you think this is a mistake, contact the site's administrators.",
+  },
+
   // ------------------------------------- "Ayúdame a decidir" (territory)
   // The territories' own texts (what each name means, where it lies) are in
   // territoryHelper.js, with the comunas.

@@ -15,7 +15,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import api from "@/app/api";
-import { API_ENDPOINTS, MAX_WORDS_TRANSLATION } from "@/app/constants";
+import { API_ENDPOINTS } from "@/app/constants";
 import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
 import { useConfig } from "@/customization/ConfigProvider";
@@ -46,7 +46,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
-  const { identity, translator, features, landing } = useConfig();
+  const { identity, translator, features, landing, access } = useConfig();
   const t = useT();
 const [showGenderOptions, setShowGenderOptions] = useState(false);
   const [isLeftFocused, setIsLeftFocused] = useState(false);
@@ -98,6 +98,8 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
       try {
         const res = await api.post(API_ENDPOINTS.WORDS_ANALYZE, {
           sentence: textToAnalyze,
+          // only the explanations of this card's variant (territory, alphabet)
+          lang: lang?.code,
         });
         if (res.data && res.data.results) {
           setWordInfo(res.data.results.filter((w) => w.information));
@@ -108,7 +110,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [srcText, dstText, side, isWordInformationActive]);
+  }, [srcText, dstText, side, isWordInformationActive, lang?.code]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -542,7 +544,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
 
           {showTextMessage && (
             <p className="text-red-500 text-sm">
-              {t("card.maxWords", { max: MAX_WORDS_TRANSLATION })}
+              {t("card.maxWords", { max: access?.maxWordsTranslation || 150 })}
             </p>
           )}
         </>

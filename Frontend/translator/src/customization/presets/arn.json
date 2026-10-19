@@ -292,8 +292,14 @@
     "menu.logout": {
       "arn": "Nürüfün küzaw"
     },
+    "menu.login": {
+      "arn": "Llitun küzaw"
+    },
     "translator.positiveSent": {
       "arn": "Küme amulgey ta mi feypin"
+    },
+    "translator.slow": {
+      "arn": "Püchi gellu amuley ta rulpazugunün..."
     },
     "translator.feedbackThanks": {
       "arn": "Mañumeyu ta mi kelluntukun mew"
@@ -321,6 +327,9 @@
     },
     "feedback.uncertain": {
       "arn": "Kimün ñi kümelkalenon welu kimlan chumgechi ñi küme elkünutuafel"
+    },
+    "feedback.sent": {
+      "arn": "Küme amulgey wüñokimeltun"
     },
     "card.wordInfo": {
       "arn": "Zoy kimal nhemül"
@@ -362,19 +371,19 @@
       "arn": "Rulpazugual"
     },
     "territoryHelp.open": {
-      "arn": "Ayúdame a decidir"
+      "arn": "Kelluen ta ñi zulliael"
     },
     "territoryHelp.title": {
-      "arn": "¿De qué territorio eres?"
+      "arn": "¿Chew mapu tuwimi?"
     },
     "territoryHelp.intro": {
-      "arn": "El mapuzungun se habla distinto en cada territorio. Selecciona el territorio donde vives o de donde viene tu familia."
+      "arn": "Mapuchezugun ta kaley ñi zugun fillke mapu mew. Zullige mapu ta mi chew tuwün kam chew tuwün mi pu reñma."
     },
     "territoryHelp.search": {
-      "arn": "¿De qué comuna provienes?"
+      "arn": "¿Chem comuna mew tuwimi?"
     },
     "territoryHelp.searchHint": {
-      "arn": "Por ejemplo: Carahue, Temuco, Osorno…"
+      "arn": "Kiñe ejemplo: Karawe, Temuko, Osorno…"
     },
     "territoryHelp.notFound": {
       "arn": "No encontramos esa comuna. Elige abajo el territorio más cercano."
@@ -383,7 +392,7 @@
       "arn": "{place} es parte del territorio {territory}"
     },
     "territoryHelp.use": {
-      "arn": "Usar {territory}"
+      "arn": "Püneal {territory}"
     },
     "territoryHelp.pick": {
       "arn": "Elige un territorio"
@@ -583,7 +592,103 @@
       "geojson": "/data/araucania.geojson",
       "closeUp": false,
       "contextGeojson": "/data/chile-araucania-context.geojson",
-      "pins": []
+      "pins": [
+        {
+          "name": "Trawün williche",
+          "lat": -41.0965,
+          "lon": -72.9852
+        },
+        {
+          "name": "DAEM Temuco",
+          "lat": -38.7373,
+          "lon": -72.5902
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -39.1177,
+          "lon": -71.4746
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.5232,
+          "lon": -72.7621
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.4431,
+          "lon": -72.6691
+        },
+        {
+          "name": "Chol Chol",
+          "lat": -38.6026,
+          "lon": -72.8477
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.4771,
+          "lon": -72.99
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.7116,
+          "lon": -73.1652
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.7176,
+          "lon": -73.0803
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -39.3104,
+          "lon": -71.4551
+        },
+        {
+          "name": "Reunión online",
+          "lat": -38.6941,
+          "lon": -71.2631
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.8078,
+          "lon": -71.281
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.4541,
+          "lon": -71.3706
+        },
+        {
+          "name": "Trabajo conjunto a la municipalidad",
+          "lat": -38.7924,
+          "lon": -73.3955
+        },
+        {
+          "name": "Galvarino",
+          "lat": -38.4111,
+          "lon": -72.7813
+        },
+        {
+          "name": "Lautaro",
+          "lat": -38.5343,
+          "lon": -72.4351
+        },
+        {
+          "name": "Traiguén",
+          "lat": -38.2508,
+          "lon": -72.6669
+        },
+        {
+          "name": "Visita al territorio",
+          "lat": -38.2508,
+          "lon": -72.6669
+        },
+        {
+          "name": "Trawupeyum - Aldea Intercultural",
+          "lat": -39.3584,
+          "lon": -71.5857
+        }
+      ]
     },
     "focus": {
       "title": {
@@ -700,7 +805,7 @@
             "Manuel Alberto Santander Solís",
             "Flor Caniupil Huaiquiñir",
             "Rosa Caniupil Huaiquiñir",
-            "Belen Villena",
+            "Belén Villena",
             "Teresa Paillahueque",
             "Cristian García Quintul",
             "Macarena Barrientos Paillahueque",
@@ -798,7 +903,16 @@
             "Maria Teresa Quilacan Llancafilo",
             "Maria Raquel Marillanca Loncopan",
             "Regina Estelia Carinao Avila",
-            "Ana Luisa Millaqueo Fuentes"
+            "Ana Luisa Millaqueo Fuentes",
+            "Sercotec Inakeyu",
+            "Cesfam Boroa Filulawen",
+            "Escuela misión Boroa",
+            "DPM Araucanía",
+            "Municipalidad Saavedra",
+            "DAEM Lonquimay",
+            "DAEM Lautaro",
+            "DAEM Temuco",
+            "Carrera de traducción UPLA"
           ],
           "hidden": false
         },
@@ -933,5 +1047,33 @@
       },
       "showPartnerNames": true
     }
+  },
+  "access": {
+    "translatorPage": {
+      "level": "public",
+      "roles": []
+    },
+    "translation": {
+      "level": "public",
+      "roles": []
+    },
+    "tts": {
+      "level": "public",
+      "roles": []
+    },
+    "separateGenders": {
+      "level": "public",
+      "roles": []
+    },
+    "asr": {
+      "level": "public",
+      "roles": []
+    },
+    "wordInformation": {
+      "level": "public",
+      "roles": []
+    },
+    "maintenance": false,
+    "maxWordsTranslation": 150
   }
 }

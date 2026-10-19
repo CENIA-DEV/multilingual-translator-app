@@ -41,7 +41,6 @@ export const API_ENDPOINTS = {
 export const NATIVE_ADMIN = 'NativeAdmin';
 export const ADMIN = 'Admin';
 export const USER = 'User';
-export const MAX_WORDS_TRANSLATION = Number(process.env.NEXT_PUBLIC_MAX_WORDS_TRANSLATION);
 export const BASE_LANG = "spa";
 // URL configuration for the sitemap, robots.txt and metadata. The deploy
 // workflow writes NEXT_PUBLIC_BASE_URL for production builds; fallback to the
@@ -56,35 +55,17 @@ export const ALLOW_INDEXING =
 
 export const PUBLIC_PATHS = ['/login', '/reset-password', '/reset-password-request', '/request-access', '/invitation' , '/about', '/translator'];
 
-// Translation restriction configuration
-export const TRANSLATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TRANSLATION_REQUIRES_AUTH === 'true';
-export const TTS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_TTS_REQUIRES_AUTH === 'true';
-export const ASR_REQUIRES_AUTH = process.env.NEXT_PUBLIC_ASR_REQUIRES_AUTH === 'true';
-export const WORD_INFORMATION_REQUIRES_AUTH = process.env.NEXT_PUBLIC_WORD_INFORMATION_REQUIRES_AUTH === 'true';
-export const SEPARATE_GENDERS_REQUIRES_AUTH = process.env.NEXT_PUBLIC_SEPARATE_GENDERS_REQUIRES_AUTH === 'true';
-
 // Which languages get TTS / ASR / word information is part of the
-// customization ("Idiomas y funciones" in Administrar Traductor); whether they
-// need a login stays a deploy-time setting.
+// customization ("Idiomas y funciones" in Administrar Traductor); who may use
+// each feature, maintenance and the word limit are its "Visibilidad"
+// (customization/access.js), enforced by the API.
 
 export const AUTOFILL_TRANSCRIPT = process.env.NEXT_PUBLIC_AUTOFILL_TRANSCRIPT !== 'false'; // defaults to true
 export const MAX_AUDIO_MB = Number(process.env.NEXT_PUBLIC_MAX_AUDIO_MB) || 25;
 
-// Maintenance mode
-export const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
-
-
-export const isTranslationRestricted = (currentUser) => {
-  return TRANSLATION_REQUIRES_AUTH && !currentUser;
-};
-
-export const isTTSRestricted = (currentUser) => {
-    return TTS_REQUIRES_AUTH && !currentUser;
-}
-
-export const isASRRestricted = (currentUser) => {
-    return ASR_REQUIRES_AUTH && !currentUser;
-}
+// Maintenance forced at deploy time (the deploy form's switch): shown even if
+// the backend is down. Otherwise maintenance follows "Visibilidad".
+export const FORCED_MAINTENANCE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
 
 
 // Admin pages (manage access, explore data, manage words) are for these roles
