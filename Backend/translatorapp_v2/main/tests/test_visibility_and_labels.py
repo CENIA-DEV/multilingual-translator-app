@@ -29,7 +29,7 @@ from fixtures import (  # noqa: F401
 )
 from main.models import Dialect, Lang, Script, TranslationPair, Word
 
-unknown_territory = importlib.import_module("main.migrations.0060_unknown_territory_codes")
+unknown_territory = importlib.import_module("main.migrations.0061_unknown_territory_codes")
 
 
 @pytest.fixture

@@ -73,6 +73,6 @@ def backward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [("main", "0059_translation_commune")]
+    dependencies = [("main", "0060_add_arn_variant_languages")]
 
     operations = [migrations.RunPython(forward, backward)]

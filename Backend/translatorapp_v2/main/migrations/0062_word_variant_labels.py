@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('main', '0060_unknown_territory_codes'),
+        ('main', '0061_unknown_territory_codes'),
     ]
 
     operations = [
