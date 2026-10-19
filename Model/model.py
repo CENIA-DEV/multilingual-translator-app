@@ -23,8 +23,45 @@ madlad_language_token_map = {
     "arn_a0_n": "<2arn>",
     "arn_r0_n": "<2ape>",
     "arn_u0_n": "<2ann>",
+    "arn_Latn": "<2arn>",
     "spa_Latn": "<2es>",
 }
+
+# Mapuzungun variants: the backend sends `arn_Latn` plus the variant's territory
+# (nagche, pewenche, lafkenche, wenteche, williche) and alphabet (azumchefe,
+# raguileo, amu, rumian, cacicado-huilliche) as inputs of their own. A MADLAD
+# model trained on dialects has one token per variant, e.g. `<2arn-rag-nagche>`
+# or `<2arn-rumian-williche>`, with these short alphabet names.
+madlad_writing_names = {"azumchefe": "azum", "raguileo": "rag"}
+madlad_default_writing = "azum"
+madlad_default_territory = "central"
+
+
+def madlad_target_tokens(target_lang: str, target_variant: Optional[dict] = None):
+    """
+    Candidate MADLAD tokens for a target language, best first.
+
+    For a Mapuzungun variant: its own token, then the token of its alphabet in the
+    central territory, of its territory in the Azümchefe alphabet, the central
+    Azümchefe token and, last, the language's plain token (`<2arn>`), so a model
+    without variant tokens still translates. Any other language: its plain token.
+    """
+    target_variant = target_variant or {}
+    candidates = []
+    if target_lang.split("_")[0] == "arn":
+        writing = target_variant.get("writing")
+        territory = target_variant.get("territory")
+        writing = madlad_writing_names.get(writing, writing)
+        if writing and territory:
+            candidates.append(f"<2arn-{writing}-{territory}>")
+        if writing:
+            candidates.append(f"<2arn-{writing}-{madlad_default_territory}>")
+        if territory:
+            candidates.append(f"<2arn-{madlad_default_writing}-{territory}>")
+        candidates.append(f"<2arn-{madlad_default_writing}-{madlad_default_territory}>")
+    if target_lang in madlad_language_token_map:
+        candidates.append(madlad_language_token_map[target_lang])
+    return candidates
 
 
 class ModelWrapper(ABC):
@@ -35,6 +72,10 @@ class ModelWrapper(ABC):
         optimize: bool = False,
         gpu: bool = True,
         max_new_tokens: int = 256,
+        num_beams: Optional[int] = None,
+        no_repeat_ngram_size: Optional[int] = None,
+        repetition_penalty: Optional[float] = None,
+        length_penalty: Optional[float] = None,
     ):
         """
         Wrapper for prediction models.
@@ -44,6 +85,9 @@ class ModelWrapper(ABC):
                 Model directory path.
             optimize (`bool`, *optional*, defaults to `True`):
                 Optimize model inference.
+            num_beams, no_repeat_ngram_size, repetition_penalty, length_penalty:
+                Generation settings passed to `generate`. Settings left as `None`
+                keep the model's own defaults.
         """
         self.logger = logger
         if gpu:
@@ -70,6 +114,17 @@ class ModelWrapper(ABC):
         self.logger.debug(f"Model loaded on device: {self._device}")
         self.max_new_tokens = max_new_tokens
         self.logger.info(f"Max new tokens set to: {self.max_new_tokens}")
+        self.generation_kwargs = {
+            name: value
+            for name, value in (
+                ("num_beams", num_beams),
+                ("no_repeat_ngram_size", no_repeat_ngram_size),
+                ("repetition_penalty", repetition_penalty),
+                ("length_penalty", length_penalty),
+            )
+            if value is not None
+        }
+        self.logger.info(f"Generation settings: {self.generation_kwargs}")
         if optimize:
             self.logger.debug("Optimizing model...")
             self.optimize()
@@ -113,7 +168,13 @@ class ModelWrapper(ABC):
         return model_info
 
     @abstractmethod
-    def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
+    def tokenize(
+        self,
+        sentences: list[str],
+        target_lang: str,
+        source_lang: str = None,
+        target_variant: Optional[dict] = None,
+    ):
         pass
 
     @abstractmethod
@@ -126,7 +187,11 @@ class ModelWrapper(ABC):
 
     @torch.inference_mode()
     def predict(
-        self, sentences: list[str], source_lang: str, target_lang: str
+        self,
+        sentences: list[str],
+        source_lang: str,
+        target_lang: str,
+        target_variant: Optional[dict] = None,
     ) -> list[str]:
         """
         Given a sentence and its source language, predicts the corresponding
@@ -139,6 +204,9 @@ class ModelWrapper(ABC):
                 Associated language of the given `sentence`.
             target_lang (`str`):
                 Target language to translate the given sentence.
+            target_variant (`dict`, *optional*):
+                The target language variant's `territory` and `writing` (alphabet),
+                for languages that have them (Mapuzungun).
 
         Returns:
             translation (`str`): The corresponding translation to the given sentece.
@@ -166,7 +234,7 @@ class ModelWrapper(ABC):
         ]
         self.logger.debug(f"Sentences after dividing by newlines: {sentences}")
 
-        inputs = self.tokenize(sentences, target_lang, source_lang)
+        inputs = self.tokenize(sentences, target_lang, source_lang, target_variant)
 
         self.logger.debug(f"Inputs Shape: {inputs['input_ids'].shape}")
         prediction = self.generate(inputs, target_lang=target_lang)
@@ -285,10 +353,17 @@ class NLLBModelWrapper(ModelWrapper):
             **inputs,
             forced_bos_token_id=forced_bos_token_id,
             max_new_tokens=self.max_new_tokens,
+            **self.generation_kwargs,
         )
         return prediction
 
-    def tokenize(self, sentences: list[str], target_lang: str, source_lang: str):
+    def tokenize(
+        self,
+        sentences: list[str],
+        target_lang: str,
+        source_lang: str,
+        target_variant: Optional[dict] = None,
+    ):
         source_lang = (
             nllb_language_token_map[source_lang]
             if source_lang in nllb_language_token_map
@@ -312,27 +387,44 @@ class NLLBModelWrapper(ModelWrapper):
 
 
 class MadLadWrapper(ModelWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._vocab = set(self.tokenizer.get_vocab())
+
     def generate(
         self,
         inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
         **kwargs,  # ignore any extra arguments like `target_lang`
     ):
         prediction = self.model.generate(
-            **inputs, max_new_tokens=self.max_new_tokens
+            **inputs, max_new_tokens=self.max_new_tokens, **self.generation_kwargs
         )  # start with `<unk>` token
         return prediction
 
-    def tokenize(self, sentences: list[str], target_lang: str, source_lang: str = None):
-        for idx, sentence in enumerate(sentences):
-            if target_lang in madlad_language_token_map:
-                mapped_target_lang = madlad_language_token_map[target_lang]
-                self.logger.debug(f"Target lang mapped: {mapped_target_lang}")
-                updated_sentence = mapped_target_lang + " " + sentence
-                self.logger.debug(f"Sentence with target lang: {updated_sentence}")
-                # update sentence for correct tokenization
-                sentences[idx] = updated_sentence
-            else:
-                raise ValueError(f"Target language {target_lang} not supported")
+    def target_token(self, target_lang: str, target_variant: Optional[dict] = None):
+        """The best MADLAD token for the target language that the model knows."""
+        candidates = madlad_target_tokens(target_lang, target_variant)
+        for idx, token in enumerate(candidates):
+            if token in self._vocab:
+                if idx > 0:
+                    self.logger.warning(
+                        f"No {candidates[0]} token for {target_lang} "
+                        f"{target_variant}, using {token}"
+                    )
+                return token
+        raise ValueError(f"Target language {target_lang} not supported")
+
+    def tokenize(
+        self,
+        sentences: list[str],
+        target_lang: str,
+        source_lang: str = None,
+        target_variant: Optional[dict] = None,
+    ):
+        mapped_target_lang = self.target_token(target_lang, target_variant)
+        self.logger.debug(f"Target lang mapped: {mapped_target_lang}")
+        # MADLAD is told the target language by a token at the start of the input
+        sentences = [mapped_target_lang + " " + sentence for sentence in sentences]
         self.logger.debug(f"TRANSLATING sentences after updating: {sentences}")
         return self.tokenizer(sentences, return_tensors="pt", padding="longest").to(
             self._device

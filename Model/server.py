@@ -5,11 +5,19 @@ import logging
 import numpy as np
 from dotenv import load_dotenv
 from model import MadLadWrapper, ModelWrapper, NLLBModelWrapper
-from pytriton.decorators import batch, first_value, group_by_values
+from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig, TritonLifecyclePolicy
 
 load_dotenv()
+
+# Optional inputs naming a language variant's territory and alphabet, sent by the
+# backend only for languages that have them (arn_Latn + "nagche" + "raguileo")
+VARIANT_INPUTS = [
+    f"{side}_{field}"
+    for side in ("source", "target")
+    for field in ("territory", "writing")
+]
 
 
 class _InferFuncWrapper:
@@ -22,10 +30,6 @@ class _InferFuncWrapper:
         self._logger = logger
 
     @batch
-    @group_by_values("source_lang")
-    @group_by_values("target_lang")
-    @first_value("source_lang")
-    @first_value("target_lang")
     def __call__(self, **inputs) -> np.ndarray:
         """
         Main inference function for triton backend. Called after batch inference.
@@ -33,31 +37,60 @@ class _InferFuncWrapper:
         outputs.
 
         Args:
-            prompts: Batch of strings with the user prompts
-            init_images: Batch of initial image to run the diffusion
+            input_text: Batch of texts to translate
+            source_lang, target_lang: Batch of language codes
+            source_territory, source_writing, target_territory, target_writing:
+                Optional batch of the languages' variant (absent for languages
+                without variants)
 
         Returns
-            image: Batch of generated images
+            translation: Batch of translations
         """
-        texts, source_lang, target_lang = inputs.values()
-        # For now, we only support batch size 1
 
-        self._logger.debug(f"texts: {texts}")
-        self._logger.debug(f"source_lang: {source_lang}")
-        self._logger.debug(f"target_lang: {target_lang}")
+        def decode(value):
+            return np.char.decode(value.astype("bytes"), "utf-8").item()
 
-        texts = [
-            np.char.decode(t.astype("bytes"), "utf-8").item().replace("\\n", "\n")
-            for t in texts
-        ]
-        source_lang = bytes(source_lang).decode("utf-8")
-        target_lang = bytes(target_lang).decode("utf-8")
+        def value(name, idx):
+            return decode(inputs[name][idx]) if name in inputs else None
 
-        self._logger.debug(f"Texts: {texts}")
-        self._logger.debug(f"Source lang: {source_lang}")
-        self._logger.debug(f"Target lang: {target_lang}")
-        # call model
-        translations = self._model.predict(texts, source_lang, target_lang)
+        texts = [decode(t).replace("\\n", "\n") for t in inputs["input_text"]]
+
+        # Requests to the same languages and variants are translated together.
+        # (pytriton's `group_by_values` needs every key, and the variant inputs are
+        # optional.)
+        groups = {}
+        for idx in range(len(texts)):
+            key = tuple(
+                value(name, idx)
+                for name in (
+                    "source_lang",
+                    "target_lang",
+                    "target_territory",
+                    "target_writing",
+                )
+            )
+            groups.setdefault(key, []).append(idx)
+
+        translations = [None] * len(texts)
+        for (source_lang, target_lang, territory, writing), idxs in groups.items():
+            target_variant = {
+                field: field_value
+                for field, field_value in (
+                    ("territory", territory),
+                    ("writing", writing),
+                )
+                if field_value
+            }
+            self._logger.debug(f"Texts: {[texts[idx] for idx in idxs]}")
+            self._logger.debug(f"Source lang: {source_lang}")
+            self._logger.debug(f"Target lang: {target_lang} {target_variant}")
+            # call model
+            group_translations = self._model.predict(
+                [texts[idx] for idx in idxs], source_lang, target_lang, target_variant
+            )
+            for idx, translation in zip(idxs, group_translations):
+                translations[idx] = translation
+
         translations = np.char.encode(translations, "utf-8")
         translations = np.expand_dims(translations, axis=1)
 
@@ -65,7 +98,14 @@ class _InferFuncWrapper:
 
 
 def _infer_function_factory(
-    num_copies, logger, folder_path, optimize, gpu, model_type, max_new_tokens
+    num_copies,
+    logger,
+    folder_path,
+    optimize,
+    gpu,
+    model_type,
+    max_new_tokens,
+    generation_kwargs,
 ):
     infer_fns = []
     for _ in range(num_copies):
@@ -80,6 +120,7 @@ def _infer_function_factory(
             optimize=optimize,
             gpu=gpu,
             max_new_tokens=max_new_tokens,
+            **generation_kwargs,
         )
         logger.info("Model loaded!")
         infer_fns.append(_InferFuncWrapper(model=model, logger=logger))
@@ -144,6 +185,11 @@ def _parse_args():
         default=256,
         help="Max new tokens to generate",
     )
+    # generation settings; left unset, the model's own defaults apply
+    parser.add_argument("--num-beams", type=int, default=None)
+    parser.add_argument("--no-repeat-ngram-size", type=int, default=None)
+    parser.add_argument("--repetition-penalty", type=float, default=None)
+    parser.add_argument("--length-penalty", type=float, default=None)
     return parser.parse_args()
 
 
@@ -182,11 +228,21 @@ def main():
                 gpu=args.gpu,
                 model_type=args.model_type,
                 max_new_tokens=args.max_new_tokens,
+                generation_kwargs={
+                    "num_beams": args.num_beams,
+                    "no_repeat_ngram_size": args.no_repeat_ngram_size,
+                    "repetition_penalty": args.repetition_penalty,
+                    "length_penalty": args.length_penalty,
+                },
             ),
             inputs=[
                 Tensor(name="input_text", dtype=np.bytes_, shape=(1,)),
                 Tensor(name="source_lang", dtype=np.bytes_, shape=(1,)),
                 Tensor(name="target_lang", dtype=np.bytes_, shape=(1,)),
+            ]
+            + [
+                Tensor(name=name, dtype=np.bytes_, shape=(1,), optional=True)
+                for name in VARIANT_INPUTS
             ],
             outputs=[
                 Tensor(name="translation", dtype=np.bytes_, shape=(1,)),
