@@ -147,3 +147,58 @@ def test_list_limits_are_enforced():
     ]
     message = errors_for(document)["landing.validation.pins"]
     assert "máximo 300" in message
+
+
+def test_translator_texts_accept_plain_strings_saved_before_the_site_was_multilingual():
+    document = load_preset("arn")
+    document["translator"]["placeholder"] = "Escriba aquí"
+    document["translator"]["notice"][
+        "body"
+    ] = "Texto <script>x()</script><strong>viejo</strong>"
+    document["languages"]["variantSelector"]["label"] = "Grafemario"
+    cleaned = validate_config(document)
+    assert cleaned["translator"]["placeholder"] == "Escriba aquí"
+    assert cleaned["translator"]["notice"]["body"] == "Texto x()<strong>viejo</strong>"
+
+
+def test_multilingual_translator_texts_are_sanitized_per_language():
+    document = load_preset("arn")
+    document["translator"]["restricted"]["body"] = {
+        "es": "Inicie <strong>sesión</strong>",
+        "arn": '<a href="javascript:x()">konün</a>',
+    }
+    body = validate_config(document)["translator"]["restricted"]["body"]
+    assert body == {"es": "Inicie <strong>sesión</strong>", "arn": "konün"}
+
+
+def test_ui_texts_are_keyed_by_message_and_locale():
+    document = load_preset("arn")
+    assert validate_config(document)["ui"]["menu.home"]["arn"]
+
+    document["ui"] = {"menu.home": {"arn": "x"}, "bad key!": {"es": "x"}}
+    assert any(path.startswith("ui.bad key!") for path in errors_for(document))
+
+    document["ui"] = {"menu.home": {"Mapuche": "x"}}
+    assert errors_for(document)
+
+    del document["ui"]
+    assert validate_config(document)["ui"] == {}
+
+
+def test_variant_territories_only_use_listed_alphabets():
+    document = load_preset("arn")
+    selector = validate_config(document)["languages"]["variantSelector"]
+    williche = next(d for d in selector["dialects"] if d["label"] == "Williche")
+    assert williche["writings"] == ["cacicado-huilliche", "rumian"]
+
+    selector = document["languages"]["variantSelector"]
+    selector["dialects"][0]["writings"] = ["azumchefe", "xx"]
+    assert "languages.variantSelector" in errors_for(document)
+
+
+def test_variant_source_code_is_a_language_code_or_empty():
+    document = load_preset("arn")
+    document["languages"]["variantSelector"]["sourceCode"] = ""
+    validate_config(document)
+    document["languages"]["variantSelector"]["sourceCode"] = "not a code"
+    assert errors_for(document)

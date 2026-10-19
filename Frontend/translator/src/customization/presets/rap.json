@@ -43,7 +43,8 @@
       "highlight": "#17517e",
       "onDarkAccent": "#7db4e0",
       "mapDots": "#b7d3ea",
-      "mapSurface": "#f4f9fc"
+      "mapSurface": "#f4f9fc",
+      "cta": "#2b7fc4"
     },
     "fonts": {
       "display": "Newsreader",
@@ -90,20 +91,12 @@
   },
   "languages": {
     "hidden": [
-      "arn_a0_h",
-      "arn_r0_h",
-      "arn_u0_h",
-      "arn_a0_l",
-      "arn_r0_l",
-      "arn_u0_l",
-      "arn_a0_n",
-      "arn_r0_n",
-      "arn_u0_n",
-      "arn_a0_p",
-      "arn_r0_p",
-      "arn_u0_p",
-      "arn_ave",
-      "arn_jw"
+      "arn_azumchefe_lafkenche",
+      "arn_raguileo_lafkenche",
+      "arn_amu_lafkenche",
+      "arn_azumchefe_pewenche",
+      "arn_raguileo_pewenche",
+      "arn_amu_pewenche"
     ],
     "renamed": {},
     "custom": [],
@@ -113,8 +106,11 @@
     "variantSelector": {
       "enabled": false,
       "prefix": "",
+      "sourceCode": "",
       "label": "Grafemario",
-      "options": []
+      "options": [],
+      "dialectLabel": "Variante territorial",
+      "dialects": []
     }
   },
   "features": {
@@ -147,6 +143,7 @@
     "profileImage": "/images/rap-profile.png",
     "tint": false
   },
+  "ui": {},
   "landing": {
     "locales": [
       {
@@ -207,6 +204,7 @@
         "rap": "ꞌŪmaŋa Hatu Reꞌo",
         "en": "Rapa Nui Language Academy"
       },
+      "platformName": "",
       "brandTitle": {
         "es": "Traductor Rapa Nui",
         "rap": "Mākini Huri Vānaŋa Rapa Nui",
@@ -331,6 +329,8 @@
         "es": "Mapa de los lugares de validación"
       },
       "geojson": "/data/easter-island.geojson",
+      "closeUp": true,
+      "contextGeojson": "",
       "pins": [
         {
           "name": "Katipare (talleres abiertos)",
@@ -565,7 +565,8 @@
             "Hōnui",
             "Fondo de Cultura y Educación CONADI Rapa Nui",
             "Pontificia Universidad Católica de Chile"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -580,7 +581,8 @@
             "Annette Rapu Zamora",
             "Juan Manutomatoma",
             "Nelly Manutomatoma"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -597,7 +599,8 @@
             "Christian Madariaga Paoa",
             "Ariki Rapu Merino",
             "Hitu Tuki Rapu"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -609,7 +612,8 @@
             "Tu'u Kura Tuki Aránguiz",
             "Mahai Soler Hotu",
             "Merahi Edmunds Hernández"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -627,7 +631,8 @@
             "Ana Iris Chavez Ika",
             "Elena Tuki Hotus",
             "Juan Manutomatoma"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -637,7 +642,8 @@
           "names": [
             "Rachel Riroroko Calderón",
             "Alberto Pacomio Hotus"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -655,7 +661,8 @@
             "Estefanía Pakarati",
             "Andrés Carvallo",
             "Agustín Ghent"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -670,7 +677,8 @@
             "Julianna Jimenez",
             "Leonardo Ribeiro",
             "Antonia Rivas"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -696,7 +704,8 @@
             "Carolina Hey",
             "Sebastián Guajardo",
             "Loreto Aravena"
-          ]
+          ],
+          "hidden": false
         }
       ]
     },

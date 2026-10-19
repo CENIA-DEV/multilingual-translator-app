@@ -17,13 +17,13 @@
       "pueblos originarios",
       "revitalización lingüística"
     ],
-    "logo": "/logo-arn.png",
+    "logo": "/images/arn-logo.svg",
     "favicon": "/logo-arn.ico"
   },
   "theme": {
-    "primary": "#0a8cde",
-    "primaryHover": "#0e9ff8",
-    "primaryStrong": "#067ac1",
+    "primary": "#002daa",
+    "primaryHover": "#0035c9",
+    "primaryStrong": "#00258b",
     "onPrimary": "#ffffff",
     "line": "#c8d1e1",
     "landing": {
@@ -43,7 +43,8 @@
       "highlight": "#17517e",
       "onDarkAccent": "#7db4e0",
       "mapDots": "#b7d3ea",
-      "mapSurface": "#f4f9fc"
+      "mapSurface": "#f4f9fc",
+      "cta": "#002daa"
     },
     "fonts": {
       "display": "Newsreader",
@@ -52,7 +53,7 @@
   },
   "translator": {
     "defaultSource": "spa_Latn",
-    "defaultTarget": "arn_a0_n",
+    "defaultTarget": "arn_azumchefe_nagche",
     "leftCard": {
       "image": "/images/arn-white.png",
       "fit": "contain",
@@ -61,30 +62,64 @@
       "tint": false
     },
     "rightCard": {
-      "image": "/images/arn-2-blue.png",
+      "image": "",
       "fit": "contain",
       "position": "bottom",
       "opacity": 100,
       "tint": false
     },
     "placeholders": {},
-    "placeholder": "Escriba aquí el texto a traducir",
+    "placeholder": {
+      "es": "Escriba aquí el texto a traducir",
+      "en": "Type the text to translate here",
+      "arn": "Faw wirintukuge chem zugu ta mi küpa rulpazugunün"
+    },
     "notice": {
       "enabled": true,
-      "title": "Modelo en desarrollo",
-      "body": "El traductor se encuentra en desarrollo y esta es una <strong>versión operativa de prueba</strong>. Se encuentra en un proceso de <strong>mejora continua</strong>, por lo que puede cometer errores o producir resultados inesperados. Los <strong>resultados siempre deben ser verificados por hablantes</strong>. Agradecemos su comprensión y su retroalimentación, que nos ayuda a mejorar su precisión y utilidad."
+      "title": {
+        "es": "Modelo en desarrollo",
+        "en": "Model under development",
+        "arn": "Petu zewmagey"
+      },
+      "body": {
+        "es": "El traductor se encuentra en desarrollo y esta es una <strong>versión operativa preliminar</strong>. Se encuentra en un proceso de <strong>mejora continua</strong>, por lo que puede cometer errores o producir resultados inesperados. Los <strong>resultados siempre deben ser verificados por hablantes</strong>. Agradecemos su comprensión y su retroalimentación, que nos ayuda a mejorar su precisión y utilidad.",
+        "en": "The translator is under development and this is a <strong>preliminary working version</strong>. It is being <strong>continuously improved</strong>, so it may make mistakes or produce unexpected results. <strong>Results must always be checked by speakers</strong>. We appreciate your understanding and your feedback, which helps us improve its accuracy and usefulness.",
+        "arn": "Tüfachi rulpazuguwe petu zewmagey fey mu tüfa ta <strong>kiñe wünetu zugu</strong>. <strong>Petu zewmagelu am</strong>, fey mu ta welulkayafuy kam wülafuy ka zugu. <strong>Rulpazugun müley ñi malügeal ñi rüfgen kiñe mapuzugukechi che mew</strong>. Mañumuwiyiñ ta mün zugu mew ka ta mün kelluntukufiel mew, femgechi ta kellumuyiñ ñi zoy küme txipayal ka ñi zoy pünefalgeal."
+      }
     },
     "restricted": {
-      "title": "Acceso restringido",
-      "body": "El traductor se encuentra en una fase preliminar de prueba por lo que debe <strong>iniciar sesión</strong> para usar el traductor en esta versión.",
-      "button": "Iniciar sesión"
+      "title": {
+        "es": "Acceso restringido",
+        "en": "Restricted access"
+      },
+      "body": {
+        "es": "El traductor se encuentra en una fase preliminar de prueba por lo que debe <strong>iniciar sesión</strong> para usar el traductor en esta versión.",
+        "en": "The translator is in an early testing phase, so you must <strong>log in</strong> to use it in this version."
+      },
+      "button": {
+        "es": "Iniciar sesión",
+        "en": "Log in"
+      }
     },
     "maintenance": {
-      "title": "Mantenimiento",
-      "body": "El traductor está en mantenimiento por lo que estará fuera servicio por unas horas...",
-      "button": "Entendido"
+      "title": {
+        "es": "Mantenimiento",
+        "en": "Maintenance"
+      },
+      "body": {
+        "es": "El traductor está en mantenimiento por lo que estará fuera servicio por unas horas...",
+        "en": "The translator is under maintenance and will be out of service for a few hours..."
+      },
+      "button": {
+        "es": "Entendido",
+        "en": "Got it"
+      }
     },
-    "feedbackPrompt": "Déjanos tu opinión"
+    "feedbackPrompt": {
+      "es": "Déjanos tu opinión",
+      "en": "Tell us what you think",
+      "arn": "Elge ta mi chempilen"
+    }
   },
   "languages": {
     "hidden": [
@@ -93,26 +128,102 @@
     "renamed": {},
     "custom": [],
     "nativeCodes": [
-      "arn_a0_n",
-      "arn_r0_n",
-      "arn_u0_n"
+      "arn_Latn",
+      "arn_azumchefe_nagche",
+      "arn_raguileo_nagche",
+      "arn_amu_nagche",
+      "arn_azumchefe_pewenche",
+      "arn_raguileo_pewenche",
+      "arn_amu_pewenche",
+      "arn_azumchefe_lafkenche",
+      "arn_raguileo_lafkenche",
+      "arn_amu_lafkenche",
+      "arn_azumchefe_wenteche",
+      "arn_raguileo_wenteche",
+      "arn_amu_wenteche",
+      "arn_cacicado-huilliche_williche",
+      "arn_rumian_williche"
     ],
     "variantSelector": {
       "enabled": true,
       "prefix": "arn",
-      "label": "Grafemario",
+      "sourceCode": "arn_Latn",
+      "label": {
+        "es": "Grafemario",
+        "en": "Writing system",
+        "arn": "Chem wirin püneal"
+      },
       "options": [
         {
-          "code": "a0",
+          "code": "azumchefe",
           "label": "Azümchefe"
         },
         {
-          "code": "r0",
+          "code": "raguileo",
           "label": "Raguileo"
         },
         {
-          "code": "u0",
+          "code": "amu",
           "label": "Unificado"
+        },
+        {
+          "code": "cacicado-huilliche",
+          "label": "Cacicado"
+        },
+        {
+          "code": "rumian",
+          "label": "Rumian"
+        }
+      ],
+      "dialectLabel": {
+        "es": "Variante territorial",
+        "en": "Territorial variant",
+        "arn": "Ka zugun"
+      },
+      "dialects": [
+        {
+          "code": "nagche",
+          "label": "Nagche",
+          "writings": [
+            "azumchefe",
+            "raguileo",
+            "amu"
+          ]
+        },
+        {
+          "code": "pewenche",
+          "label": "Pewenche",
+          "writings": [
+            "azumchefe",
+            "raguileo",
+            "amu"
+          ]
+        },
+        {
+          "code": "lafkenche",
+          "label": "Lafkenche",
+          "writings": [
+            "azumchefe",
+            "raguileo",
+            "amu"
+          ]
+        },
+        {
+          "code": "wenteche",
+          "label": "Wenteche",
+          "writings": [
+            "azumchefe",
+            "raguileo",
+            "amu"
+          ]
+        },
+        {
+          "code": "williche",
+          "label": "Williche",
+          "writings": [
+            "cacicado-huilliche",
+            "rumian"
+          ]
         }
       ]
     }
@@ -147,6 +258,137 @@
     "profileImage": "/images/arn-profile.png",
     "tint": false
   },
+  "ui": {
+    "lang.arn_Latn": {
+      "arn": "Mapuzugun"
+    },
+    "lang.spa_Latn": {
+      "arn": "Wigkazugun"
+    },
+    "common.close": {
+      "arn": "Nürüfün"
+    },
+    "common.cancel": {
+      "arn": "Katxütxipan"
+    },
+    "common.send": {
+      "arn": "Amulün"
+    },
+    "menu.home": {
+      "arn": "Wüñotual wünetu mew"
+    },
+    "menu.translator": {
+      "arn": "Rulpazuguwe"
+    },
+    "menu.exploreData": {
+      "arn": "Malüal zugu"
+    },
+    "menu.profile": {
+      "arn": "Ta mi zugu"
+    },
+    "menu.manageAccess": {
+      "arn": "Azkünual konün"
+    },
+    "menu.logout": {
+      "arn": "Nürüfün küzaw"
+    },
+    "translator.positiveSent": {
+      "arn": "Küme amulgey ta mi feypin"
+    },
+    "translator.feedbackThanks": {
+      "arn": "Mañumeyu ta mi kelluntukun mew"
+    },
+    "feedback.title": {
+      "arn": "Amulal kelluntukun zugu"
+    },
+    "feedback.question": {
+      "arn": "¿Küpa feypimi ka chumgechi rulpazugugeafuy?"
+    },
+    "feedback.suggestionsTitle": {
+      "arn": "Zuguntukun kam kake zugu"
+    },
+    "feedback.suggestionsPrompt": {
+      "arn": "Zuguntukuafuymi kam feypiafuymi ta mi chumgentufiel tüfachi plataforma"
+    },
+    "feedback.writeHere": {
+      "arn": "Faw wirintukuge"
+    },
+    "feedback.source": {
+      "arn": "Ta mi wirintukupen"
+    },
+    "feedback.translation": {
+      "arn": "Rulpazugun"
+    },
+    "feedback.uncertain": {
+      "arn": "Kimün ñi kümelkalenon welu kimlan chumgechi ñi küme elkünutuafel"
+    },
+    "card.wordInfo": {
+      "arn": "Zoy kimal nhemül"
+    },
+    "card.listen": {
+      "arn": "Allkütun"
+    },
+    "card.play": {
+      "arn": "Allkütual awkiñ"
+    },
+    "card.copy": {
+      "arn": "Az nentual rulpazugun"
+    },
+    "asr.start": {
+      "arn": "Llitun awkiñtukun"
+    },
+    "asr.micReminder": {
+      "arn": "Tukulpayaymi üyümkünual ta mi zuguwe mi pagilwe mew"
+    },
+    "asr.speaking.spa": {
+      "arn": "Wigkazugumekeymi"
+    },
+    "asr.speaking.arn": {
+      "arn": "Mapuzugumekeymi"
+    },
+    "asr.stop": {
+      "arn": "Fentekünun awkiñtukun"
+    },
+    "asr.transcribing": {
+      "arn": "Wirintukumeken..."
+    },
+    "asr.transcription": {
+      "arn": "Kizu wirinentuawkiñün"
+    },
+    "asr.recordAgain": {
+      "arn": "Wüñoawkiñtukual"
+    },
+    "asr.translate": {
+      "arn": "Rulpazugual"
+    },
+    "territoryHelp.open": {
+      "arn": "Ayúdame a decidir"
+    },
+    "territoryHelp.title": {
+      "arn": "¿De qué territorio eres?"
+    },
+    "territoryHelp.intro": {
+      "arn": "El mapuzungun se habla distinto en cada territorio. Selecciona el territorio donde vives o de donde viene tu familia."
+    },
+    "territoryHelp.search": {
+      "arn": "¿De qué comuna provienes?"
+    },
+    "territoryHelp.searchHint": {
+      "arn": "Por ejemplo: Carahue, Temuco, Osorno…"
+    },
+    "territoryHelp.notFound": {
+      "arn": "No encontramos esa comuna. Elige abajo el territorio más cercano."
+    },
+    "territoryHelp.belongs": {
+      "arn": "{place} es parte del territorio {territory}"
+    },
+    "territoryHelp.use": {
+      "arn": "Usar {territory}"
+    },
+    "territoryHelp.pick": {
+      "arn": "Elige un territorio"
+    }
+  },
   "landing": {
     "locales": [
       {
@@ -156,6 +398,10 @@
       {
         "code": "en",
         "label": "English"
+      },
+      {
+        "code": "arn",
+        "label": "Mapuzugun"
       }
     ],
     "defaultLocale": "es",
@@ -167,7 +413,7 @@
       },
       {
         "id": "validation",
-        "visible": false,
+        "visible": true,
         "tone": "paper"
       },
       {
@@ -197,14 +443,17 @@
       }
     ],
     "header": {
-      "logo": "/images/arn-language-academy.png",
+      "logo": "/images/arn-logo.svg",
       "logoAlt": {
-        "es": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu",
-        "en": "Mapuche Language and Culture Institute Aukiñ Mapu"
+        "es": "Logo del Traductor Mapuzungun",
+        "en": "Mapuzungun Translator logo",
+        "arn": "Rulpazuguwe"
       },
+      "platformName": "Aukiñ Mapu",
       "brandTitle": {
         "es": "Traductor Mapuzungun",
-        "en": "Mapuzungun Translator"
+        "en": "Mapuzungun Translator",
+        "arn": "Rulpazuguwe"
       },
       "selectLanguageLabel": {
         "es": "Selecciona tu idioma",
@@ -214,7 +463,9 @@
     "hero": {
       "image": "/images/landing-arn.png",
       "imageAlt": {
-        "es": "Mapuzungun"
+        "es": "Mapuzungun",
+        "en": "Mapuzungun",
+        "arn": "Mapuzugun"
       },
       "focalPoint": {
         "x": 50,
@@ -222,37 +473,44 @@
       },
       "overlayOpacity": 100,
       "title": {
-        "es": "Apoyo a la revitalización del Mapuzungun con IA",
-        "en": "Supporting the revitalization of the Mapuzungun language with AI"
+        "es": "Contribuyamos a la revitalización del Mapuzungun con IA",
+        "en": "Let's contribute to the revitalization of Mapuzungun with AI",
+        "arn": "Kelluyiñ may ñi wüñozugugetual mapuzugun IA mew"
       },
       "subtitle": {
-        "es": "Proyecto que desarrolla modelos de traducción automática mapuzungun-español con inteligencia artificial",
-        "en": "Project that develops translation models mapuzungun-español with artificial intelligence"
+        "es": "Desarrollamos tecnología para el idioma mapuzungun con inteligencia artificial",
+        "en": "We develop artificial intelligence technology for the Mapuzungun language",
+        "arn": "Zewmakeyiñ we zugu mapuchezugungealu inteligencia artificial mew"
       },
       "primaryCta": {
         "es": "Probar el traductor",
-        "en": "Try the translator"
+        "en": "Try the translator",
+        "arn": "Kümekümetual rulpazuguwe"
       },
       "secondaryCta": {
         "es": "Acerca del proyecto",
-        "en": "About the project"
+        "en": "About the project",
+        "arn": "Chem zugu niey tüfachi küzaw"
       },
       "showDeveloperBadge": true
     },
     "about": {
       "title": {
         "es": "ACERCA DE NUESTRO PROYECTO",
-        "en": "ABOUT OUR PROJECT"
+        "en": "ABOUT OUR PROJECT",
+        "arn": "CHEM ZUGU NIEY TAIÑ KÜZAW"
       },
       "items": [
         {
           "text": {
-            "es": "La pérdida de lenguas de pueblos originarios es una crisis creciente en la actualidad. <strong>El mapuzungun, es considerado una lengua en peligro</strong>, ya que a pesar de que en Chile más de 1.500.000 de personas se identifican como mapuche, cuenta con menos de 200.000 hablantes activos, y sólo tres comunas la consideran lengua co-oficial a nivel nacional.",
-            "en": "The loss of indigenous languages is a growing crisis today. <strong>Mapuzungun, is considered a language at risk</strong>, despite the fact that more than 1.5 million people in Chile identify as Mapuche, has less than 200,000 active speakers, and only three communities consider it co-official at the national level."
+            "es": "La pérdida de lenguas de pueblos originarios es una crisis creciente en la actualidad. <strong>El mapuzungun, es considerado una lengua en peligro</strong>, ya que a pesar de que en Chile más de 1.500.000 de personas se identifican como mapuche, cuenta con menos de 200.000 hablantes activos, y sólo tres comunas la consideran lengua cooficial a nivel nacional.",
+            "en": "The loss of Indigenous languages is a growing crisis today. <strong>Mapuzungun is considered an endangered language</strong>: although more than 1,500,000 people in Chile identify as Mapuche, it has fewer than 200,000 active speakers, and only three municipalities in the country recognize it as a co-official language.",
+            "arn": "Fantepu mew pu pueblos originarios petu ñamomiy ñi zugun egün. <strong>Mapuzugun ta, kiñe petu ñamchi kewünh</strong>, Chile mew ta mülefuy zoy 1.500.000 mapuche txokiwiy, welu niey zoy püchi 200.000 zugukechi che, ka küla comuna mew müten lengu cooficialgeay gulumapu mew."
           },
-          "image": "/images/landing/community-gathering.jpg",
+          "image": "/images/landing/arn-class-session.jpg",
           "imageAlt": {
-            "es": "Encuentro comunitario en Rapa Nui"
+            "es": "Clase de mapuzungun con estudiantes sentados en círculo",
+            "en": "Mapuzungun class with students seated in a circle"
           },
           "imageFit": "cover",
           "focalPoint": {
@@ -263,11 +521,13 @@
         {
           "text": {
             "es": "La ONU ha declarado que entre el 2022 y el 2032 nos encontramos en el <strong>Decenio Internacional de las Lenguas Indígenas del Mundo</strong>. La UNESCO destaca la importancia de la tecnología en los procesos de preservación, revitalización y promoción de las lenguas.",
-            "en": "The United Nations has declared that between 2022 and 2032 we are in the <strong>Decade of Indigenous Languages of the World</strong>. UNESCO highlights the importance of technology in the processes of preservation, revitalization and promotion of languages."
+            "en": "The United Nations has declared 2022–2032 the <strong>International Decade of Indigenous Languages</strong>. UNESCO highlights the importance of technology in preserving, revitalizing and promoting languages.",
+            "arn": "2022 txipantu ka 2032 puwlu chi txipantu müleyiñ <strong>Decenio Internacional de las Lenguas Indígenas del Mundo</strong> pi ta ONU. UNESCO rume fanetukefiy ta weke zugu rumel müleal, wüñozugugetual kewünh ka ñi wenuntugetual."
           },
-          "image": "/images/landing/translator-in-use.jpg",
+          "image": "/images/landing/arn-translator-laptop.jpg",
           "imageAlt": {
-            "es": "Traductor rapa nui - español en uso"
+            "es": "El traductor mapuzungun en uso en un computador portátil",
+            "en": "The Mapuzungun translator in use on a laptop"
           },
           "imageFit": "cover",
           "focalPoint": {
@@ -277,12 +537,14 @@
         },
         {
           "text": {
-            "es": "En este contexto surge este innovador proyecto, llevado a cabo por un equipo del Centro Nacional de Inteligencia Artificial, Estudios Aplicados Antropología UC y el Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu, que se ha focalizado en el desarrollo un <strong>traductor de texto mapuzungun - español</strong>.",
-            "en": "In this context this innovative project was born, carried out by the National Center for Artificial Intelligence, \u0016Applied Studies Anthropology UC, and the Mapuche Language and Culture Institute Aukiñ Mapu, focused on the development of a <strong>Mapuzungun - Spanish text translator</strong>."
+            "es": "En este contexto surge este innovador proyecto, llevado a cabo por un equipo del Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu, el Centro Nacional de Inteligencia Artificial y Estudios Aplicados Antropología UC, que se ha focalizado en el desarrollo de <strong>traductores y sistemas de voz para el mapuzungun</strong>.",
+            "en": "This innovative project was born in this context. It is carried out by a team from the Mapuche Language and Culture Institute Aukiñ Mapu, the National Center for Artificial Intelligence and Applied Studies Anthropology UC, and focuses on developing <strong>translators and voice systems for Mapuzungun</strong>.",
+            "arn": "Fey chi zugu mew ta txipay tüfachi we küzaw, yenielu ta Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu, ka Centro Nacional de Inteligencia Artificial ka Estudios Aplicados Antropología UC, tüfa ta petu zewmay <strong>kiñe rulpazuguwe ka kiñe sistema niealu aukiñ mapuzugungealu</strong>."
           },
-          "image": "/images/landing/academy-book-launch.jpg",
+          "image": "/images/landing/arn-speaker-phone.jpg",
           "imageAlt": {
-            "es": "Integrantes de la Academia de la Lengua Rapa Nui ꞌUmaŋa Hatu Reꞌo"
+            "es": "Hablante de mapuzungun grabando su voz en un teléfono",
+            "en": "Mapuzungun speaker recording his voice on a phone"
           },
           "imageFit": "cover",
           "focalPoint": {
@@ -292,69 +554,81 @@
         },
         {
           "text": {
-            "es": "En esta página podrás acceder a <strong>un prototipo del traductor online</strong>, que se encuentra actualmente en una fase de validación y mejora continua. La participación de la comunidad es fundamental para retroalimentar la calidad del traductor, lo cual permite el aprendizaje de la inteligencia artificial.",
-            "en": "On this page you can access an <strong>online translator prototype</strong>, which is currently in a validation and continuous improvement phase. The participation of the community is fundamental to feed back the quality of the translator, which allows the learning of artificial intelligence."
+            "es": "En esta página podrás acceder al <strong>traductor online</strong>, que se encuentra actualmente en una fase de validación y mejora continua. La participación de la comunidad es fundamental, pues su retroalimentación permite afinar continuamente la calidad del sistema.",
+            "en": "On this page you can access the <strong>online translator</strong>, which is currently being validated and continuously improved. Community participation is essential, as its feedback lets us keep refining the quality of the system.",
+            "arn": "Tüfachi página mew pepi konaymi <strong>rulpazuguwe online</strong> mew, fewla ta petu faliltugey ka petu küme azkünugepey. Rume faliy ñi koneltual ta pu lof che, femgechi ta kelluntukuaygün ñi zoy küme azkünugeal ta tüfachi zugu."
           },
-          "image": "/images/landing/speaker-interview.jpg",
+          "image": "/images/landing/arn-ruka-community.jpg",
           "imageAlt": {
-            "es": "Sesión de trabajo con un hablante de rapa nui"
+            "es": "Encuentro con la comunidad en una ruka",
+            "en": "Meeting with the community in a ruka"
           },
           "imageFit": "cover",
           "focalPoint": {
             "x": 50,
-            "y": 50
+            "y": 60
           }
         }
       ]
     },
     "validation": {
       "title": {
-        "es": "Validado por los hablantes que requieren usar la herramienta",
-        "en": "Validated with the people who actually need the tool"
+        "es": "Validado en territorio, con los hablantes que necesitan la herramienta",
+        "en": "Validated on the ground, with the speakers who need the tool",
+        "arn": "Azkünugey kiñe mapu mew, chew ñi zuamtuniegen mew ta tüfachi rulpazuguwe."
       },
       "mapLabel": {
         "es": "Mapa de los lugares de validación"
       },
-      "geojson": "",
+      "geojson": "/data/araucania.geojson",
+      "closeUp": false,
+      "contextGeojson": "/data/chile-araucania-context.geojson",
       "pins": []
     },
     "focus": {
       "title": {
         "es": "Nuestro enfoque",
-        "en": "Our focus"
+        "en": "Our focus",
+        "arn": "Taiñ azkiñtu zugu"
       },
       "items": [
         {
           "icon": "community",
           "title": {
             "es": "Colaboración con Comunidades",
-            "en": "Collaboration with Communities"
+            "en": "Collaboration with communities",
+            "arn": "Kelluntukun lof che mew"
           },
           "text": {
             "es": "Para su desarrollo ha sido fundamental el trabajo colaborativo y la validación del proceso con hablantes mapuche",
-            "en": "For its development, it has been fundamental the collaborative work and the validation of the process with native speakers of Mapuzungun."
+            "en": "Working together with Mapuche speakers and validating the process with them has been essential to its development.",
+            "arn": "Ñi zewmageal ta tüfa rume zuamtugeay ta kelluwün zugu ka ñi küme azkünual ta pu zugukechi che mew."
           }
         },
         {
           "icon": "network",
           "title": {
             "es": "Inteligencia Artificial",
-            "en": "Artificial Intelligence"
+            "en": "Artificial Intelligence",
+            "arn": "Zewman rakizuamwe"
           },
           "text": {
             "es": "El traductor utiliza inteligencia artificial, específicamente técnicas de aprendizaje automático y NLP.",
-            "en": "The translator uses artificial intelligence, specifically machine learning and NLP techniques."
+            "en": "The translator uses artificial intelligence, specifically machine learning and natural language processing (NLP) techniques.",
+            "arn": "Rulpazuguwe ta pünekey zewman rakizuamwe, tüfey ta kizu azümkey ka NLP mew."
           }
         },
         {
           "icon": "open",
           "title": {
             "es": "Uso libre y gratuito",
-            "en": "Free and open source"
+            "en": "Free and open to everyone",
+            "arn": "Iney rume püneay ka kulligelayay"
           },
           "text": {
-            "es": "Este es un proyecto sin fines de lucro, el uso del traductor es gratuito y los códigos serán de acceso libre.",
-            "en": "This is a non-profit project, the use of the translator is free and the codes will be freely accessible."
+            "es": "Este es un proyecto sin fines de lucro. El uso del traductor es gratuito y de acceso libre.",
+            "en": "This is a non-profit project. The translator is free to use and open to everyone.",
+            "arn": "Tüfachi küzaw mew ta ranuluwnual. Pünegeal ta rulpazuguwe kulligelayay ka iney rume konay."
           }
         }
       ]
@@ -362,28 +636,32 @@
     "owners": {
       "title": {
         "es": "Un proyecto colaborativo",
-        "en": "A collaborative project"
+        "en": "A collaborative project",
+        "arn": "Kiñe kelluwün küzaw lle ta tüfa"
       },
       "developedByLabel": {
         "es": "Desarrollado por",
-        "en": "Developed by"
+        "en": "Developed by",
+        "arn": "Tüfachi küzaw wenuntuy ta..."
       },
       "partners": [
         {
-          "logo": "/images/arn-language-academy.png",
+          "logo": "/images/arn-language-academy-emblem.png",
           "name": {
             "es": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu",
-            "en": "Mapuche Language and Culture Institute Aukiñ Mapu"
+            "en": "Mapuche Language and Culture Institute Aukiñ Mapu",
+            "arn": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu"
           },
           "url": "",
           "urlLabel": "",
-          "logoHeight": 88
+          "logoHeight": 72
         },
         {
           "logo": "/images/eaauc.png",
           "name": {
             "es": "Estudios Aplicados Antropología UC",
-            "en": "Applied Studies, Anthropology UC"
+            "en": "Applied Studies, Anthropology UC",
+            "arn": "Estudios Aplicados Antropología UC"
           },
           "url": "https://www.estudiosaplicados.cl",
           "urlLabel": "www.estudiosaplicados.cl",
@@ -393,7 +671,8 @@
           "logo": "/images/cenia.png",
           "name": {
             "es": "Centro Nacional de Inteligencia Artificial",
-            "en": "National Center for Artificial Intelligence"
+            "en": "National Center for Artificial Intelligence",
+            "arn": "Centro Nacional de Inteligencia Artificial"
           },
           "url": "https://www.cenia.cl",
           "urlLabel": "www.cenia.cl",
@@ -411,59 +690,125 @@
     "collaborators": {
       "title": {
         "es": "Colaboradores",
-        "en": "Collaborators"
+        "en": "Collaborators",
+        "arn": "Pu kelluntukulu"
       },
       "groups": [
         {
-          "title": {
-            "es": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu"
-          },
+          "title": {},
           "names": [
-            "Manuel Santander",
-            "Flor Caniupil",
-            "Rosa Caniupil"
-          ]
-        },
-        {
-          "title": {
-            "es": "Centro Nacional de Inteligencia Artificial",
-            "en": "National Center for Artificial Intelligence"
-          },
-          "names": [
-            "Carlos Aspillaga",
-            "Sebastián Ricke",
-            "César Rivera",
-            "Martín Pizarro",
-            "Guillermo Figueroa",
-            "Hugo Zeballos",
-            "Canela Orellana",
-            "Estefanía Pakarati",
-            "Andrés Carvallo",
-            "Agustín Ghent"
-          ]
-        },
-        {
-          "title": {
-            "es": "Estudios Aplicados Antropología UC",
-            "en": "Applied Studies, Anthropology UC"
-          },
-          "names": [
-            "Jaime Coquelet",
-            "Loreto Ulloa",
-            "Francisca del Valle",
-            "Tomás Pesce",
-            "Julianna Jimenez",
-            "Leonardo Ribeiro",
-            "Antonia Rivas"
-          ]
+            "Manuel Alberto Santander Solís",
+            "Flor Caniupil Huaiquiñir",
+            "Rosa Caniupil Huaiquiñir",
+            "Belen Villena",
+            "Teresa Paillahueque",
+            "Cristian García Quintul",
+            "Macarena Barrientos Paillahueque",
+            "César Millán",
+            "Margarita Milanca Llanguilef",
+            "Marlene Opazo Jorquera",
+            "Rodrigo Garrido Maldonado",
+            "Isabel Queupil Epul",
+            "Eva Catrin Queupil",
+            "Leonel Melin Pehuen",
+            "Ana Ñanculef Carilao",
+            "Celinda Parra Torres",
+            "Cristian Cayupan Mora",
+            "Manuel Reiman Huilcaman",
+            "Yeny Alchao Salvador",
+            "Yanina Huenufil Carmona",
+            "Krishna Mardones Martínez",
+            "Eliecer Catrileo Canihuan",
+            "Ester Chehuan Carilao",
+            "Roberto Ricardo Tripainao Calfulaf",
+            "José Regino Cayupil Pailacura",
+            "Alonso Segundo Curamil Lincopi",
+            "Norma Verónica Cofré Imio",
+            "Genoveva Reuca Neculman",
+            "Eduardo Saavedra",
+            "Winston Espinoza",
+            "Wladimir Painemal",
+            "Margarita del Carmen Painiqueo Tragnolao",
+            "María Paillalao Tranamil",
+            "Artemio Pichún Paillalao",
+            "Lulerio Perleu",
+            "Domingo Antonio Aniñir Huincahual",
+            "Juan Pablo Santander Tracnolao",
+            "Reumay Curihual Eusebio Ernesto",
+            "Caupolicán Millalen",
+            "Antonio Cadin Huentelao",
+            "Violeta Millao Reuca",
+            "Evelyn Colihuinca Nonco",
+            "Lucrecia Córdova Sandoval",
+            "Alex Calfuqueo",
+            "Luis Parra Cayupil",
+            "Gabriel Pozo",
+            "Gabriel Llanquinao",
+            "Carlos Benito Quiroz",
+            "Cristian Araneda Maureira",
+            "Marcelo del Río Salas",
+            "Patricia Huircan Chicahual",
+            "Dayand Huenchullan Campos",
+            "Dominga Curraqueo Catril",
+            "Patricio Melipil Igayman",
+            "Abelino Pichicona Guimay",
+            "Darío Cayuqueo",
+            "Rodrigo Curriqueo",
+            "María Esther Antivil",
+            "Víctor Meliñir",
+            "Vanessa Marihuan",
+            "María Curical",
+            "Elga Rain",
+            "Alberto Antileo",
+            "Elías Paillan Coñoepan",
+            "Yeny Llaulen Melihuén",
+            "Benjamín Quintriqueu Ortiz",
+            "Hernán Cheuquel",
+            "Juana Huenchal Caniguao",
+            "Luisa Gladys Antipe Millán",
+            "Roberto Millao",
+            "María Zulema Colihuinca",
+            "Rosa Huaiquiman",
+            "Luz Mira Hueracan P.",
+            "Margarita Cayun Lefio",
+            "Juana Huircapan Paillafil",
+            "Juan Painen",
+            "Carlos Paillan",
+            "María Antonia Puen Quimen",
+            "Lorena Isabel Painemilla Puen",
+            "Miguel Alonso Milloril",
+            "Jose Francisco Painequeo Paillán",
+            "Florencia Nino",
+            "Margarita Aillapan",
+            "Zoila Lizama Cariñe",
+            "Ximena del Carmen Montecinos Antiguay",
+            "Álvaro Morales Marileo",
+            "Patricio Caniullan",
+            "Mónica Lonconao obando",
+            "Marcela Lozano Riquelme",
+            "Sebastián Oyarzo",
+            "Mauricio Hernández",
+            "Jose Luis Loncopan S",
+            "Honorilda Inés Navarrete Neculpán",
+            "Erasmo Millalef",
+            "Isabel Marillanca",
+            "Neftalí Carinao",
+            "Silvia Navarro",
+            "Ana Rosa Quintonahuel",
+            "Maria Teresa Quilacan Llancafilo",
+            "Maria Raquel Marillanca Loncopan",
+            "Regina Estelia Carinao Avila",
+            "Ana Luisa Millaqueo Fuentes"
+          ],
+          "hidden": false
         },
         {
           "title": {
             "es": "Agradecimientos",
-            "en": "Thanks"
+            "en": "Acknowledgements",
+            "arn": "Mañumuwün"
           },
           "names": [
-            "Participantes Txawun de validación",
             "Cristian Vasquez",
             "Josefina Irribarra",
             "Daniela Contreras",
@@ -472,22 +817,21 @@
             "Pia Cassone",
             "Irma Palominos",
             "Álvaro Soto",
-            "Belen Villena",
             "Javiera Acevedo",
             "Marcos Lores",
             "Sebastián Martínez",
-            "Carlos González",
-            "Carolina Hey",
             "Sebastián Guajardo",
             "Loreto Aravena"
-          ]
+          ],
+          "hidden": true
         }
       ]
     },
     "funding": {
       "title": {
         "es": "Financiamiento",
-        "en": "Financing"
+        "en": "Funding",
+        "arn": "Chew txipay ran wenuntugeal tüfa chi küzaw"
       },
       "items": [
         {
@@ -510,80 +854,82 @@
             "es": "ISOC"
           },
           "url": ""
-        },
-        {
-          "logo": "/images/conadi.png",
-          "caption": {
-            "es": "Conadi"
-          },
-          "url": ""
-        },
-        {
-          "logo": "/images/municipalidad.png",
-          "caption": {
-            "es": "Municipalidad de Rapa Nui",
-            "en": "Rapa Nui Municipality"
-          },
-          "url": ""
         }
       ]
     },
     "contact": {
       "title": {
         "es": "Contáctanos",
-        "en": "Contact us"
+        "en": "Contact us",
+        "arn": "Zugumuyiñ"
       },
       "subtitle": {
         "es": "Únete a nuestro equipo o colabora en el proyecto",
-        "en": "Join our team or collaborate on the project"
+        "en": "Join our team or collaborate on the project",
+        "arn": "Koneltupage taiñ txawünche mew kam kelluntuafuymi tüfachi küzaw mew"
       },
       "button": {
         "es": "Contáctanos",
-        "en": "Contact us"
+        "en": "Contact us",
+        "arn": "Zugumuyiñ"
       },
       "form": {
         "description": {
-          "es": "Llena los siguientes campos para contactarnos."
+          "es": "Llena los siguientes campos para contactarnos.",
+          "en": "Fill in the following fields to contact us."
         },
         "firstName": {
-          "es": "Nombre"
+          "es": "Nombre",
+          "en": "First name"
         },
         "lastName": {
-          "es": "Apellido"
+          "es": "Apellido",
+          "en": "Last name"
         },
         "email": {
-          "es": "Correo"
+          "es": "Correo",
+          "en": "Email"
         },
         "organization": {
-          "es": "Organización"
+          "es": "Organización",
+          "en": "Organization"
         },
         "optional": {
-          "es": "Opcional"
+          "es": "Opcional",
+          "en": "Optional"
         },
         "message": {
-          "es": "Mensaje"
+          "es": "Mensaje",
+          "en": "Message"
         },
         "submit": {
-          "es": "Enviar"
+          "es": "Enviar",
+          "en": "Send",
+          "arn": "Amulün"
         },
         "successTitle": {
-          "es": "Gracias por tu interés en colaborar con nosotros"
+          "es": "Gracias por tu interés en colaborar con nosotros",
+          "en": "Thank you for your interest in collaborating with us"
         },
         "successBody": {
-          "es": "Te contactaremos a la brevedad"
+          "es": "Te contactaremos a la brevedad",
+          "en": "We will contact you shortly"
         },
         "errorTitle": {
-          "es": "Hubo un error al enviar tu solicitud"
+          "es": "Hubo un error al enviar tu solicitud",
+          "en": "There was an error sending your request"
         },
         "errorBody": {
-          "es": "Por favor corrobore los datos y vuelva a intentarlo"
+          "es": "Por favor corrobore los datos y vuelva a intentarlo",
+          "en": "Please check your details and try again"
         }
       }
     },
     "footer": {
       "label": {
         "es": "Proyecto de",
-        "en": "Project developed by"
+        "en": "A project by",
+        "arn": "...ñi küzaw"
       },
       "showPartnerNames": true
     }

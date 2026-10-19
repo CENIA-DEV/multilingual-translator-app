@@ -110,25 +110,26 @@ export const REQUEST_ACCESS_REASONS = [
   {name: 'Para colaborar', value: 'Collaboration'}
 ];
 
+// `key` names the menu text in customization/messages.js
 export const NO_USER_PATHS = [
-  {'name': 'Inicio', 'route': '/about', 'icon': 'home'},
-  {'name': 'Traductor', 'route': '/translator', 'icon': 'language'},
+  {'name': 'Inicio', 'key': 'menu.home', 'route': '/about', 'icon': 'home'},
+  {'name': 'Traductor', 'key': 'menu.translator', 'route': '/translator', 'icon': 'language'},
 ]
 
 const USER_PATHS = [
   ...NO_USER_PATHS,
-  {'name': 'Perfil', 'route': '/profile', 'icon': 'user'}
+  {'name': 'Perfil', 'key': 'menu.profile', 'route': '/profile', 'icon': 'user'}
 ];
 
 const ADMIN_PATHS = [
   ...USER_PATHS,
-  {'name': 'Administrar Accesos', 'route': '/manage-access', 'icon': 'users'},
-  {'name': 'Explorar Datos', 'route': '/explore-data', 'icon': 'database'},
-  {'name': 'Administrar Palabras', 'route': '/manage-word-information', 'icon': 'database'},
+  {'name': 'Administrar Accesos', 'key': 'menu.manageAccess', 'route': '/manage-access', 'icon': 'users'},
+  {'name': 'Explorar Datos', 'key': 'menu.exploreData', 'route': '/explore-data', 'icon': 'database'},
+  {'name': 'Administrar Palabras', 'key': 'menu.manageWords', 'route': '/manage-word-information', 'icon': 'database'},
 ];
 
 export const TRANSLATOR_ADMIN_PATH =
-  {'name': 'Administrar Traductor', 'route': '/manage-translator', 'icon': 'palette'};
+  {'name': 'Administrar Traductor', 'key': 'menu.manageTranslator', 'route': '/manage-translator', 'icon': 'palette'};
 
 export const PATHS = {
   USER: USER_PATHS,

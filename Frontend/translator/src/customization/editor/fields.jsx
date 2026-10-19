@@ -525,7 +525,10 @@ export function I18nField({ path, label, hint, multiline, rich, rows = 3, placeh
   const [value, set] = useField(path)
   const locales = doc.landing.locales
   const defaultLocale = doc.landing.defaultLocale
-  const current = value && typeof value === "object" ? value : {}
+  // A plain string (a text saved before it could be translated) is the
+  // default language's version
+  const current =
+    value && typeof value === "object" ? value : typeof value === "string" && value ? { [defaultLocale]: value } : {}
   const fallback = current[defaultLocale] || ""
 
   const setLocale = (code, text) => {

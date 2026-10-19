@@ -16,20 +16,27 @@ limitations under the License. */
 import "./langSelector.css"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowDown } from "@fortawesome/free-solid-svg-icons";
+import { useT } from "@/customization/useT";
+import { useLanguageSides } from "@/customization/languages";
 
 export default function LangSelector({ lang, side, handleLangModalBtn }) {
+  const t = useT();
+  // A variant shows as its language; the territory and alphabet have their own selectors
+  const shown = useLanguageSides().displayLanguage(lang);
   return (
     <div
+      data-swap
       className={`lang-container ${side === 'right' ? 'is-right' : 'is-left'}`}
+      // No key on the language: remounting would replay the fade-in on every
+      // language, territory or alphabet change instead of only on page load
       style={{ borderColor: side === 'left' ? 'rgb(var(--line))' : '#ffffff' }}
-      key={lang.code}
     >
       {/* TO DO: Fix responsive view with large languages names */}
       <span
         className="lang-selected"
         style={{ color: side === 'left' ? 'rgb(var(--brand))' : '#fff' }}
       >
-        {lang.name}
+        {t.langName(shown)}
       </span>
 
       <div

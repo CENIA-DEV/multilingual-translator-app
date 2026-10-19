@@ -13,10 +13,11 @@
 // limitations under the License.
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
 import { themeCss } from "./theme"
 import { landingFontsHref } from "./fonts"
+import { LOCALE_COOKIE, resolveLocale } from "./locale"
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "")
 
@@ -54,11 +55,15 @@ function isPreviewFrame() {
  * (source "fallback") the browser fetches the published document once after
  * hydration. Inside the editor's preview iframe the document is replaced,
  * live, by the draft the editor sends.
+ *
+ * `initial.locale` is the language the visitor picked (a cookie, read by the
+ * layout so the server renders it); the whole site follows it.
  */
 export function ConfigProvider({ initial, children }) {
   const [site, setSite] = useState({ config: initial.config, version: initial.version })
   const [draft, setDraft] = useState(null)
   const [preview, setPreview] = useState(false)
+  const [chosenLocale, setChosenLocale] = useState(initial.locale || null)
   const pathname = usePathname()
 
   useEffect(() => {
@@ -110,8 +115,16 @@ export function ConfigProvider({ initial, children }) {
       config,
       version: site.version,
       preview,
+      chosenLocale,
+      setChosenLocale,
     }
-  }, [draft, site, preview])
+  }, [draft, site, preview, chosenLocale])
+
+  // A locale removed in the editor (or never offered) falls back to the default
+  const locale = resolveLocale(value.config.landing, chosenLocale)
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
 
   const fontsHref = landingFontsHref(value.config.theme.fonts)
   const initialFontsHref = useMemo(
@@ -141,4 +154,27 @@ export function useConfig() {
 /** True inside the editor's live preview. */
 export function useIsPreview() {
   return useContext(ConfigContext).preview
+}
+
+/**
+ * The site language: { locale, defaultLocale, locales, setLocale }. The
+ * languages offered are the page languages of the customization
+ * ("Idiomas y secciones" in Administrar Traductor).
+ */
+export function useLocale() {
+  const { config, chosenLocale, setChosenLocale } = useContext(ConfigContext)
+  const { locales, defaultLocale } = config.landing
+  const locale = resolveLocale(config.landing, chosenLocale)
+  const setLocale = useCallback(
+    (code) => {
+      setChosenLocale(code)
+      try {
+        document.cookie = `${LOCALE_COOKIE}=${encodeURIComponent(code)}; path=/; max-age=31536000; samesite=lax`
+      } catch {
+        // cookies blocked: the choice still holds until the page is reloaded
+      }
+    },
+    [setChosenLocale]
+  )
+  return { locale, defaultLocale, locales, setLocale }
 }

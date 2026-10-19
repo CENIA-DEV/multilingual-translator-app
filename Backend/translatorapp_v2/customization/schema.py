@@ -24,7 +24,7 @@ checks that the presets still validate.
 Field names are camelCase on purpose: they are the JSON keys the frontend uses.
 """
 import re
-from typing import Annotated, Dict, List, Literal
+from typing import Annotated, Dict, List, Literal, Optional, Union
 
 from pydantic import (
     AfterValidator,
@@ -87,17 +87,33 @@ Short = Annotated[str, StringConstraints(max_length=200)]
 Medium = Annotated[str, StringConstraints(max_length=1000)]
 Long = Annotated[str, StringConstraints(max_length=6000)]
 Locale = Annotated[str, StringConstraints(pattern=r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$")]
+# A code part: letters and digits, with inner hyphens ("cacicado-huilliche")
+_CODE_PART = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,22}[A-Za-z0-9])?"
 LangCode = Annotated[
-    str, StringConstraints(pattern=r"^[a-z]{2,3}(_[A-Za-z0-9]{1,8}){0,2}$")
+    str, StringConstraints(pattern=rf"^[a-z]{{2,3}}(_{_CODE_PART}){{0,2}}$")
 ]
 LangPrefix = Annotated[str, StringConstraints(pattern=r"^[a-z]{2,3}$")]
 FontName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9 ]{2,40}$")]
 IconName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]{1,30}$")]
 Percent = Annotated[int, Field(ge=0, le=100)]
 
-# Translations keyed by landing locale ({"es": "...", "rap": "...", "en": "..."}).
+# Translations keyed by site locale ({"es": "...", "rap": "...", "en": "..."}).
 I18n = Annotated[Dict[Locale, Long], Field(max_length=12)]
 RichI18n = Annotated[Dict[Locale, Long], Field(max_length=12), AfterValidator(_rich)]
+# Texts of the translator page were plain strings before the site became
+# multilingual; documents saved then still validate.
+ShortText = Union[Short, I18n]
+LongText = Union[Long, I18n]
+
+
+def _sanitize_text(value):
+    if isinstance(value, dict):
+        return _rich(value)
+    return sanitize_rich_text(value)
+
+
+# Key of a fixed app text (customization/messages.js in the frontend)
+UiKey = Annotated[str, StringConstraints(pattern=r"^[a-z][A-Za-z0-9_.]{1,80}$")]
 
 
 class Strict(BaseModel):
@@ -139,6 +155,8 @@ class LandingPalette(Strict):
     onDarkAccent: Color
     mapDots: Color
     mapSurface: Color
+    # The about page's "try the translator" button; without it, the accent
+    cta: Optional[Color] = None
 
 
 class Fonts(Strict):
@@ -167,23 +185,23 @@ class Backdrop(Strict):
 
 class Notice(Strict):
     enabled: bool = True
-    title: Short
-    body: Long
+    title: ShortText
+    body: LongText
 
     @model_validator(mode="after")
     def _clean(self):
-        self.body = sanitize_rich_text(self.body)
+        self.body = _sanitize_text(self.body)
         return self
 
 
 class Dialog(Strict):
-    title: Short
-    body: Long
-    button: Short
+    title: ShortText
+    body: LongText
+    button: ShortText
 
     @model_validator(mode="after")
     def _clean(self):
-        self.body = sanitize_rich_text(self.body)
+        self.body = _sanitize_text(self.body)
         return self
 
 
@@ -192,12 +210,12 @@ class Translator(Strict):
     defaultTarget: LangCode
     leftCard: Backdrop
     rightCard: Backdrop
-    placeholder: Short
+    placeholder: ShortText
     placeholders: Annotated[Dict[LangCode, Short], Field(max_length=100)]
     notice: Notice
     restricted: Dialog
     maintenance: Dialog
-    feedbackPrompt: Short
+    feedbackPrompt: ShortText
 
 
 # ----------------------------------------------------------------- languages
@@ -208,16 +226,44 @@ class CustomLanguage(Strict):
     dialect: Annotated[str, StringConstraints(max_length=20)] | None = None
 
 
+VariantCode = Annotated[str, StringConstraints(pattern=rf"^{_CODE_PART}$")]
+
+
 class VariantOption(Strict):
-    code: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9]{1,8}$")]
-    label: Short
+    code: VariantCode
+    label: ShortText
+
+
+class VariantDialect(Strict):
+    """A territory: <prefix>_<alphabet>_<code>, in the alphabets it lists."""
+
+    code: VariantCode
+    label: ShortText
+    writings: Annotated[List[VariantCode], Field(max_length=20)] = []
 
 
 class VariantSelector(Strict):
     enabled: bool = False
     prefix: Annotated[str, StringConstraints(pattern=r"^([a-z]{2,3})?$")] = ""
-    label: Short = "Grafemario"
+    # Code of the language without variants, offered on the source side (the
+    # target side picks a territory and an alphabet). Empty: both sides pick.
+    sourceCode: Union[Literal[""], LangCode] = ""
+    label: ShortText = "Grafemario"
     options: Annotated[List[VariantOption], Field(max_length=20)] = []
+    dialectLabel: ShortText = "Variante territorial"
+    dialects: Annotated[List[VariantDialect], Field(max_length=20)] = []
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        known = {option.code for option in self.options}
+        for dialect in self.dialects:
+            unknown = [code for code in dialect.writings if code not in known]
+            if unknown:
+                raise ValueError(
+                    f"La variante {dialect.code} usa grafemarios que no están en la "
+                    f"lista: {', '.join(unknown)}"
+                )
+        return self
 
 
 class Languages(Strict):
@@ -269,6 +315,8 @@ class Section(Strict):
 class Header(Strict):
     logo: Media
     logoAlt: I18n
+    # The platform's name, the same in every language, shown above brandTitle
+    platformName: Short = ""
     brandTitle: I18n
     selectLanguageLabel: I18n
 
@@ -308,6 +356,10 @@ class Validation(Strict):
     title: I18n
     mapLabel: I18n
     geojson: Media
+    # False draws only the whole territory, without the circular close-up on the pins
+    closeUp: bool = True
+    # Outline drawn in light gray around the region (only without the close-up)
+    contextGeojson: Media = ""
     pins: Annotated[List[Pin], Field(max_length=300)]
 
 
@@ -347,6 +399,8 @@ class Developer(Strict):
 class CreditGroup(Strict):
     title: I18n
     names: Annotated[List[Short], Field(max_length=300)]
+    # kept in the document, not shown on the page
+    hidden: bool = False
 
 
 class Collaborators(Strict):
@@ -429,6 +483,8 @@ class TranslatorConfig(Strict):
     languages: Languages
     features: Features
     authPages: AuthPages
+    # Translations of the app's fixed texts, over the frontend's defaults
+    ui: Annotated[Dict[UiKey, I18n], Field(max_length=500)] = {}
     landing: Landing
 
 

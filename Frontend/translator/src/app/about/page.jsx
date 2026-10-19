@@ -39,8 +39,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useConfig } from "@/customization/ConfigProvider"
-import { makeTr } from "@/customization/i18n"
+import { useConfig, useLocale } from "@/customization/ConfigProvider"
+import { makeTr, placedLabel } from "@/customization/i18n"
 import { MediaImage, resolveMedia } from "@/customization/media"
 import RichText from "@/customization/RichText"
 import FocusIcon from "@/customization/icons"
@@ -131,17 +131,31 @@ function DeveloperLogo({ developer, height, onDark }) {
   )
 }
 
-function CreditColumn({ title, names, tone }) {
+// A group longer than this no longer fits a column: the groups then take the
+// full width one under another, their names flowing into columns.
+const CREDIT_COLUMN_MAX = 24
+
+function CreditColumn({ title, names, tone, wide = false }) {
+  const name = (text, index) => (
+    <span
+      key={`${text}-${index}`}
+      style={{ display: "block", fontSize: "14.5px", color: tone.subtle, breakInside: "avoid", marginBottom: "10px" }}
+    >
+      {text}
+    </span>
+  )
   return (
-    <div className="reveal" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <h4 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 700, color: tone.highlight }}>
-        {title}
-      </h4>
-      {names.map((name, index) => (
-        <span key={`${name}-${index}`} style={{ fontSize: "14.5px", color: tone.subtle }}>
-          {name}
-        </span>
-      ))}
+    <div
+      className="reveal"
+      style={wide ? { gridColumn: "1 / -1" } : { display: "flex", flexDirection: "column" }}
+    >
+      {/* a group without a title lists its names alone */}
+      {title && (
+        <h4 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 700, color: tone.highlight }}>
+          {title}
+        </h4>
+      )}
+      {wide ? <div style={{ columnWidth: "230px", columnGap: "48px" }}>{names.map(name)}</div> : names.map(name)}
     </div>
   )
 }
@@ -202,7 +216,7 @@ export default function LandingPage() {
   const config = useConfig()
   const landing = config.landing
   const developer = landing.developer
-  const [language, setLanguage] = useState(landing.defaultLocale)
+  const { locale, locales, setLocale } = useLocale()
   const [isLoading, setIsLoading] = useState(false)
   const [isParticipateModalOpen, setIsParticipateModalOpen] = useState(false)
   const [newParticipate, setNewParticipate] = useState({
@@ -215,10 +229,11 @@ export default function LandingPage() {
   const { toast } = useToast()
   const { trackEvent } = useAnalytics()
 
-  // A locale removed in the editor falls back to the default one.
-  const locales = landing.locales
-  const locale = locales.some((option) => option.code === language) ? language : landing.defaultLocale
+  // The site language (shared with the translator; a locale removed in the
+  // editor falls back to the default one)
   const tr = makeTr(locale, landing.defaultLocale)
+  const developedBy = placedLabel(tr(landing.owners.developedByLabel))
+  const footerLabel = placedLabel(tr(landing.footer.label))
 
   // The map rebuilds when its pins change; key them by content so a draft
   // edit elsewhere on the page does not redraw it.
@@ -276,7 +291,7 @@ export default function LandingPage() {
   }, [])
 
   const handleLanguageChange = (value) => {
-    setLanguage(value)
+    setLocale(value)
     trackEvent("language_change", { language: value, page: "about" })
   }
 
@@ -368,7 +383,9 @@ export default function LandingPage() {
             <DotMap
               pins={pins}
               geoJsonUrl={resolveMedia(landing.validation.geojson)}
+              contextUrl={landing.validation.contextGeojson ? resolveMedia(landing.validation.contextGeojson) : ""}
               label={tr(landing.validation.mapLabel) || tr(landing.validation.title)}
+              closeUp={landing.validation.closeUp !== false}
               colors={{
                 dots: config.theme.landing.mapDots,
                 accent: config.theme.landing.accent,
@@ -442,7 +459,7 @@ export default function LandingPage() {
                 color: tone.muted,
               }}
             >
-              {tr(landing.owners.developedByLabel)}
+              {developedBy.text}
             </h3>
             <a
               href={developer.url || undefined}
@@ -523,8 +540,14 @@ export default function LandingPage() {
             gap: "40px 48px",
           }}
         >
-          {landing.collaborators.groups.map((group, index) => (
-            <CreditColumn key={index} title={tr(group.title)} names={group.names} tone={tone} />
+          {landing.collaborators.groups.filter((group) => !group.hidden).map((group, index, groups) => (
+            <CreditColumn
+              key={index}
+              title={tr(group.title)}
+              names={group.names}
+              tone={tone}
+              wide={groups.some((g) => g.names.length > CREDIT_COLUMN_MAX)}
+            />
           ))}
         </div>
       </div>
@@ -907,16 +930,44 @@ export default function LandingPage() {
                 />
               </span>
             )}
-            <span
-              style={{
-                color: "#ffffff",
-                fontWeight: 600,
-                fontSize: "17px",
-                letterSpacing: "0.02em",
-              }}
-            >
-              {tr(landing.header.brandTitle)}
-            </span>
+            {landing.header.platformName ? (
+              // The platform's name (not translated) over the translated title
+              <span style={{ display: "flex", flexDirection: "column", gap: "3px", lineHeight: 1.1 }}>
+                <span
+                  style={{
+                    color: "#ffffff",
+                    fontFamily: SERIF,
+                    fontWeight: 600,
+                    fontSize: "20px",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {landing.header.platformName}
+                </span>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.82)",
+                    fontWeight: 500,
+                    fontSize: "12.5px",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {tr(landing.header.brandTitle)}
+                </span>
+              </span>
+            ) : (
+              <span
+                style={{
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  fontSize: "17px",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {tr(landing.header.brandTitle)}
+              </span>
+            )}
           </div>
 
           {locales.length > 1 && (
@@ -1054,7 +1105,8 @@ export default function LandingPage() {
               onClick={() => trackEvent("cta_try_translator", { page: "about" })}
               style={{
                 display: "inline-block",
-                background: "var(--lp-accent)",
+                // its own colour (Mapuzungun: the translator's blue), else the accent
+                background: "var(--lp-cta, var(--lp-accent))",
                 color: "#ffffff",
                 fontWeight: 600,
                 fontSize: "17px",
@@ -1127,9 +1179,10 @@ export default function LandingPage() {
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
                 color: "rgba(255,255,255,0.7)",
+                order: developedBy.after ? 1 : 0,
               }}
             >
-              {tr(landing.owners.developedByLabel)}
+              {developedBy.text}
             </span>
             <DeveloperLogo developer={developer} height={22} onDark />
           </a>
@@ -1174,9 +1227,11 @@ export default function LandingPage() {
             letterSpacing: "0.18em",
             textTransform: "uppercase",
             color: "rgba(255,255,255,0.5)",
+            // a label that follows the names goes right after them
+            order: footerLabel.after ? 1 : 0,
           }}
         >
-          {tr(landing.footer.label)}
+          {footerLabel.text}
         </span>
         {developer.enabled && (
           <a
@@ -1206,7 +1261,7 @@ export default function LandingPage() {
             href={developer.url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: "13px", color: "var(--lp-onDarkAccent)" }}
+            style={{ fontSize: "13px", color: "var(--lp-onDarkAccent)", order: 2 }}
           >
             {developer.urlLabel || developer.url}
           </a>

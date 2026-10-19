@@ -39,7 +39,8 @@
       "highlight": "#17517e",
       "onDarkAccent": "#7db4e0",
       "mapDots": "#b7d3ea",
-      "mapSurface": "#f4f9fc"
+      "mapSurface": "#f4f9fc",
+      "cta": "#2b7fc4"
     },
     "fonts": {
       "display": "Newsreader",
@@ -90,8 +91,11 @@
     "variantSelector": {
       "enabled": false,
       "prefix": "",
+      "sourceCode": "",
       "label": "Grafemario",
-      "options": []
+      "options": [],
+      "dialectLabel": "Variante territorial",
+      "dialects": []
     }
   },
   "features": {
@@ -115,6 +119,7 @@
     "profileImage": "",
     "tint": false
   },
+  "ui": {},
   "landing": {
     "locales": [
       {
@@ -169,6 +174,7 @@
       "logoAlt": {
         "es": ""
       },
+      "platformName": "",
       "brandTitle": {
         "es": "Traductor",
         "en": "Translator"
@@ -238,6 +244,8 @@
         "es": "Mapa de los lugares de validación"
       },
       "geojson": "",
+      "closeUp": true,
+      "contextGeojson": "",
       "pins": []
     },
     "focus": {
@@ -342,7 +350,8 @@
             "Estefanía Pakarati",
             "Andrés Carvallo",
             "Agustín Ghent"
-          ]
+          ],
+          "hidden": false
         },
         {
           "title": {
@@ -357,7 +366,8 @@
             "Julianna Jimenez",
             "Leonardo Ribeiro",
             "Antonia Rivas"
-          ]
+          ],
+          "hidden": false
         }
       ]
     },

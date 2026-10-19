@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import "./globals.css";
 import Loading from "./loading.jsx";
 import { config } from "@fortawesome/fontawesome-svg-core";
@@ -29,6 +30,7 @@ import { resolveConfig } from "@/customization/presets";
 import { landingFontsHref } from "@/customization/fonts";
 import { resolveMedia } from "@/customization/media";
 import { loadPublishedConfig } from "@/customization/server";
+import { LOCALE_COOKIE, resolveLocale } from "@/customization/locale";
 config.autoAddCss = false;
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
@@ -64,9 +66,12 @@ export default async function Layout({ children }) {
   const { stored, version, source } = await loadPublishedConfig();
   const config = resolveConfig(stored);
   const landingFonts = landingFontsHref(config.theme.fonts);
+  // The language the visitor picked, so the first HTML is already in it
+  const chosenLocale = cookies().get(LOCALE_COOKIE)?.value || null;
+  const locale = resolveLocale(config.landing, chosenLocale);
 
   return (
-    <html lang="es" suppressHydrationWarning={true}>
+    <html lang={locale} suppressHydrationWarning={true}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -99,7 +104,7 @@ export default async function Layout({ children }) {
         )}
       </head>
       <body>
-        <ConfigProvider initial={{ config, version, source }}>
+        <ConfigProvider initial={{ config, version, source, locale: chosenLocale }}>
           <ProtectedRoute>
             <Suspense fallback={<Loading />}>
               {/* useSearchParams would otherwise turn every static page into a

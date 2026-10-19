@@ -110,6 +110,7 @@ export function paletteFrom({ accent, night, paper = "#fdfdfc" }) {
     subtle: mix(night, "#8a9aa8", 0.45),
     muted: mix(night, "#a0acb6", 0.55),
     accent,
+    cta: accent,
     link: mix(accent, night, 0.15),
     highlight: mix(accent, night, 0.5),
     onDarkAccent: mix(accent, "#ffffff", 0.4),

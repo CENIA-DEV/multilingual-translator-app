@@ -100,6 +100,9 @@ class TranslationPair(models.Model):
     model_name = models.CharField(max_length=100, null=True)
     model_version = models.CharField(max_length=100, null=True)
     is_uncertain = models.BooleanField(default=False, null=True)  # TODO: ask about this
+    # The comuna the user said they come from ("Ayúdame a decidir"), when they
+    # picked one; the territory and alphabet are those of the language variant
+    commune = models.CharField(max_length=100, null=True, blank=True)
 
     user = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="user"
@@ -317,21 +320,25 @@ class GeneralSuggestion(models.Model):
     )
     comment = models.TextField(max_length=5000)
 
-    # Optional: Keep language context if user was translating
-    # src_lang = models.ForeignKey(
-    #    Lang,
-    #    related_name="suggestion_src_lang",
-    #    on_delete=models.SET_NULL,
-    #    null=True,
-    #    blank=True
-    # )
-    # dst_lang = models.ForeignKey(
-    #    Lang,
-    #    related_name="suggestion_dst_lang",
-    #    on_delete=models.SET_NULL,
-    #    null=True,
-    #    blank=True
-    # )
+    # The languages the user was translating between, if any: for a variant they
+    # say its territory and alphabet
+    src_lang = models.ForeignKey(
+        Lang,
+        related_name="suggestion_src_lang",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    dst_lang = models.ForeignKey(
+        Lang,
+        related_name="suggestion_dst_lang",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    # The comuna the user said they come from ("Ayúdame a decidir"), when they
+    # picked one; the territory and alphabet are those of the language variant
+    commune = models.CharField(max_length=100, null=True, blank=True)
 
     # Admin review fields
     reviewed = models.BooleanField(default=False)
@@ -408,6 +415,9 @@ class TranslationRequest(models.Model):
 
     src_text = models.TextField(max_length=10000)
     dst_text = models.TextField(max_length=10000)
+    # The comuna the user said they come from ("Ayúdame a decidir"), when they
+    # picked one; the territory and alphabet are those of the language variant
+    commune = models.CharField(max_length=100, null=True, blank=True)
 
     # Track which user made the request (null for anonymous)
     user = models.ForeignKey(

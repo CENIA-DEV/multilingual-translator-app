@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 'use client'
 
-import { useState, useEffect, useContext, useRef } from 'react'
+import { useState, useEffect, useContext, useRef, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 import "./translator.css"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -37,8 +38,10 @@ import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import LangsModal from '../components/langsModal/langsModal.jsx'
 import { isTranslationRestricted, isASRRestricted, isTTSRestricted, MAX_WORDS_TRANSLATION, AUTOFILL_TRANSCRIPT, MAX_AUDIO_MB, WORD_INFORMATION_REQUIRES_AUTH, SEPARATE_GENDERS_REQUIRES_AUTH, MAINTENANCE_MODE } from '../constants';
 import { useConfig, useIsPreview } from '@/customization/ConfigProvider';
-import { findLanguage, matchesPrefix, prefixOf, useLanguageList } from '@/customization/languages';
+import { matchesPrefix, prefixOf, useLanguageSides, variantParts } from '@/customization/languages';
 import RichText from '@/customization/RichText';
+import { TERRITORY_HELP } from '@/customization/territoryHelper';
+import { useT } from '@/customization/useT';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -52,31 +55,40 @@ import { validateTranscriptionApi } from '../services/asrService';
 import { useASR } from '../../hooks/useASR';
 import { getLanguages, translateText, submitPositiveFeedback } from '../services/translationService';
 
-// A language object for `code`, even if the document names a code the
-// selector does not list (the translator still works with it).
-const languageFor = (list, code) =>
-  findLanguage(list, code) || { name: code, code, writing: code.split('_')[1] || null, dialect: null };
-
 export default function Translator() {
 
   const config = useConfig();
-  const languageList = useLanguageList();
+  // A language with variants (Mapuzungun) is offered once on the source side;
+  // the target side always holds a territory + alphabet (see useLanguageSides)
+  const sides = useLanguageSides();
   const { features, translator: texts } = config;
+  const t = useT();
 
   const [srcText, setSrcText] = useState('');
   const [showSrcTextMessage, setShowSrcTextMessage] = useState(false);
   const [dstText, setDstText] = useState('');
-  const [srcLang, setSrcLang] = useState(() => languageFor(languageList, texts.defaultSource));
-  const [dstLang, setDstLang] = useState(() => languageFor(languageList, texts.defaultTarget));
+  const [srcLang, setSrcLangState] = useState(() => sides.toSource(sides.languageFor(texts.defaultSource)));
+  const [dstLang, setDstLangState] = useState(() => sides.toTarget(sides.languageFor(texts.defaultTarget)));
+
+  // Every change of language goes through these, so swapping the cards or
+  // picking from the list turns a variant into the plain language on the
+  // source side and back into the last variant used on the target side.
+  const lastVariantRef = useRef(null);
+  const setSrcLang = useCallback((lang) => setSrcLangState(sides.toSource(lang)), [sides]);
+  const setDstLang = useCallback((lang) => {
+    const next = sides.toTarget(lang, lastVariantRef.current);
+    if (sides.showsVariants(next)) lastVariantRef.current = next;
+    setDstLangState(next);
+  }, [sides]);
 
   // Follow a change of the default languages (the editor's live preview)
   const defaultsRef = useRef({ src: texts.defaultSource, dst: texts.defaultTarget });
   useEffect(() => {
     const previous = defaultsRef.current;
-    if (previous.src !== texts.defaultSource) setSrcLang(languageFor(languageList, texts.defaultSource));
-    if (previous.dst !== texts.defaultTarget) setDstLang(languageFor(languageList, texts.defaultTarget));
+    if (previous.src !== texts.defaultSource) setSrcLang(sides.languageFor(texts.defaultSource));
+    if (previous.dst !== texts.defaultTarget) setDstLang(sides.languageFor(texts.defaultTarget));
     defaultsRef.current = { src: texts.defaultSource, dst: texts.defaultTarget };
-  }, [texts.defaultSource, texts.defaultTarget, languageList]);
+  }, [texts.defaultSource, texts.defaultTarget, sides, setSrcLang, setDstLang]);
 
   const { isSpeaking, ttsError, isLoadingAudio, handleSpeak: handleSpeakBase, stopSpeaking: stopSpeakingBase, getAudioContext } = useAudioPlayer();
 
@@ -100,18 +112,49 @@ export default function Translator() {
 
   const [feedbackData, setFeedbackData] = useState(null);
   const [modelData, setModelData] = useState(null);
+  // The languages the shown translation was made in. Feedback records these, so
+  // switching territory or alphabet just before rating it (the new translation
+  // waits a moment) still files it under the variant that produced it.
+  const [translatedLangs, setTranslatedLangs] = useState(null);
+  // The comuna picked in "Ayúdame a decidir" ({ name, territory }), or null. It
+  // tags translations and feedback; choosing a territory it isn't in drops it.
+  const [commune, setCommune] = useState(null);
+  useEffect(() => {
+    if (!commune) return;
+    const territories = [srcLang, dstLang].map((lang) => variantParts(lang?.code).dialect);
+    if (!territories.includes(commune.territory)) setCommune(null);
+  }, [commune, srcLang, dstLang]);
+  // The two cards and the swap button's arrows, for the swap animation
+  const leftCardRef = useRef(null);
+  const rightCardRef = useRef(null);
+  const swapIconRef = useRef(null);
   const [isSuggestionOnlyMode, setIsSuggestionOnlyMode] = useState(false);
 
   const [loadingState, setLoadingState] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
   const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
 
-  const [showDevModal, setShowDevModal] = useState(texts.notice.enabled);
+  // On arrival, a language with territory help (Mapuzungun) opens "Ayúdame a
+  // decidir" first; the notice follows once it is closed. Without it, the
+  // notice shows right away, as before.
+  const [helpFirst, setHelpFirst] = useState(() =>
+    Boolean(TERRITORY_HELP[config.languages.variantSelector.prefix]) &&
+    (sides.showsVariants(srcLang) || sides.showsVariants(dstLang))
+  );
+  const [showDevModal, setShowDevModal] = useState(texts.notice.enabled && !helpFirst);
   // Inside the editor's preview the notice would cover the cards being edited
   const isPreview = useIsPreview();
   useEffect(() => {
-    if (isPreview) setShowDevModal(false);
+    if (isPreview) {
+      setShowDevModal(false);
+      setHelpFirst(false);
+    }
   }, [isPreview]);
+  const handleHelpClosed = () => {
+    if (!helpFirst) return;
+    setHelpFirst(false);
+    if (texts.notice.enabled && !isPreview) setShowDevModal(true);
+  };
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(MAINTENANCE_MODE);
   
   // Record modal
@@ -163,8 +206,13 @@ export default function Translator() {
 
   const srcHint = getHintForLang(srcLang);
   const dstHint = getHintForLang(dstLang);
-  const srcDisplay = srcLang?.name || 'Fuente';
-  const dstDisplay = dstLang?.name || 'Destino';
+  const srcDisplay = t.langName(srcLang) || t('translator.source');
+  const dstDisplay = t.langName(dstLang) || t('translator.target');
+  // Languages where "you are speaking X" is one word get a whole sentence per
+  // language ("asr.speaking.<prefix>" in the customization), without the label
+  const srcSpeaking = t.strict(`asr.speaking.${prefixOf(srcLang?.code)}`);
+  const dstSpeaking = t.strict(`asr.speaking.${prefixOf(dstLang?.code)}`);
+  const speakingSentences = Boolean(srcSpeaking && (dstSpeaking || !dstHint));
 
   // --- dinamics flags ---
 
@@ -214,14 +262,51 @@ export default function Translator() {
     setLangModalMode(true);
   };
 
+  // The swap is animated so it can't be missed: each card's language, selectors
+  // and text ([data-swap]) slide toward the other card and fade, the contents
+  // trade places, and the new ones slide in from the other card's side, while
+  // the button's arrows spin. Horizontal on desktop, vertical on phones, where
+  // the cards are stacked. The Web Animations API leaves the elements' own CSS
+  // fade-in alone (toggling animation classes would replay it).
   const handleCrossLang = async () => {
     if(loadingState === false && !isLoadingAudio){
       setLoadingState(true);
-      setSrcText(dstText);
-      setSrcLang(dstLang);
-      setDstLang(srcLang);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setDstText(srcText);
+      const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const stacked = window.matchMedia('(max-width: 850px)').matches;
+      // +1: the left (top) card's content, which travels right (down); -1: the other
+      const shift = (sign) => stacked ? `translateY(${sign * 48}px)` : `translateX(${sign * 96}px)`;
+      const parts = (ref) => Array.from(ref.current?.querySelectorAll('[data-swap]') || []);
+      const play = (sign, ref, keyframes, options) =>
+        parts(ref).map((el) => el.animate(keyframes(shift(sign)), options));
+
+      let leaving = [];
+      if (animate) {
+        swapIconRef.current?.animate(
+          [{ transform: 'rotate(0deg) scale(1)' }, { transform: 'rotate(90deg) scale(1.35)' }, { transform: 'rotate(180deg) scale(1)' }],
+          { duration: 600, easing: 'cubic-bezier(.65,0,.35,1)', composite: 'add' }
+        );
+        const out = (to) => [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: to }];
+        const options = { duration: 250, easing: 'cubic-bezier(.55,0,1,.45)', fill: 'forwards' };
+        leaving = [...play(1, leftCardRef, out, options), ...play(-1, rightCardRef, out, options)];
+        await Promise.all(leaving.map((a) => a.finished.catch(() => {})));
+      }
+
+      flushSync(() => {
+        setSrcText(dstText);
+        setSrcLang(dstLang);
+        setDstLang(srcLang);
+        setDstText(srcText);
+        setTranslatedLangs((langs) => langs && { ...langs, src: langs.dst, dst: langs.src });
+      });
+
+      if (animate) {
+        // The new content arrives from where it came: the left card's from the right
+        leaving.forEach((a) => a.cancel());
+        const into = (from) => [{ opacity: 0, transform: from }, { opacity: 1, transform: 'none' }];
+        const options = { duration: 350, easing: 'cubic-bezier(.2,.8,.2,1)' };
+        const arriving = [...play(1, leftCardRef, into, options), ...play(-1, rightCardRef, into, options)];
+        await Promise.all(arriving.map((a) => a.finished.catch(() => {})));
+      }
       setLoadingState(false);
       trackEvent('button_cross_lang_click', {
         src_lang: srcLang,
@@ -248,10 +333,11 @@ export default function Translator() {
       setFeedbackData({
         'src_text': srcText,
         'dst_text': dstText,
-        'src_lang': srcLang,
-        'dst_lang': dstLang,
+        'src_lang': translatedLangs?.src || srcLang,
+        'dst_lang': translatedLangs?.dst || dstLang,
         'suggestion': dstText,
-        'is_uncertain': false
+        'is_uncertain': false,
+        'commune': translatedLangs ? translatedLangs.commune : commune?.name || null
       });
     }
   };
@@ -262,16 +348,17 @@ export default function Translator() {
         await submitPositiveFeedback(
           srcText,
           dstText,
-          srcLang,
-          dstLang,
+          translatedLangs?.src || srcLang,
+          translatedLangs?.dst || dstLang,
           modelData.modelName,
-          modelData.modelVersion
+          modelData.modelVersion,
+          translatedLangs ? translatedLangs.commune : commune?.name || null
         );
 
-        toast("Sugerencia enviada con éxito",{
-          description: "Gracias por su retroalimentación",
+        toast(t('translator.positiveSent'),{
+          description: t('translator.feedbackThanks'),
           cancel: {
-            label: 'Cerrar',
+            label: t('common.close'),
             onClick: () => console.log('Pop up cerrado'),
           },
         });
@@ -282,10 +369,10 @@ export default function Translator() {
         });
       } catch(error) {
         if (error.response.status === 401){
-          toast("Error",{
-            description: "Debe ingresar su usuario para ocupar todas las funcionalidades de la aplicación",
+          toast(t('common.error'),{
+            description: t('common.loginRequired'),
             cancel: {
-              label: 'Cerrar',
+              label: t('common.close'),
               onClick: () => console.log('Pop up cerrado'),
             },
           })
@@ -303,7 +390,10 @@ export default function Translator() {
     if (!loadingState){
       setIsSuggestionOnlyMode(true);
       setFeedbackData({
-        'comment': '', 
+        'comment': '',
+        'src_lang': srcLang,
+        'dst_lang': dstLang,
+        'commune': commune?.name || null,
       });
       trackEvent('suggestion_feedback_click', {
         page: 'translator'
@@ -395,10 +485,10 @@ export default function Translator() {
         }, 2000);
       }
       catch (error) {
-        toast("Error al copiar", {
-          description: "No se pudo copiar el texto al portapapeles",
+        toast(t('translator.copyError'), {
+          description: t('translator.copyErrorBody'),
           cancel: {
-            label: 'Cerrar',
+            label: t('common.close'),
             onClick: () => console.log('Pop up cerrado'),
           },
         });
@@ -421,14 +511,14 @@ export default function Translator() {
   async function handleSpeak({ text, lang = 'es-ES', gender }) {
     if (TTSRestricted) {
       setTranslationRestrictedDialogOpen(true);
-      toast("Debe iniciar sesión para usar la síntesis de voz", { duration: 4000 });
+      toast(t('tts.loginRequired'), { duration: 4000 });
       return;
     }
     if (loadingState || isLoadingAudio) return; // prevent TTS while translating or already loading TTS
     
     // Give a notification if fetching takes longer than 3 seconds
     const timeoutId = setTimeout(() => {
-      toast("El modelo de voz se está cargando...", { duration: 20000 });
+      toast(t('tts.loading'), { duration: 20000 });
     }, 3000);
 
     try {
@@ -453,7 +543,7 @@ export default function Translator() {
     setLoadingState(true);
     const startTime = performance.now();
     let timeoutId = setTimeout(() => {
-      toast("La traducción está tardando más tiempo de lo esperado...", { duration: 20000 });
+      toast(t('translator.slow'), { duration: 20000 });
     }, 5000);
 
     try {
@@ -464,21 +554,23 @@ export default function Translator() {
         srcText,
         srcLang,
         dstLang,
-        requestId
+        requestId,
+        commune?.name || null
       );
 
       clearTimeout(timeoutId);
       setDstText(data.dst_text);
       setModelData({ modelName: data.model_name, modelVersion: data.model_version });
+      setTranslatedLangs({ src: srcLang, dst: dstLang, commune: commune?.name || null });
       const endTime = performance.now();
       trackEvent('translation_success', { translation_time_ms: endTime - startTime, page: 'translator' });
     } catch (error) {
       clearTimeout(timeoutId);
       console.log('Request error:', error);
       if (!error?.response) {
-        toast("No hay conexión con el backend", { description: "Verifique la URL del servidor." });
+        toast(t('translator.noBackend'), { description: t('translator.noBackendBody') });
       } else if (error.response.status === 400) {
-        toast("Error", { description: "Por favor reintente la traducción" });
+        toast(t('common.error'), { description: t('translator.retry') });
       }
     } finally {
       setLoadingState(false);
@@ -558,8 +650,8 @@ export default function Translator() {
     } catch (err) {
       console.error('Failed to validate transcription:', err);
       if (err?.response?.status && err.response.status !== 200) {
-        toast('No se pudo guardar la validación', {
-          description: 'La transcripción se usará de todas formas.',
+        toast(t('asr.validationFailed'), {
+          description: t('asr.validationFailedBody'),
         });
       }
       return false;
@@ -574,7 +666,7 @@ export default function Translator() {
     
     const chosenText = (reviewTranscript || '').trim();
     if (!chosenText) {
-      toast('No hay texto para traducir.');
+      toast(t('asr.noText'));
       return;
     }
     
@@ -628,11 +720,11 @@ export default function Translator() {
       <Dialog open={showDevModal} onOpenChange={setShowDevModal}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-5/6'>
         <DialogHeader>
-          <DialogTitle>{texts.notice.title}</DialogTitle>
+          <DialogTitle>{t.tr(texts.notice.title)}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <p>
-            <RichText html={texts.notice.body} />
+            <RichText html={t.tr(texts.notice.body)} />
           </p>
         </div>
         </DialogContent>
@@ -640,11 +732,11 @@ export default function Translator() {
       <Dialog open={translationRestrictedDialogOpen} onOpenChange={setTranslationRestrictedDialogOpen}>
       <DialogContent className='h-fit w-1/2 gap-y-4 py-5 max-[850px]:w-3/4'>
         <DialogHeader>
-          <DialogTitle>{texts.restricted.title}</DialogTitle>
+          <DialogTitle>{t.tr(texts.restricted.title)}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <p>
-            <RichText html={texts.restricted.body} />
+            <RichText html={t.tr(texts.restricted.body)} />
           </p>
         </div>
         <div className="flex justify-center">
@@ -654,20 +746,24 @@ export default function Translator() {
                 hover:bg-default hover:text-white' 
             onClick={() => handleLogin()}
           >
-            {texts.restricted.button}
+            {t.tr(texts.restricted.button)}
           </Button>
         </div>
         </DialogContent>
       </Dialog>
       
       <TooltipProvider>
-        <div className="relative">
+        <div className="relative" ref={leftCardRef}>
           <Card
             side={"left"}
             srcText={srcText}
             lang={srcLang}
             handleSrcText={handleSrcText}
             handleSrcLang={handleSrcLang}
+            commune={commune}
+            onCommuneChange={setCommune}
+            autoOpenHelp={helpFirst}
+            onHelpClosed={handleHelpClosed}
             showTextMessage={showSrcTextMessage}
             handleLangModalBtn={handleLangModalBtnLeft}
             ttsEnabled={TTS_ENABLED_SRC_D}
@@ -688,8 +784,8 @@ export default function Translator() {
             {ASR_UPLOAD_VISIBLE_D && (
               <label
                 className="max-[850px]:hidden w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white shadow-[0px_0px_hsla(0,100%,100%,0.333)] hover:scale-110 transition cursor-pointer"
-                title="Subir audio"
-                aria-label="Subir audio"
+                title={t('asr.upload')}
+                aria-label={t('asr.upload')}
               >
                 <input
                   type="file"
@@ -709,8 +805,8 @@ export default function Translator() {
                     // --- RE-ADD MIME TYPE VALIDATION ---
                     const okTypes = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a'];
                     if (file.type && !okTypes.includes(file.type)) {
-                      toast('Formato no soportado.', {
-                        description: `El formato '${file.type}' no es compatible. Intente con webm, ogg, mp3, o wav.`,
+                      toast(t('asr.unsupportedFormat'), {
+                        description: t('asr.unsupportedFormatBody', { type: file.type }),
                       });
                       return;
                     }
@@ -732,8 +828,8 @@ export default function Translator() {
                       cleanup();
                       
                       if (duration > 30) {
-                        toast('El audio no debe superar los 30 segundos.', {
-                          description: `Duración detectada: ${Math.round(duration)}s`,
+                        toast(t('asr.tooLong'), {
+                          description: t('asr.detectedDuration', { seconds: Math.round(duration) }),
                         });
                         setAsrStatus('idle'); // Reset status
                         return;
@@ -744,14 +840,14 @@ export default function Translator() {
                       handleTranscribeBlob(file, srcHint, file.name || 'audio.subido').catch(err => {
                         console.error(err);
                         setAsrStatus('error');
-                        toast('No se pudo procesar el archivo.');
+                        toast(t('asr.fileFailed'));
                       });
                     };
 
                     const onError = () => {
                       cleanup();
-                      toast('Error al leer el archivo de audio.', {
-                        description: 'El archivo podría estar dañado o en un formato no soportado.',
+                      toast(t('asr.readError'), {
+                        description: t('asr.readErrorBody'),
                       });
                       setAsrStatus('idle');
                     };
@@ -767,7 +863,10 @@ export default function Translator() {
             )}
           </div>
 
-          {/* RIGHT: Mic + compact review next to it (bottom-right of white card) */}
+          {/* RIGHT: Mic + compact review next to it (bottom-right of white card).
+              On phones this is a bar fixed to the bottom of the screen, so it is
+              left out entirely where the site has no voice input (Mapuzungun). */}
+            {ASR_MIC_VISIBLE_D && (
             <div className=" absolute right-4 bottom-4 z-[40] flex items-center gap-2 max-[850px]:fixed max-[850px]:inset-x-0 max-[850px]:bottom-0 max-[850px]:justify-center max-[850px]:gap-4 max-[850px]:bg-[#f3f4f6] max-[850px]:py-3 max-[850px]:px-6 max-[850px]:rounded-tl-[2rem] max-[850px]:rounded-tr-[2rem] max-[850px]:border-t max-[850px]:border-slate-200 max-[850px]:shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-[850px]:pb-[env(safe-area-inset-bottom)]">
             
 			{/* Mic button (center-bottom) */}
@@ -789,8 +888,8 @@ export default function Translator() {
 				  setShowRecordModal(true);
 				  setAsrStatus('ready'); // start screen
 				}}
-				aria-label="Grabar audio"
-				title="Grabar audio"
+				aria-label={t('asr.record')}
+				title={t('asr.record')}
 				disabled={loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing'}
 				style={{ pointerEvents: (loadingState || asrStatus === 'transcribing' || asrStatus === 'reviewing') ? 'none' : 'auto' }}
 			  >
@@ -808,17 +907,20 @@ export default function Translator() {
               </span>
             )}
           </div>
-		  
+            )}
+
         </div>
 
         <div
           className="delayed-fade-in w-[40px] h-[40px] rounded-full flex justify-center items-center bg-white absolute max-[850px]:top-1/2 max-[850px]:left-[45px] left-1/2 top-[100px] z-[2] cursor-pointer shadow-[0px_0px_hsla(0,100%,100%,0.333)] transform transition-all duration-300 hover:scale-110 hover:shadow-[8px_8px_#0005]"
           onClick={() => handleCrossLang()}
         >
-          <FontAwesomeIcon
-            icon={faArrowRightArrowLeft }
-            className={`fa-xl max-[850px]:rotate-90 transform transition-all duration-300 hover:scale-110 text-default`}
-          />
+          <span ref={swapIconRef} className="flex">
+            <FontAwesomeIcon
+              icon={faArrowRightArrowLeft }
+              className={`fa-xl max-[850px]:rotate-90 transform transition-all duration-300 hover:scale-110 text-default`}
+            />
+          </span>
         </div>
 
         <div
@@ -835,12 +937,16 @@ export default function Translator() {
 		
         
 
-        <div className="relative">
+        <div className="relative" ref={rightCardRef}>
           <Card
             side={"right"}
             dstText={dstText}
             lang={dstLang}
             handleDstLang={handleDstLang}
+            commune={commune}
+            onCommuneChange={setCommune}
+            autoOpenHelp={helpFirst}
+            onHelpClosed={handleHelpClosed}
             handleLangModalBtn={handleLangModalBtnRight}
             handleCopyText={handleCopyText}
             copyReady={copyReady}
@@ -863,10 +969,12 @@ export default function Translator() {
         )}
       </TooltipProvider>
 
-      <div className="translator-footer max-[850px]:mb-[84px]">
+      {/* On phones the feedback icons sit just above the voice bar, or at the
+          very bottom when there is none */}
+      <div className={`translator-footer ${ASR_MIC_VISIBLE_D ? 'max-[850px]:mb-[84px]' : ''}`}>
         {translationRestricted ? (<></>) : (
           <>
-            <strong className="max-[850px]:hidden">{texts.feedbackPrompt}</strong>
+            <strong className="max-[850px]:hidden">{t.tr(texts.feedbackPrompt)}</strong>
 
             <FontAwesomeIcon
               icon={faThumbsUp}
@@ -936,8 +1044,8 @@ export default function Translator() {
 						onStopWaveformVisualization: stopWaveformVisualization
 					})}
 					className="w-14 h-14 rounded-full bg-default flex items-center justify-center shadow hover:shadow-md transition appearance-none border-0 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-2 focus-visible:ring-default focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-					title="Iniciar grabación"
-					aria-label="Iniciar grabación"
+					title={t('asr.start')}
+					aria-label={t('asr.start')}
 					style={{ WebkitTapHighlightColor: 'transparent' }}
 				  >
 					<FontAwesomeIcon icon={faMicrophone} className="fa-lg" color="#ffffff" />
@@ -950,17 +1058,19 @@ export default function Translator() {
 					  })}
 					  className="text-default font-medium"
 					>
-					  Iniciar grabación
+					  {t('asr.start')}
 					</button>
 					<p className="text-xs text-slate-500 mt-1">
-					  Recuerda activar el micrófono en tu dispositivo.
+					  {t('asr.micReminder')}
 					</p>
 				  </div>
 				</div>
 
                 <div className="pt-1">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-slate-600">Estás hablando en</span>
+                    {!speakingSentences && (
+                      <span className="text-sm text-slate-600">{t('asr.speakingIn')}</span>
+                    )}
                     <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
                       <button
                         onClick={() => setTranscribeChoice('source')}
@@ -970,7 +1080,7 @@ export default function Translator() {
                             : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                         }`}
                       >
-                        {srcDisplay}
+                        {speakingSentences ? srcSpeaking : srcDisplay}
                       </button>
                       <button
                         onClick={() => dstHint && setTranscribeChoice('target')}
@@ -981,7 +1091,7 @@ export default function Translator() {
                             : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                         } ${!dstHint ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        {dstDisplay}
+                        {speakingSentences && dstSpeaking ? dstSpeaking : dstDisplay}
                       </button>
                     </div>
                   </div>
@@ -1001,8 +1111,8 @@ export default function Translator() {
                   />
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-semibold text-slate-800">Conectando micrófono...</p>
-                  <p className="text-sm text-slate-500 mt-1">Por favor, espera un momento antes de hablar</p>
+                  <p className="text-lg font-semibold text-slate-800">{t('asr.connecting')}</p>
+                  <p className="text-sm text-slate-500 mt-1">{t('asr.wait')}</p>
                 </div>
               </div>
             )}
@@ -1015,12 +1125,12 @@ export default function Translator() {
                   <button
                     onClick={stopRecording}
                     className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center shadow hover:shadow-md transition"
-                    title="Detener grabación"
-                    aria-label="Detener grabación"
+                    title={t('asr.stop')}
+                    aria-label={t('asr.stop')}
                   >
                     <span className="block w-3.5 h-3.5 bg-white" />
                   </button>
-                  <p className="text-sm font-medium text-red-600">Detener grabación</p>
+                  <p className="text-sm font-medium text-red-600">{t('asr.stop')}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2">
                   <canvas ref={waveCanvasRef} className="w-full h-44 rounded" />
@@ -1035,14 +1145,14 @@ export default function Translator() {
               <div className="flex items-center justify-between gap-3 text-sm text-slate-600">
                 <div className="flex items-center gap-3">
                   <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
-                  <span>Transcribiendo…</span>
+                  <span>{t('asr.transcribing')}</span>
                 </div>
                 <Button
                   variant="outline"
                   onClick={cancelTranscription}
                   className="ml-auto"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
               </div>
             )}
@@ -1052,13 +1162,13 @@ export default function Translator() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Transcripción ({transcribeChoice === 'source' ? srcDisplay : dstDisplay})
+                    {t('asr.transcription')} ({transcribeChoice === 'source' ? srcDisplay : dstDisplay})
                   </label>
                   <textarea
                     className="w-full h-40 p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-default"
                     value={reviewTranscript}
                     onChange={(e) => setReviewTranscript(e.target.value)}
-                    placeholder="Revisa o edita la transcripción…"
+                    placeholder={t('asr.reviewPlaceholder')}
                   />
                 </div>
                 <audio
@@ -1077,7 +1187,7 @@ export default function Translator() {
                     variant="outline"
                     onClick={() => { resetAudioState(); setShowRecordModal(false); }}
                   >
-                    Cancelar
+                    {t('common.cancel')}
                   </Button>
                   <div className="flex gap-2">
                     <Button
@@ -1093,14 +1203,14 @@ export default function Translator() {
                       }}
                     >
                       <FontAwesomeIcon icon={faMicrophone} className="mr-2" />
-                      Volver a grabar
+                      {t('asr.recordAgain')}
                     </Button>
                     <Button
                       className="bg-default text-white text-sm font-medium hover:bg-defaultStrong"
                       onClick={startTranslationFromReview}
                       disabled={isSubmittingValidation} // Add disabled state
                     >
-                      Comenzar traducción
+                      {t('asr.translate')}
                       <FontAwesomeIcon icon={faArrowRight} className="ml-2" />
                     </Button>
                   </div>
@@ -1115,18 +1225,18 @@ export default function Translator() {
         <DialogContent className="bg-white rounded-lg shadow-lg p-6 max-w-md">
           <DialogHeader>
             <DialogTitle className="text-center text-xl font-semibold text-slate-800">
-              {texts.maintenance.title}
+              {t.tr(texts.maintenance.title)}
             </DialogTitle>
           </DialogHeader>
           <div className="text-center space-y-4">
             <p className="text-slate-600">
-              <RichText html={texts.maintenance.body} />
+              <RichText html={t.tr(texts.maintenance.body)} />
             </p>
             <Button
               onClick={() => setShowMaintenanceModal(false)}
               className="bg-default text-white hover:bg-defaultStrong w-full"
             >
-              {texts.maintenance.button}
+              {t.tr(texts.maintenance.button)}
             </Button>
           </div>
         </DialogContent>

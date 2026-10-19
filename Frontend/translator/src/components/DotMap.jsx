@@ -18,7 +18,9 @@ import { useEffect, useRef } from "react"
 // Dot-matrix map of a territory: a circular close-up around the pins framed
 // against a small inset of the whole region, with one pin per place. Built for
 // the Rapa Nui validation sites; any region works -- "Mapa de validación" in
-// Administrar Traductor takes a GeoJSON outline and the list of places.
+// Administrar Traductor takes a GeoJSON outline and the list of places. With
+// `closeUp` off it draws only the whole region, for a territory too large to
+// zoom into (La Araucanía).
 //
 // The drawing is plain geometry over the outline, so it is built as an SVG
 // string and injected once per layout rather than as a React tree -- there are
@@ -29,6 +31,8 @@ const MAIN_H = 520
 const INSET_W = 250
 const INSET_H = 190
 const DEFAULT_COLORS = { dots: "#b7d3ea", accent: "#2b7fc4", surface: "#f4f9fc" }
+const CONTEXT_STROKE = "#cfd4d9"
+const CONTEXT_HALO = "#ffffff"
 const HEX = /^#[0-9a-f]{6}$/i
 
 const hexToRgba = (hex, alpha) => {
@@ -74,6 +78,78 @@ export function ringsOf(geo) {
     default:
       return []
   }
+}
+
+/**
+ * Polylines of a context outline (the country around the region): line
+ * geometries as they are, polygons as their rings.
+ */
+export function linesOf(geo) {
+  if (!geo || typeof geo !== "object") return []
+  switch (geo.type) {
+    case "LineString":
+      return [geo.coordinates || []]
+    case "MultiLineString":
+      return geo.coordinates || []
+    case "Feature":
+      return linesOf(geo.geometry)
+    case "FeatureCollection":
+      return (geo.features || []).flatMap(linesOf)
+    case "GeometryCollection":
+      return (geo.geometries || []).flatMap(linesOf)
+    default:
+      return ringsOf(geo)
+  }
+}
+
+/**
+ * The parts of the region's outline that are not on the context outline: its
+ * limits with the neighbouring regions. Where the region meets the coast or a
+ * border the country's contour already draws that line, and drawing the region
+ * there too doubles it (the two outlines are simplified differently).
+ * `tolerance` is in degrees; distances use a local equirectangular metric.
+ */
+function innerLimits(rings, contextLines, tolerance) {
+  const lat0 = rings.flat().reduce((sum, p) => sum + p[1], 0) / rings.flat().length
+  const cos = Math.cos((lat0 * Math.PI) / 180)
+  const segments = contextLines.flatMap((line) => line.slice(1).map((b, i) => [line[i], b]))
+  const nearContour = ([lon, lat]) => {
+    const px = lon * cos
+    for (const [[ax0, ay], [bx0, by]] of segments) {
+      const ax = ax0 * cos
+      const bx = bx0 * cos
+      const dx = bx - ax
+      const dy = by - ay
+      const len = dx * dx + dy * dy
+      const t = len ? Math.max(0, Math.min(1, ((px - ax) * dx + (lat - ay) * dy) / len)) : 0
+      if (Math.hypot(px - (ax + t * dx), lat - (ay + t * dy)) < tolerance) return true
+    }
+    return false
+  }
+  const limits = []
+  for (const ring of rings) {
+    const on = ring.map(nearContour)
+    const start = on.indexOf(true)
+    if (start < 0) {
+      limits.push(ring) // the region touches no contour: all of it is a limit
+      continue
+    }
+    // walk once around from a point on the contour, collecting the runs off it
+    // (with their end points on the contour, so they meet the country's line)
+    let run = null
+    for (let k = 0; k <= ring.length; k++) {
+      const i = (start + k) % ring.length
+      if (!on[i]) {
+        if (!run) run = [ring[(i - 1 + ring.length) % ring.length]]
+        run.push(ring[i])
+      } else if (run) {
+        run.push(ring[i])
+        limits.push(run)
+        run = null
+      }
+    }
+  }
+  return limits
 }
 
 const escapeAttr = (value) => String(value).split('"').join("&quot;")
@@ -125,16 +201,27 @@ function dotField(rings, bbox, w, h, pad, step, r, color, bound) {
   return { svg, proj }
 }
 
-/**
- * Nudge overlapping pins apart so each one stays clickable, while pulling them
- * back toward their true coordinate and keeping them inside the circular frame.
- */
-function declutter(anchors) {
-  const pos = anchors.map((p) => p.slice())
-  const minD = 17
+/** Keeps a pin inside the close-up's circular frame. */
+function clampToCircle(p) {
   const cx = MAIN_W / 2
   const cy = MAIN_H / 2
   const radius = MAIN_H / 2 - 14
+  const vx = p[0] - cx
+  const vy = p[1] - cy
+  const vr = Math.hypot(vx, vy)
+  if (vr > radius) {
+    p[0] = cx + (vx / vr) * radius
+    p[1] = cy + (vy / vr) * radius
+  }
+}
+
+/**
+ * Nudge overlapping pins apart so each one stays clickable, while pulling them
+ * back toward their true coordinate and keeping them inside the frame.
+ */
+function declutter(anchors, clamp = clampToCircle) {
+  const pos = anchors.map((p) => p.slice())
+  const minD = 17
   for (let iter = 0; iter < 240; iter++) {
     for (let i = 0; i < pos.length; i++) {
       for (let j = i + 1; j < pos.length; j++) {
@@ -153,19 +240,33 @@ function declutter(anchors) {
     for (let i = 0; i < pos.length; i++) {
       pos[i][0] += (anchors[i][0] - pos[i][0]) * 0.02
       pos[i][1] += (anchors[i][1] - pos[i][1]) * 0.02
-      const vx = pos[i][0] - cx
-      const vy = pos[i][1] - cy
-      const vr = Math.hypot(vx, vy)
-      if (vr > radius) {
-        pos[i][0] = cx + (vx / vr) * radius
-        pos[i][1] = cy + (vy / vr) * radius
-      }
+      clamp(pos[i])
     }
   }
   return pos
 }
 
-export default function DotMap({ pins = [], geoJsonUrl, label, colors: colorProp }) {
+/** One pin: the pulsing halo, the dot, and a leader line when declutter moved it. */
+function pinMarkup(pin, i, [x, y], [ax, ay], accent) {
+  const moved = Math.hypot(x - ax, y - ay) > 6
+  const leader = moved
+    ? `<line x1="${ax}" y1="${ay}" x2="${x}" y2="${y}" stroke="${accent}" stroke-width="1" opacity="0.45"></line>` +
+      `<circle cx="${ax}" cy="${ay}" r="1.8" fill="${accent}" opacity="0.55"></circle>`
+    : ""
+  return (
+    `<g class="map-pin" data-i="${i}" data-x="${x}" data-y="${y}" style="cursor:pointer" ` +
+    `tabindex="0" role="button" aria-label="${escapeAttr(pin.name)}">${leader}` +
+    `<circle cx="${x}" cy="${y}" r="9" fill="${hexToRgba(accent, 0.18)}">` +
+    `<animate attributeName="r" values="7;11;7" dur="2.4s" begin="${(i * 0.2).toFixed(1)}s" repeatCount="indefinite"></animate>` +
+    `</circle>` +
+    `<circle class="map-dot" cx="${x}" cy="${y}" r="5.5" fill="${accent}" stroke="#ffffff" stroke-width="2"></circle>` +
+    `<circle cx="${x}" cy="${y}" r="9" fill="transparent"></circle></g>`
+  )
+}
+
+const round1 = (value) => Number(value.toFixed(1))
+
+export default function DotMap({ pins = [], geoJsonUrl, contextUrl, label, colors: colorProp, closeUp = true }) {
   const hostRef = useRef(null)
   const tipRef = useRef(null)
 
@@ -180,8 +281,11 @@ export default function DotMap({ pins = [], geoJsonUrl, label, colors: colorProp
     let cleanupResize = () => {}
     if (!hostRef.current || !geoJsonUrl) return undefined
 
-    loadGeoJson(geoJsonUrl)
-      .then((geo) => {
+    // The context outline is decoration: without it the region still draws.
+    const context = !closeUp && contextUrl ? loadGeoJson(contextUrl).catch(() => null) : null
+
+    Promise.all([loadGeoJson(geoJsonUrl), context])
+      .then(([geo, contextGeo]) => {
         if (cancelled || !hostRef.current) return
         const rings = ringsOf(geo).filter((ring) => Array.isArray(ring) && ring.length > 2)
         if (!rings.length) throw new Error("geojson has no rings")
@@ -198,6 +302,99 @@ export default function DotMap({ pins = [], geoJsonUrl, label, colors: colorProp
           Math.max(...lons) + pad,
           Math.max(...lats) + pad,
         ]
+
+        const mount = (built) => {
+          const host = hostRef.current
+          const tip = tipRef.current
+          if (!host || !tip) return
+          host.innerHTML = built.svg
+          tip.style.opacity = "0"
+
+          host.querySelectorAll("g.map-pin").forEach((group) => {
+            const i = Number(group.getAttribute("data-i"))
+            const show = () => {
+              // the region-only map can be narrower than its host, centred in it
+              const hostRect = host.getBoundingClientRect()
+              const rect = host.querySelector("svg").getBoundingClientRect()
+              const dot = group.querySelector(".map-dot")
+              if (dot) dot.setAttribute("r", "8")
+              tip.textContent = pins[i].name
+              tip.style.left = `${rect.left - hostRect.left + (Number(group.getAttribute("data-x")) / built.tw) * rect.width}px`
+              tip.style.top = `${rect.top - hostRect.top + (Number(group.getAttribute("data-y")) / built.th) * rect.height}px`
+              tip.style.opacity = "1"
+            }
+            const hide = () => {
+              const dot = group.querySelector(".map-dot")
+              if (dot) dot.setAttribute("r", "5.5")
+              tip.style.opacity = "0"
+            }
+            group.addEventListener("mouseenter", show)
+            group.addEventListener("mouseleave", hide)
+            group.addEventListener("focus", show)
+            group.addEventListener("blur", hide)
+            group.addEventListener("click", show) // touch devices
+          })
+        }
+
+        if (!closeUp) {
+          // Whole region only, in its own proportions at the close-up's height
+          // (capped at the close-up layout's width), so the section keeps its size.
+          const framePad = 20
+          const contextLines = linesOf(contextGeo).filter((line) => Array.isArray(line) && line.length > 1)
+          // With a context outline, leave room above and below the region for
+          // the surrounding country to read as such.
+          let box = islandBox
+          if (contextLines.length) {
+            const dLat = (islandBox[3] - islandBox[1]) * 0.22
+            const dLon = (islandBox[2] - islandBox[0]) * 0.06
+            box = [islandBox[0] - dLon, islandBox[1] - dLat, islandBox[2] + dLon, islandBox[3] + dLat]
+          }
+          const [minLon, minLat, maxLon, maxLat] = box
+          const cos = Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180)
+          const ratio = ((maxLon - minLon) * cos) / (maxLat - minLat)
+          const th = MAIN_H
+          const tw = Math.round(Math.min(MAIN_W + 90 + INSET_W, (th - 2 * framePad) * ratio + 2 * framePad))
+          // A context with land (polygons) is filled with dots and the region
+          // is told apart by its limits, drawn like the country's contour.
+          const contextRings = ringsOf(contextGeo).filter((ring) => Array.isArray(ring) && ring.length > 2)
+          const field = dotField(contextRings.length ? contextRings : rings, box, tw, th, framePad, 8.5, 2.6, dotColor)
+          const regionSize = Math.max(islandBox[2] - islandBox[0], islandBox[3] - islandBox[1])
+          const outlines = contextRings.length
+            ? [...contextLines, ...innerLimits(rings, contextLines, regionSize * 0.012)]
+            : contextLines
+          // Each line sits on a white halo that hides the dots under it. All the
+          // halos go first, so one line's halo never cuts through another line
+          // where the region's limits meet the country's contour.
+          const outlinePaths = outlines.map(
+            (line) => `M${line.map(([lon, lat]) => field.proj.fwd(lon, lat).map((v) => v.toFixed(1)).join(",")).join("L")}`
+          )
+          const strokeAll = (stroke, width) =>
+            outlinePaths
+              .map(
+                (d) =>
+                  `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${width}" ` +
+                  `stroke-linejoin="round" stroke-linecap="round"></path>`
+              )
+              .join("")
+          const contextSvg = strokeAll(CONTEXT_HALO, 6) + strokeAll(CONTEXT_STROKE, 1.5)
+          const anchors = pins.map((p) => field.proj.fwd(p.lon, p.lat))
+          const placed = declutter(anchors, (p) => {
+            p[0] = Math.min(tw - 10, Math.max(10, p[0]))
+            p[1] = Math.min(th - 10, Math.max(10, p[1]))
+          })
+          const pinSvg = pins
+            .map((pin, i) => pinMarkup(pin, i, placed[i].map(round1), anchors[i].map(round1), ACCENT))
+            .join("")
+          mount({
+            svg:
+              `<svg viewBox="0 0 ${tw} ${th}" style="width:100%;max-width:${tw}px;display:block;margin:0 auto" role="img"` +
+              (label ? ` aria-label="${escapeAttr(label)}"` : "") +
+              `>${field.svg}${contextSvg}${pinSvg}</svg>`,
+            tw,
+            th,
+          })
+          return
+        }
 
         // Close-up viewport fitted to the pins, falling back to the region.
         let zoom = islandBox
@@ -256,26 +453,15 @@ export default function DotMap({ pins = [], geoJsonUrl, label, colors: colorProp
             `L${at(c1, r1, theta - beta)} Z" fill="${hexToRgba(ACCENT, 0.07)}"></path>`
 
           const pinSvg = pins
-            .map((pin, i) => {
-              const x = Number(placed[i][0].toFixed(1))
-              const y = Number((placed[i][1] + my).toFixed(1))
-              const ax = Number(anchors[i][0].toFixed(1))
-              const ay = Number((anchors[i][1] + my).toFixed(1))
-              const moved = Math.hypot(x - ax, y - ay) > 6
-              const leader = moved
-                ? `<line x1="${ax}" y1="${ay}" x2="${x}" y2="${y}" stroke="${ACCENT}" stroke-width="1" opacity="0.45"></line>` +
-                  `<circle cx="${ax}" cy="${ay}" r="1.8" fill="${ACCENT}" opacity="0.55"></circle>`
-                : ""
-              return (
-                `<g class="map-pin" data-i="${i}" data-x="${x}" data-y="${y}" style="cursor:pointer" ` +
-                `tabindex="0" role="button" aria-label="${escapeAttr(pin.name)}">${leader}` +
-                `<circle cx="${x}" cy="${y}" r="9" fill="${hexToRgba(ACCENT, 0.18)}">` +
-                `<animate attributeName="r" values="7;11;7" dur="2.4s" begin="${(i * 0.2).toFixed(1)}s" repeatCount="indefinite"></animate>` +
-                `</circle>` +
-                `<circle class="map-dot" cx="${x}" cy="${y}" r="5.5" fill="${ACCENT}" stroke="#ffffff" stroke-width="2"></circle>` +
-                `<circle cx="${x}" cy="${y}" r="9" fill="transparent"></circle></g>`
+            .map((pin, i) =>
+              pinMarkup(
+                pin,
+                i,
+                [round1(placed[i][0]), round1(placed[i][1] + my)],
+                [round1(anchors[i][0]), round1(anchors[i][1] + my)],
+                ACCENT
               )
-            })
+            )
             .join("")
 
           const svg =
@@ -297,36 +483,8 @@ export default function DotMap({ pins = [], geoJsonUrl, label, colors: colorProp
         let vertical = null
 
         const apply = (nextVertical) => {
-          const host = hostRef.current
-          const tip = tipRef.current
-          if (!host || !tip) return
           vertical = nextVertical
-          const built = buildSvg(nextVertical)
-          host.innerHTML = built.svg
-          tip.style.opacity = "0"
-
-          host.querySelectorAll("g.map-pin").forEach((group) => {
-            const i = Number(group.getAttribute("data-i"))
-            const show = () => {
-              const rect = host.getBoundingClientRect()
-              const dot = group.querySelector(".map-dot")
-              if (dot) dot.setAttribute("r", "8")
-              tip.textContent = pins[i].name
-              tip.style.left = `${(Number(group.getAttribute("data-x")) / built.tw) * rect.width}px`
-              tip.style.top = `${(Number(group.getAttribute("data-y")) / built.th) * rect.height}px`
-              tip.style.opacity = "1"
-            }
-            const hide = () => {
-              const dot = group.querySelector(".map-dot")
-              if (dot) dot.setAttribute("r", "5.5")
-              tip.style.opacity = "0"
-            }
-            group.addEventListener("mouseenter", show)
-            group.addEventListener("mouseleave", hide)
-            group.addEventListener("focus", show)
-            group.addEventListener("blur", hide)
-            group.addEventListener("click", show) // touch devices
-          })
+          mount(buildSvg(nextVertical))
         }
 
         const check = () => {
@@ -354,7 +512,7 @@ export default function DotMap({ pins = [], geoJsonUrl, label, colors: colorProp
       cancelled = true
       cleanupResize()
     }
-  }, [pins, geoJsonUrl, label, dotColor, ACCENT, surface])
+  }, [pins, geoJsonUrl, contextUrl, label, dotColor, ACCENT, surface, closeUp])
 
   return (
     <div style={{ position: "relative", width: "100%" }}>

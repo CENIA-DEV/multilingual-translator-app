@@ -20,6 +20,7 @@ import LangSelector from "../langSelector/langSelector.jsx";
 import LangExtraSelector from "../langExtraSelector/langExtraSelector.jsx";
 import { useConfig } from "@/customization/ConfigProvider";
 import { matchesPrefix } from "@/customization/languages";
+import { useT } from "@/customization/useT";
 import { MediaImage } from "@/customization/media";
 import Backdrop from "@/customization/Backdrop";
 import {
@@ -45,7 +46,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
 export default function Card(props) {
-  const { identity, translator, features } = useConfig();
+  const { identity, translator, features, landing } = useConfig();
+  const t = useT();
 const [showGenderOptions, setShowGenderOptions] = useState(false);
   const [isLeftFocused, setIsLeftFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -244,7 +246,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
               <button
                 type="button"
                 className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
-                aria-label="Información adicional"
+                aria-label={t("card.moreInfo")}
               >
                 <FontAwesomeIcon
                   icon={faInfoCircle}
@@ -254,7 +256,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
             </TooltipTrigger>
           </PopoverTrigger>
           <TooltipContent className={infoTooltipClassName}>
-            <p>Información palabras</p>
+            <p>{t("card.wordInfo")}</p>
           </TooltipContent>
         </Tooltip>
         <PopoverContent
@@ -263,7 +265,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
           className="w-80 p-4 bg-white/95 backdrop-blur-md border shadow-2xl rounded-xl z-50 text-black"
         >
           <h4 className="font-bold mb-3 border-b pb-2">
-            Información adicional
+            {t("card.moreInfo")}
           </h4>
           <div className="max-h-[300px] overflow-y-auto">
             {wordInfo.length > 0 ? (
@@ -274,7 +276,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                   </strong>
                   {w.information?.other_ways_to_say?.length > 0 && (
                     <p className="text-sm mt-1">
-                      <strong>Sinónimos:</strong>{" "}
+                      <strong>{t("card.synonyms")}</strong>{" "}
                       {w.information.other_ways_to_say.join(", ")}
                     </p>
                   )}
@@ -287,7 +289,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
               ))
             ) : (
               <p className="text-sm text-slate-600">
-                No hay información disponible para esta traducción.
+                {t("card.noInfo")}
               </p>
             )}
           </div>
@@ -317,32 +319,57 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
       style={side === "left" ? undefined : { backgroundColor: "rgb(var(--brand))" }}
     >
       <Backdrop backdrop={side === "left" ? translator.leftCard : translator.rightCard} />
+      {/* Top band: the same height on both cards, so their language rows
+          (and the line under them) stay level whether or not the territory /
+          alphabet selectors are showing. The selectors sit at its bottom so
+          the space above them roughly matches the space down to the language
+          row; 80px is also the logo's height with its margins. */}
       <div
-        className={`flex h-[70px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
+        className={`flex items-end max-[850px]:items-center justify-between gap-4 h-[80px] w-[calc(100%-80px)] z-[1] animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both] ${
           side === "left"
-            ? "max-[850px]:h-[25px]"
-            : "w-full max-[850px]:h-[12px]"
+            ? landing.header.platformName
+              ? "max-[850px]:h-[44px]" // the title next to the logo needs the room
+              : "max-[850px]:h-[25px]"
+            : "max-[850px]:h-auto max-[850px]:min-h-[12px] max-[850px]:pt-3"
         }`}
       >
-        {side === "left" ? (
-          <MediaImage
-            src={identity.logo}
-            alt={`logo-${identity.languageName}`}
-            priority={false}
-            width={100}
-            height={100}
-            className="m-[15px_30px] h-[50px] object-contain"
-          />
-        ) : (
-          <></>
+        {side === "left" && (
+          <div className="flex items-center gap-3 m-[15px_30px] max-[850px]:absolute max-[850px]:left-[60px] max-[850px]:top-[14px] max-[850px]:m-0 max-[850px]:gap-2">
+            <MediaImage
+              src={identity.logo}
+              alt={`logo-${identity.languageName}`}
+              priority={false}
+              width={100}
+              height={100}
+              className="h-[50px] w-auto object-contain max-[850px]:h-[40px]"
+            />
+            {/* The platform's name over the translated title, as in the about
+                page's header; only sites with a platform name show it */}
+            {landing.header.platformName && (
+              <div className="flex flex-col gap-[3px] leading-[1.1]">
+                <span
+                  className="text-[20px] font-semibold tracking-[0.01em] text-default max-[850px]:text-[16px]"
+                  style={{ fontFamily: "var(--lp-font-display)" }}
+                >
+                  {landing.header.platformName}
+                </span>
+                <span className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-gray-500 max-[850px]:text-[10px] max-[850px]:tracking-[0.06em]">
+                  {t.tr(landing.header.brandTitle)}
+                </span>
+              </div>
+            )}
+          </div>
         )}
+        <LangExtraSelector
+          side={side}
+          lang={lang}
+          handleLangChange={handleLangChange}
+          commune={props.commune}
+          onCommuneChange={props.onCommuneChange}
+          autoOpenHelp={props.autoOpenHelp}
+          onHelpClosed={props.onHelpClosed}
+        />
       </div>
-
-      <LangExtraSelector
-        side={side}
-        lang={lang}
-        handleLangChange={handleLangChange}
-      />
 
       <LangSelector
         side={side}
@@ -353,7 +380,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
 
       {side === "left" ? (
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative">
+          <div data-swap className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] relative animate-[fade-in_1.2s_cubic-bezier(0.390,0.575,0.565,1.000)_1.5s_both]">
             <div className="relative flex-1 h-full min-w-0">
               {showLeftOverlay && (
                 <div
@@ -378,7 +405,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                 onScroll={handleLeftScroll}
                 value={srcText}
                 placeholder={
-                  translator.placeholders[lang?.code] || translator.placeholder
+                  translator.placeholders[lang?.code] || t.tr(translator.placeholder)
                 }
                 onChange={handleLeftTextChange}
                 spellCheck={false}
@@ -419,15 +446,15 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                               setShowGenderOptions(false);
                               onSpeak("male");
                             }}
-                            aria-label="Voz masculina"
-                            title="Voz masculina"
+                            aria-label={t("card.maleVoice")}
+                            title={t("card.maleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👨🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="rounded-full">
-                          <p>Voz masculina</p>
+                          <p>{t("card.maleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
 
@@ -438,15 +465,15 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                               setShowGenderOptions(false);
                               onSpeak("female");
                             }}
-                            aria-label="Voz femenina"
-                            title="Voz femenina"
+                            aria-label={t("card.femaleVoice")}
+                            title={t("card.femaleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👩🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="rounded-full">
-                          <p>Voz femenina</p>
+                          <p>{t("card.femaleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -464,9 +491,9 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                             }
                           }}
                           aria-label={
-                            isSpeaking ? "Detener lectura" : "Seleccionar voz"
+                            isSpeaking ? t("card.stopReading") : t("card.chooseVoice")
                           }
-                          title={isSpeaking ? "Detener" : "Escuchar"}
+                          title={isSpeaking ? t("card.stop") : t("card.listen")}
                           className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
                           disabled={isLoadingAudio}
                         >
@@ -484,7 +511,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="rounded-full">
-                        <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+                        <p>{isSpeaking ? t("card.stop") : t("card.play")}</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}
@@ -497,15 +524,15 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                           if (isSpeaking) onStop?.();
                           props.onClearTexts?.();
                         }}
-                        aria-label="Borrar texto"
-                        title="Borrar texto"
+                        aria-label={t("card.clearText")}
+                        title={t("card.clearText")}
                         className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
                       >
                         <FontAwesomeIcon icon={faTrash} style={{ color: speakerColor }} />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="rounded-full">
-                      <p>Limpiar</p>
+                      <p>{t("card.clear")}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -515,13 +542,13 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
 
           {showTextMessage && (
             <p className="text-red-500 text-sm">
-              El texto no puede tener más de {MAX_WORDS_TRANSLATION} palabras
+              {t("card.maxWords", { max: MAX_WORDS_TRANSLATION })}
             </p>
           )}
         </>
       ) : (
         <>
-          <div className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
+          <div data-swap className="flex flex-row w-[calc(100%-80px)] h-[calc(60%-80px)] mt-[15px] scrollbar-theme scrollbar-outer-border-white relative">
             <div
               ref={rightOverlayRef}
               className="flex-1 h-full min-w-0 overflow-y-auto scrollbar-hide scrollbar-white-thumb px-[14px] py-[8px] text-[1.125rem] leading-[1.75rem] font-light font-roboto tracking-normal break-words whitespace-pre-wrap"
@@ -557,15 +584,15 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                               setShowGenderOptions(false);
                               onSpeak("male");
                             }}
-                            aria-label="Voz masculina"
-                            title="Voz masculina"
+                            aria-label={t("card.maleVoice")}
+                            title={t("card.maleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👨🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                          <p>Voz masculina</p>
+                          <p>{t("card.maleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
 
@@ -576,15 +603,15 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                               setShowGenderOptions(false);
                               onSpeak("female");
                             }}
-                            aria-label="Voz femenina"
-                            title="Voz femenina"
+                            aria-label={t("card.femaleVoice")}
+                            title={t("card.femaleVoice")}
                             className="transition-transform duration-200 transform hover:scale-125 h-7 w-7"
                           >
                             <span className="text-2xl">👩🏻</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                          <p>Voz femenina</p>
+                          <p>{t("card.femaleVoice")}</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -602,9 +629,9 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                             }
                           }}
                           aria-label={
-                            isSpeaking ? "Detener lectura" : "Seleccionar voz"
+                            isSpeaking ? t("card.stopReading") : t("card.chooseVoice")
                           }
-                          title={isSpeaking ? "Detener" : "Escuchar"}
+                          title={isSpeaking ? t("card.stop") : t("card.listen")}
                           className="transition-transform duration-200 transform hover:scale-150 h-9 w-9 disabled:opacity-50"
                           disabled={isLoadingAudio}
                         >
@@ -622,7 +649,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                        <p>{isSpeaking ? "Detener" : "Reproducir audio"}</p>
+                        <p>{isSpeaking ? t("card.stop") : t("card.play")}</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}
@@ -631,8 +658,8 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                   <TooltipTrigger asChild>
                     <button
                       onClick={handleCopyText}
-                      aria-label="Copiar traducción"
-                      title="Copiar traducción"
+                      aria-label={t("card.copy")}
+                      title={t("card.copy")}
                       className="transition-transform duration-200 transform hover:scale-150 h-9 w-9"
                     >
                       <FontAwesomeIcon
@@ -643,7 +670,7 @@ const [showGenderOptions, setShowGenderOptions] = useState(false);
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-default border-white text-white rounded-full border-2">
-                    <p>Copiar traducción</p>
+                    <p>{t("card.copy")}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>

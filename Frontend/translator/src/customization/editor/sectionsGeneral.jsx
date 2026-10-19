@@ -27,6 +27,7 @@ import {
   ColorField,
   Field,
   Grid,
+  I18nField,
   IconButton,
   ImageField,
   LanguageSelectField,
@@ -34,7 +35,6 @@ import {
   ListField,
   MiniButton,
   Panel,
-  RichField,
   SegmentedField,
   SelectField,
   SliderField,
@@ -138,7 +138,8 @@ const LANDING_TOKENS = [
   {
     group: "Acentos",
     tokens: [
-      ["accent", "Botón principal y pines del mapa", null],
+      ["accent", "Acento: íconos, pines del mapa y botones", null],
+      ["cta", "Botón «Probar el traductor»", null],
       ["link", "Enlaces", "paper"],
       ["onDarkAccent", "Acento sobre fondo oscuro", "night"],
     ],
@@ -475,15 +476,15 @@ export function TranslatorSection() {
       </Panel>
 
       <Panel title="Textos del traductor">
-        <TextField path="translator.placeholder" label="Texto de ayuda en la caja de texto" />
+        <I18nField path="translator.placeholder" label="Texto de ayuda en la caja de texto" />
         <PlaceholdersEditor languages={languages} />
-        <TextField path="translator.feedbackPrompt" label="Invitación a opinar (junto a los pulgares)" />
+        <I18nField path="translator.feedbackPrompt" label="Invitación a opinar (junto a los pulgares)" />
       </Panel>
 
       <Panel title="Aviso al entrar" description="Ventana que se muestra una vez al abrir el traductor.">
         <ToggleField path="translator.notice.enabled" label="Mostrar el aviso" />
-        <TextField path="translator.notice.title" label="Título" />
-        <RichField path="translator.notice.body" label="Mensaje" />
+        <I18nField path="translator.notice.title" label="Título" />
+        <I18nField rich path="translator.notice.body" label="Mensaje" />
       </Panel>
 
       <Panel
@@ -493,15 +494,15 @@ export function TranslatorSection() {
         <div className="grid gap-4 xl:grid-cols-2">
           <div className="space-y-4 rounded-lg border border-slate-200 p-4">
             <p className="text-[13px] font-semibold text-slate-800">Acceso restringido</p>
-            <TextField path="translator.restricted.title" label="Título" />
-            <RichField path="translator.restricted.body" label="Mensaje" />
-            <TextField path="translator.restricted.button" label="Botón" />
+            <I18nField path="translator.restricted.title" label="Título" />
+            <I18nField rich path="translator.restricted.body" label="Mensaje" />
+            <I18nField path="translator.restricted.button" label="Botón" />
           </div>
           <div className="space-y-4 rounded-lg border border-slate-200 p-4">
             <p className="text-[13px] font-semibold text-slate-800">Mantenimiento</p>
-            <TextField path="translator.maintenance.title" label="Título" />
-            <RichField path="translator.maintenance.body" label="Mensaje" />
-            <TextField path="translator.maintenance.button" label="Botón" />
+            <I18nField path="translator.maintenance.title" label="Título" />
+            <I18nField rich path="translator.maintenance.body" label="Mensaje" />
+            <I18nField path="translator.maintenance.button" label="Botón" />
           </div>
         </div>
       </Panel>
@@ -645,7 +646,7 @@ export function LanguagesSection() {
 
       <Panel
         title="Selector de variantes"
-        description="Botones para cambiar de alfabeto (grafemario) sin salir del idioma, como en mapuzungun."
+        description="Selectores de variante territorial y alfabeto (grafemario) sin salir del idioma, como en mapuzungun."
       >
         <ToggleField path="languages.variantSelector.enabled" label="Mostrar el selector" />
         {variant.enabled && (
@@ -657,20 +658,57 @@ export function LanguagesSection() {
                 placeholder="arn"
                 hint="Aparece cuando el idioma elegido empieza con este código."
               />
-              <TextField path="languages.variantSelector.label" label="Título" placeholder="Grafemario" />
+              <TextField
+                path="languages.variantSelector.sourceCode"
+                label="Código sin variantes (idioma de origen)"
+                placeholder="arn_Latn"
+                hint="Si se indica, el idioma aparece una sola vez en la lista y como idioma de origen no distingue variantes; solo el de destino muestra los selectores. Vacío: ambos lados los muestran."
+              />
             </Grid>
+            <I18nField path="languages.variantSelector.label" label="Título del selector de alfabeto" placeholder="Grafemario" />
             <ListField
               path="languages.variantSelector.options"
-              label="Variantes"
-              hint={`Cada código corresponde a la parte central del código del idioma: ${variant.prefix || "arn"}_<variante>_<dialecto>.`}
-              summary={(item) => (item.label ? `${item.label} — ${item.code}` : item.code)}
+              label="Alfabetos (grafemarios)"
+              hint={`Cada código corresponde a la parte central del código del idioma: ${variant.prefix || "arn"}_<alfabeto>_<territorio>.`}
+              summary={(item) => (item.label ? `${translate(item.label, "es")} — ${item.code}` : item.code)}
               newItem={() => ({ code: "", label: "" })}
-              addLabel="Agregar variante"
+              addLabel="Agregar alfabeto"
               renderItem={(path) => (
                 <Grid>
                   <TextField path={`${path}.label`} label="Nombre" />
-                  <TextField path={`${path}.code`} label="Código" placeholder="a0" />
+                  <TextField path={`${path}.code`} label="Código" placeholder="raguileo" />
                 </Grid>
+              )}
+            />
+            <I18nField
+              path="languages.variantSelector.dialectLabel"
+              label="Título del selector de territorio"
+              placeholder="Variante territorial"
+            />
+            <ListField
+              path="languages.variantSelector.dialects"
+              label="Variantes territoriales"
+              hint={`Cada código es la parte final del código del idioma: ${variant.prefix || "arn"}_<alfabeto>_<territorio>. Sin territorios, solo se muestra el selector de alfabeto.`}
+              summary={(item) =>
+                item.label
+                  ? `${translate(item.label, "es")} — ${item.code} (${(item.writings || []).join(", ") || "todos los alfabetos"})`
+                  : item.code
+              }
+              newItem={() => ({ code: "", label: "", writings: [] })}
+              addLabel="Agregar territorio"
+              renderItem={(path) => (
+                <>
+                  <Grid>
+                    <TextField path={`${path}.label`} label="Nombre" />
+                    <TextField path={`${path}.code`} label="Código" placeholder="nagche" />
+                  </Grid>
+                  <LinesField
+                    path={`${path}.writings`}
+                    label="Alfabetos que usa"
+                    hint="Un código de alfabeto por línea. Vacío: todos los alfabetos de la lista."
+                    rows={3}
+                  />
+                </>
               )}
             />
           </>

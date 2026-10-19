@@ -69,6 +69,7 @@ from .serializers import (
     WordSerializer,
 )
 from .utils import (
+    clean_commune,
     filter_cache,
     find_cached_tts_normalized,
     generate_asr,
@@ -833,6 +834,8 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 "model_name": model_name or "unknown",
                 "model_version": model_version or "unknown",
                 "from_cache": from_cache,
+                # the comuna the user picked in "Ayúdame a decidir", if any
+                "commune": clean_commune(request.data.get("commune")),
             }
             try:
                 if idem_key:

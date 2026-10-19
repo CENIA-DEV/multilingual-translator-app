@@ -260,6 +260,12 @@ export function HeroSection() {
             aspect="aspect-[3/2]"
           />
           <div className="space-y-4">
+            <TextField
+              path="landing.header.platformName"
+              label="Nombre de la plataforma (opcional)"
+              hint="Igual en todos los idiomas. Se muestra sobre el nombre junto al logo, que pasa a ser una segunda línea más pequeña."
+              maxLength={200}
+            />
             <I18nField path="landing.header.brandTitle" label="Nombre junto al logo" />
             <I18nField path="landing.header.logoAlt" label="Descripción del logo (accesibilidad)" />
           </div>
@@ -478,6 +484,21 @@ export function ValidationSection() {
         accept=".json,.geojson,application/json,application/geo+json"
         aspect="aspect-[5/1]"
       />
+      <ToggleField
+        path="landing.validation.closeUp"
+        label="Acercamiento a los lugares"
+        hint="Muestra un círculo ampliado alrededor de los lugares junto a un mapa pequeño del territorio. Desactívalo para mostrar solo el territorio completo (útil para una región grande)."
+      />
+      {validation.closeUp === false && (
+        <ImageField
+          path="landing.validation.contextGeojson"
+          label="Contorno de referencia (GeoJSON, opcional)"
+          hint="Se dibuja en gris claro alrededor del territorio para ubicarlo, por ejemplo el contorno del país."
+          kind="geojson"
+          accept=".json,.geojson,application/json,application/geo+json"
+          aspect="aspect-[5/1]"
+        />
+      )}
       <PinsTable />
       {validation.geojson && (
         <div className="rounded-lg border border-slate-200 p-3">
@@ -485,6 +506,8 @@ export function ValidationSection() {
           <DotMap
             pins={pins}
             geoJsonUrl={resolveMedia(validation.geojson)}
+            closeUp={validation.closeUp !== false}
+            contextUrl={validation.contextGeojson ? resolveMedia(validation.contextGeojson) : ""}
             colors={{
               dots: doc.theme.landing.mapDots,
               accent: doc.theme.landing.accent,
@@ -626,11 +649,16 @@ export function CollaboratorsSection() {
         path="landing.collaborators.groups"
         label="Grupos"
         max={40}
-        summary={(item) => `${tr(item.title)} · ${item.names.length}`}
-        newItem={() => ({ title: {}, names: [] })}
+        summary={(item) => `${tr(item.title)} · ${item.names.length}${item.hidden ? " · oculto" : ""}`}
+        newItem={() => ({ title: {}, names: [], hidden: false })}
         addLabel="Agregar grupo"
         renderItem={(path) => (
           <>
+            <ToggleField
+              path={`${path}.hidden`}
+              label="Ocultar este grupo"
+              hint="Los nombres quedan guardados, pero no se muestran en la página."
+            />
             <I18nField path={`${path}.title`} label="Título del grupo" />
             <LinesField
               path={`${path}.names`}

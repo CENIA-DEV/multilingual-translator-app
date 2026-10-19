@@ -57,6 +57,7 @@ export default function Login(){
   };
   
   const handleSubmit = async () => {
+    setErrorMessage("");
     try {
       const res = await api.post(
         API_ENDPOINTS.USERS + 'token/',
@@ -70,16 +71,20 @@ export default function Login(){
       window.location.href = '/translator';
     } 
     catch(error) {
-      if (error.response) {
-        if (error.response.status == 400) {
-          // One message for every failed login. The API answers the same for
-          // an unknown email and a wrong password, and the page must not tell
-          // them apart either (it used to carry an "email not registered" one).
-          setErrorMessage("Correo y/o contraseña incorrecto/s. Inténtalo nuevamente.");
-        };
+      // Every failure says something: an unreachable server used to leave the
+      // page silent, as if the click had done nothing.
+      if (error.response?.status == 400) {
+        // One message for every failed login. The API answers the same for
+        // an unknown email and a wrong password, and the page must not tell
+        // them apart either (it used to carry an "email not registered" one).
+        setErrorMessage("Correo y/o contraseña incorrecto/s. Inténtalo nuevamente.");
+      }
+      else if (!error.response) {
+        setErrorMessage("No se pudo conectar con el servidor. Revisa tu conexión e inténtalo nuevamente.");
+        console.log('Error', error.message);
       }
       else {
-        console.log('Error', error.message);
+        setErrorMessage("No se pudo iniciar sesión por un problema del servidor. Inténtalo nuevamente más tarde.");
       }
     }
   };

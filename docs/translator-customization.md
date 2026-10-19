@@ -24,7 +24,7 @@ data but do not see the editor. The rule lives in one place,
 | Typography | Colores y tipografía | landing display/text faces from a curated Google Fonts list, with live samples in every landing language to check ŋ, ā, ü, ꞌ |
 | Translator cards | Tarjetas y textos | left/right illustration, fit, position, opacity, tint-to-brand; default source/target language |
 | Translator texts | Tarjetas y textos | input placeholder (global and per source language), feedback prompt, entry notice (on/off, rich text), "restricted access" and "maintenance" dialogs |
-| Languages | Idiomas y funciones | which catalog languages the selector offers (search, bulk show/hide), renames, custom languages/dialects, the translator's own language codes, the graphemary/variant switch (prefix, label, options) |
+| Languages | Idiomas y funciones | which catalog languages the selector offers (search, bulk show/hide), renames, custom languages/dialects, the translator's own language codes, the variant selectors: territory (Nagche, Williche, ...) and alphabet/graphemary, with the alphabets each territory uses, and the code of the language without variants that the source side offers (prefix, labels, options) |
 | Voice & words | Idiomas y funciones | TTS, ASR (dictation + audio upload) and word information: on/off and which languages |
 | Access pages | Páginas de acceso | login, forms (request access, password, invitation) and profile images; tint-to-brand |
 | Landing structure | Idiomas y secciones | page languages (add/remove/rename/default), section order (drag), visibility, tone (light / soft / dark) |
@@ -122,6 +122,26 @@ removes files that no draft, published version or revision references.
 Model services, analytics IDs and service names are still selected per variant by
 the GitHub workflows. Adding a third variant there is the only infrastructure step
 left, and it was intentionally not changed here.
+
+## Site languages
+
+The page languages (`landing.locales`, "Idiomas y secciones") are the languages of
+the whole site: landing page, translator, menu and dialogs. The visitor's choice is
+stored in the `site_locale` cookie, which the root layout reads so the server renders
+the first HTML in that language. `useLocale()` gives the current language and
+`useT()` the texts:
+
+* Texts of the document (`{ es, en, arn }` objects, or plain strings saved before
+  they could be translated) go through `t.tr(node)`.
+* The app's fixed texts (buttons, toasts, menu) live in
+  `customization/messages.js` in Spanish and English, and are read with
+  `t("menu.home")`. A deployment translates them into its own language with the
+  document's `ui` map (same keys, e.g. `ui["menu.home"].arn`). `lang.<code>` keys
+  rename a language in the selector for one site language only.
+* A missing text falls back to the default language (Spanish), so a site language
+  without a translation shows Spanish rather than a blank.
+* A label that introduces names ("Proyecto de", "Desarrollado por") can be written
+  as `...ñi küzaw` to go after them in languages with that word order.
 
 ## Adding a customizable field
 

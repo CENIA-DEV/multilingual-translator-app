@@ -38,6 +38,19 @@ export function isTranslated(node, locale) {
   return node != null && typeof node === "object" && isFilled(node[locale])
 }
 
+/**
+ * A label that introduces names ("Proyecto de", "Desarrollado por") goes
+ * before them, unless the translation starts with an ellipsis: languages that
+ * put it after the names write it as "... ñi küzaw". Ellipses at either end
+ * only mark the position and are not shown.
+ * Returns { text, after }.
+ */
+export function placedLabel(label) {
+  const text = String(label || "").trim()
+  const after = /^(\.\.\.|…)/.test(text)
+  return { text: text.replace(/^(\.\.\.|…)\s*/, "").replace(/\s*(\.\.\.|…)$/, ""), after }
+}
+
 const LOCALE_KEY = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/
 
 /** Heuristic used by the editor: an object whose keys all look like locales. */
