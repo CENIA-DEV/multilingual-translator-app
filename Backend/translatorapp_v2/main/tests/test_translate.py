@@ -343,3 +343,98 @@ def test_translate_max_words_fail_newlines(api_client, user_auth, create_languag
     response = api_client.post(url, data, format="json")
     assert response.status_code == 400
     assert "src_text" in response.data # check that the error is in the src_text field
+
+
+# 17-20. translate - native_only: the native model takes every step
+NATIVE = "http://native.test/v2/models/native-model/infer"
+RAW = "http://raw.test/v2/models/raw-model/infer"
+
+
+@pytest.fixture
+def deployments(monkeypatch):
+    """Distinct URLs for the two models, so a test can tell which one ran."""
+    from django.conf import settings
+
+    app = settings.APP_SETTINGS
+    monkeypatch.setattr(app, "inference_model_url", "http://native.test")
+    monkeypatch.setattr(app, "inference_model_name", "native-model")
+    monkeypatch.setattr(app, "raw_inference_model_url", "http://raw.test")
+    monkeypatch.setattr(app, "raw_inference_model_name", "raw-model")
+
+
+def _translate(api_client, src, dst, text, **extra):
+    return api_client.post(
+        "/api/translate/",
+        {
+            "src_text": text,
+            "src_lang": LanguageSerializer(src).data,
+            "dst_lang": LanguageSerializer(dst).data,
+            **extra,
+        },
+        format="json",
+    )
+
+
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_any2any_uses_raw_model_by_default(
+    api_client, create_languages, mock_get_prediction, deployments
+):
+    english, _, _, french = create_languages
+
+    response = _translate(api_client, french, english, "Bonjour")
+
+    assert response.status_code == 200
+    mock_get_prediction.assert_called_once_with(
+        "Bonjour", french.code, english.code, deployment=RAW
+    )
+
+
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+@pytest.mark.parametrize("value", [True, "true", "1"])
+def test_translate_native_only_any2any_uses_native_model(
+    api_client, create_languages, mock_get_prediction, deployments, value
+):
+    english, _, _, french = create_languages
+
+    response = _translate(api_client, french, english, "Bonjour", native_only=value)
+
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Hello"
+    mock_get_prediction.assert_called_once_with(
+        "Bonjour", french.code, english.code, deployment=NATIVE
+    )
+
+
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_native_only_native2any_pivots_on_native_model(
+    api_client, create_languages, mock_get_prediction, deployments
+):
+    _, spanish, rapanui, french = create_languages
+
+    response = _translate(api_client, rapanui, french, "Iorana", native_only=True)
+
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Bonjour"
+    assert mock_get_prediction.call_args_list == [
+        call("Iorana", src_lang=rapanui.code, dst_lang=spanish.code, deployment=NATIVE),
+        call("Hola", src_lang=spanish.code, dst_lang=french.code, deployment=NATIVE),
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+@pytest.mark.parametrize("value", [False, "false", "no", 0, None])
+def test_translate_native_only_needs_an_explicit_true(
+    api_client, create_languages, mock_get_prediction, deployments, value
+):
+    english, _, _, french = create_languages
+
+    response = _translate(api_client, french, english, "Bonjour", native_only=value)
+
+    assert response.status_code == 200
+    mock_get_prediction.assert_called_once_with(
+        "Bonjour", french.code, english.code, deployment=RAW
+    )
