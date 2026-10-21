@@ -43,18 +43,19 @@ def filter_cache(src_lang, dst_lang, cache_results):
     # standarized_query = standarize_text(user_query) NOT SURE WHY THIS IS NECESSARY
     # verify if match is correct
     for result in cache_results:  # from newest to oldest
-        # check match in user requested source lang to avoid duplicates
+        # A saved pair answers only between its own two languages, in either
+        # direction. Matching on the source alone made a Spanish -> Rapa Nui
+        # pair answer Spanish -> English with the Spanish text itself.
         if (
             src_lang.code == result.src_lang.code
-            or src_lang.code == result.dst_lang.code
+            and dst_lang.code == result.dst_lang.code
         ):
-            # the user requested dst text language guides the translation
-            if dst_lang.code == result.dst_lang.code:
-                return result.dst_text, result.dst_lang
-            else:
-                return result.src_text, result.src_lang
-        else:
-            continue
+            return result.dst_text, result.dst_lang
+        if (
+            src_lang.code == result.dst_lang.code
+            and dst_lang.code == result.src_lang.code
+        ):
+            return result.src_text, result.src_lang
 
     return None, None
 

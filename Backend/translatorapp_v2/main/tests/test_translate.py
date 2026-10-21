@@ -438,3 +438,84 @@ def test_translate_native_only_needs_an_explicit_true(
     mock_get_prediction.assert_called_once_with(
         "Bonjour", french.code, english.code, deployment=RAW
     )
+
+
+# 21-23. translate - cache: a saved pair only answers its own two languages
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_cached_pair_does_not_answer_a_third_language(
+    api_client, create_languages, mock_get_prediction
+):
+    english, spanish, rapanui, _ = create_languages
+    TranslationPair.objects.create(
+        src_text="Hola",
+        dst_text="Iorana",
+        src_lang=spanish,
+        dst_lang=rapanui,
+        correct=True,
+        validated=True,
+    )
+
+    response = _translate(api_client, spanish, english, "Hola")
+
+    assert response.status_code == 200
+    # The Spanish text used to come back as the "translation" into English.
+    assert response.data["dst_text"] == "Hello"
+    assert response.data["dst_lang"]["code"] == english.code
+    mock_get_prediction.assert_called_once_with(
+        "Hola", spanish.code, english.code, deployment=ANY
+    )
+
+
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_cached_pair_still_answers_the_reverse_direction(
+    api_client, create_languages, mock_get_prediction
+):
+    _, spanish, rapanui, _ = create_languages
+    TranslationPair.objects.create(
+        src_text="Hola",
+        dst_text="Iorana",
+        src_lang=spanish,
+        dst_lang=rapanui,
+        correct=True,
+        validated=True,
+    )
+
+    response = _translate(api_client, rapanui, spanish, "iorana")
+
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Hola"
+    assert response.data["dst_lang"]["code"] == spanish.code
+    mock_get_prediction.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_translate_cache_skips_a_pair_for_another_language(
+    api_client, create_languages, mock_get_prediction
+):
+    english, spanish, rapanui, _ = create_languages
+    TranslationPair.objects.create(
+        src_text="Hola",
+        dst_text="Hello there",
+        src_lang=spanish,
+        dst_lang=english,
+        correct=True,
+        validated=True,
+    )
+    # Newer, so it is looked at first, but it is a Rapa Nui pair.
+    TranslationPair.objects.create(
+        src_text="Hola",
+        dst_text="Iorana",
+        src_lang=spanish,
+        dst_lang=rapanui,
+        correct=True,
+        validated=True,
+    )
+
+    response = _translate(api_client, spanish, english, "Hola")
+
+    assert response.status_code == 200
+    assert response.data["dst_text"] == "Hello there"
+    mock_get_prediction.assert_not_called()
