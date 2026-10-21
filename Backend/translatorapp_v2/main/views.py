@@ -70,6 +70,7 @@ from .serializers import (
     WordSerializer,
 )
 from .utils import (
+    cache_langs,
     clean_commune,
     filter_cache,
     find_cached_tts_normalized,
@@ -786,16 +787,28 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     permission_classes = [feature_access("translatorPage", "translation")]
     serializer_class = TranslationPairSerializer
 
-    def get_queryset(self, src_lang=None, dst_lang=None, src_text=None):
-        # get all texts matching src or dst lang and text (cache)
+    def get_queryset(self, src_codes=None, dst_codes=None, src_text=None):
+        # validated pairs between these languages (cache, see cache_langs), in
+        # either direction, whose text in the requested source language is
+        # src_text. Matching only one side's language let a pair of another
+        # variant (spa -> arn_raguileo_nagche when asking for spa ->
+        # arn_raguileo_pewenche) answer with its source text, the input back
         results = (
-            TranslationPair.objects.filter(
-                correct=True,
-                validated=True,
-                src_lang__code__in=[src_lang.code, dst_lang.code],
+            TranslationPair.objects.filter(correct=True, validated=True)
+            .filter(
+                Q(
+                    src_lang__code__in=src_codes,
+                    dst_lang__code__in=dst_codes,
+                    src_text__iexact=src_text,
+                )
+                | Q(
+                    src_lang__code__in=dst_codes,
+                    dst_lang__code__in=src_codes,
+                    dst_text__iexact=src_text,
+                )
             )
-            .filter(Q(src_text__iexact=src_text) | Q(dst_text__iexact=src_text))
-            .order_by("-created_at")
+            .select_related("src_lang", "dst_lang")
+            .order_by("-created_at", "-id")
         )
         return [s for s in results]
 
@@ -835,11 +848,13 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
             else:
                 # check for cache hits
+                src_codes = cache_langs(src_lang)
+                dst_codes = cache_langs(dst_lang)
                 cache_results = self.get_queryset(
-                    src_lang=src_lang, dst_lang=dst_lang, src_text=src_text
+                    src_codes=src_codes, dst_codes=dst_codes, src_text=src_text
                 )
-                cache_result, cache_dst_lang = filter_cache(
-                    src_lang, dst_lang, cache_results
+                cache_result, cached_pair = filter_cache(
+                    src_codes, dst_codes, cache_results
                 )
 
                 if cache_result is None:
@@ -866,13 +881,13 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     from_cache = True
                     dst_text = cache_result
 
-                    # Get model info from cached result if available
-                    if cache_results:
-                        cached_pair = cache_results[0]
-                        model_name = cached_pair.model_name
-                        model_version = cached_pair.model_version
+                    # model info of the pair that answered
+                    model_name = cached_pair.model_name
+                    model_version = cached_pair.model_version
 
-                    serializer.save(dst_text=cache_result, dst_lang=cache_dst_lang)
+                    # dst_lang stays the requested one, also when the answer
+                    # is a pair with the territory unknown
+                    serializer.save(dst_text=cache_result)
 
             # SAVE TO TRACKING TABLE (every translation request)
             idem_key = request.data.get("request_id")  # body-only

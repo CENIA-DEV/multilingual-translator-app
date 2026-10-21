@@ -39,22 +39,32 @@ from .models import CacheTTS, Lang, Word
 logger = logging.getLogger(__name__)
 
 
-def filter_cache(src_lang, dst_lang, cache_results):
-    # standarized_query = standarize_text(user_query) NOT SURE WHY THIS IS NECESSARY
-    # verify if match is correct
+def cache_langs(lang):
+    """
+    The codes of the languages whose validated pairs answer for lang: lang
+    itself and, for a variant with a territory, its alphabet with the
+    territory unknown (arn_raguileo for arn_raguileo_nagche), which applies to
+    every territory. Never another territory nor another alphabet.
+    """
+    codes = [lang.code]
+    if lang.dialect_id and lang.script_id:
+        prefix = lang.code.split("_")[0]
+        codes += Lang.objects.filter(
+            code__startswith=f"{prefix}_",
+            script_id=lang.script_id,
+            dialect__isnull=True,
+        ).values_list("code", flat=True)
+    return codes
+
+
+def filter_cache(src_codes, dst_codes, cache_results):
+    # the newest pair between these languages (see cache_langs), and its text
+    # on the side in the requested dst language
     for result in cache_results:  # from newest to oldest
-        # check match in user requested source lang to avoid duplicates
-        if (
-            src_lang.code == result.src_lang.code
-            or src_lang.code == result.dst_lang.code
-        ):
-            # the user requested dst text language guides the translation
-            if dst_lang.code == result.dst_lang.code:
-                return result.dst_text, result.dst_lang
-            else:
-                return result.src_text, result.src_lang
-        else:
-            continue
+        if result.src_lang.code in src_codes and result.dst_lang.code in dst_codes:
+            return result.dst_text, result
+        if result.src_lang.code in dst_codes and result.dst_lang.code in src_codes:
+            return result.src_text, result
 
     return None, None
 
