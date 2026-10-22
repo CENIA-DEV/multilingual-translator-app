@@ -110,24 +110,17 @@ def test_reject_translation_native_admin_success(api_client, native_admin_auth, 
     url = "/api/suggestions/reject_translation/"
     response = api_client.post(url, data, format="json")
     assert response.status_code == 201
-    assert TranslationPair.objects.count() == 2
-    incorrect_suggestion = TranslationPair.objects.first()
-    correct_suggestion = TranslationPair.objects.last()
-    
-    assert incorrect_suggestion.user == native_admin_auth
-    assert incorrect_suggestion.validated_by == native_admin_auth
-    assert incorrect_suggestion.feedback == False
-    assert incorrect_suggestion.suggestion == "Hola"
-    assert incorrect_suggestion.dst_text == "Como estas?"
-    assert incorrect_suggestion.correct == False
-    assert incorrect_suggestion.validated == True
-    
-    assert correct_suggestion.user == native_admin_auth
-    assert correct_suggestion.validated_by == native_admin_auth
-    assert correct_suggestion.feedback == False
-    assert correct_suggestion.suggestion == correct_suggestion.dst_text # store the correct translation
-    assert correct_suggestion.correct == True
-    assert correct_suggestion.validated == True 
+    # an administrator's feedback waits for review like anyone's; their
+    # "Auto-aceptar sugerencias" decides whether it answers before that
+    assert TranslationPair.objects.count() == 1
+    created_suggestion = TranslationPair.objects.first()
+    assert created_suggestion.user == native_admin_auth
+    assert created_suggestion.validated_by is None
+    assert created_suggestion.feedback == False
+    assert created_suggestion.suggestion == "Hola"
+    assert created_suggestion.dst_text == "Como estas?"
+    assert created_suggestion.correct is None
+    assert created_suggestion.validated == False
 
 @pytest.mark.django_db
 def test_accept_translation_native_admin_success(api_client, native_admin_auth, create_languages):
@@ -146,12 +139,12 @@ def test_accept_translation_native_admin_success(api_client, native_admin_auth, 
     assert TranslationPair.objects.count() == 1
     created_suggestion = TranslationPair.objects.first()
     assert created_suggestion.user == native_admin_auth
-    assert created_suggestion.validated_by == native_admin_auth
+    assert created_suggestion.validated_by is None
     assert created_suggestion.feedback == True
     assert created_suggestion.suggestion == created_suggestion.dst_text
-    # native admin automatically validates suggestion
-    assert created_suggestion.correct == True 
-    assert created_suggestion.validated == True 
+    # not validated automatically: it waits for review like anyone's
+    assert created_suggestion.correct is None
+    assert created_suggestion.validated == False
 
 @pytest.mark.django_db
 def test_reject_translation_anonymous_success(api_client, create_languages):
