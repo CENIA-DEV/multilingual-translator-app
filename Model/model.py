@@ -429,3 +429,94 @@ class MadLadWrapper(ModelWrapper):
         return self.tokenizer(sentences, return_tensors="pt", padding="longest").to(
             self._device
         )
+
+
+class MadLadCT2Wrapper(MadLadWrapper):
+    """
+    MADLAD on CTranslate2 instead of transformers, from a model converted with
+    `convert_madlad_ct2.py`: the same languages, variant tokens and generation
+    settings as `MadLadWrapper`, with int8 weights by default.
+
+    CTranslate2 applies `repetition_penalty` to the logits, and transformers' beam
+    search to the log-probabilities, so a value penalizes much more here: 1.0
+    gives the translations closest to transformers with 1.15.
+    """
+
+    def __init__(
+        self,
+        model_path: str,
+        logger: logging.Logger,
+        optimize: bool = False,
+        gpu: bool = True,
+        max_new_tokens: int = 256,
+        num_beams: Optional[int] = None,
+        no_repeat_ngram_size: Optional[int] = None,
+        repetition_penalty: Optional[float] = None,
+        length_penalty: Optional[float] = None,
+        compute_type: str = "int8_float16",
+    ):
+        # imported here so the transformers models never depend on it
+        import ctranslate2
+
+        # `ModelWrapper.__init__` loads a transformers model, so it is not called
+        self.logger = logger
+        device = "cpu"
+        if gpu:
+            if ctranslate2.get_cuda_device_count() > 0:
+                self.logger.info("GPU available, using GPU")
+                device = "cuda"
+            else:
+                self.logger.warning("GPU not available, using CPU instead")
+        else:
+            self.logger.info("CPU mode")
+        if optimize:
+            self.logger.info("--optimize does not apply to CTranslate2 models")
+
+        self._device = torch.device("cpu")  # `tokenize` leaves the inputs here
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, token=HF_TOKEN)
+        self._vocab = set(self.tokenizer.get_vocab())
+        self.model = ctranslate2.Translator(
+            model_path, device=device, compute_type=compute_type
+        )
+        self.logger.info(f"CTranslate2 model loaded on {device} ({compute_type})")
+        self.max_new_tokens = max_new_tokens
+        self.logger.info(f"Max new tokens set to: {self.max_new_tokens}")
+        self.generation_kwargs = {
+            name: value
+            for name, value in (
+                ("beam_size", num_beams or 1),  # 1 (greedy) as in transformers
+                ("no_repeat_ngram_size", no_repeat_ngram_size),
+                ("repetition_penalty", repetition_penalty),
+                ("length_penalty", length_penalty),
+            )
+            if value is not None
+        }
+        self.logger.info(f"Generation settings: {self.generation_kwargs}")
+
+    def generate(
+        self,
+        inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
+        **kwargs,  # ignore any extra arguments like `target_lang`
+    ):
+        source = [
+            self.tokenizer.convert_ids_to_tokens(ids[mask.bool()].tolist())
+            for ids, mask in zip(inputs["input_ids"], inputs["attention_mask"])
+        ]
+        results = self.model.translate_batch(
+            source,
+            max_input_length=0,  # no truncation, as in transformers
+            max_decoding_length=self.max_new_tokens,
+            **self.generation_kwargs,
+        )
+        # token ids, padded, as transformers' `generate` returns them
+        return torch.nn.utils.rnn.pad_sequence(
+            [
+                torch.tensor(
+                    self.tokenizer.convert_tokens_to_ids(result.hypotheses[0]),
+                    dtype=torch.long,
+                )
+                for result in results
+            ],
+            batch_first=True,
+            padding_value=self.tokenizer.pad_token_id,
+        )

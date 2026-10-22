@@ -8,3 +8,4 @@ accelerate==1.1.1
 google-cloud-storage==2.18.2
 python-dotenv==1.0.1
 peft
+ctranslate2==4.5.0

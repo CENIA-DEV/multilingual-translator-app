@@ -62,6 +62,9 @@ def filter_cache(src_codes, dst_codes, cache_results):
     # on the side in the requested dst language (`answer`: the pair's dst-side
     # text, annotated by TranslateViewSet.get_queryset)
     for result in cache_results:  # from newest to oldest
+        # A saved pair answers only between its own two languages, in either
+        # direction. Matching on the source alone made a Spanish -> Rapa Nui
+        # pair answer Spanish -> English with the Spanish text itself.
         if result.src_lang.code in src_codes and result.dst_lang.code in dst_codes:
             return result.answer, result
         if result.src_lang.code in dst_codes and result.dst_lang.code in src_codes:
@@ -163,15 +166,22 @@ def get_prediction(src_text, src_lang, dst_lang, deployment):
         raise Exception("Error in model prediction")
 
 
-def translate(src_text, src_lang, dst_lang):
+def translate(src_text, src_lang, dst_lang, native_only=False):
+    """Translate with the native model, the raw one, or both through Spanish,
+    depending on the pair. With `native_only`, the native model takes every
+    step the raw model would have, so the whole translation runs on it."""
 
     native_deployment = (
         f"{settings.APP_SETTINGS.inference_model_url}/v2/models/"
         f"{settings.APP_SETTINGS.inference_model_name}/infer"
     )
     raw_deployment = (
-        f"{settings.APP_SETTINGS.raw_inference_model_url}/v2/models/"
-        f"{settings.APP_SETTINGS.raw_inference_model_name}/infer"
+        native_deployment
+        if native_only
+        else (
+            f"{settings.APP_SETTINGS.raw_inference_model_url}/v2/models/"
+            f"{settings.APP_SETTINGS.raw_inference_model_name}/infer"
+        )
     )
 
     logger.info("Starting request...")

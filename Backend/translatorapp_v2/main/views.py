@@ -803,6 +803,16 @@ class RequestViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+def _native_only(data):
+    """Whether a translate request asks for the native model at every step
+    (body field `native_only`). The mobile app sends it; the web client does
+    not, so the website keeps the per-pair choice of model."""
+    value = data.get("native_only", False)
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1")
+    return value is True
+
+
 class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     # since we only want to implement create endpoint we inherit create mixin
     # who may translate: "Visibilidad" in Administrar Traductor
@@ -924,7 +934,12 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
                     # if no cache then call model translate endpoint
                     try:
-                        translation = translate(src_text, src_lang, dst_lang)
+                        translation = translate(
+                            src_text,
+                            src_lang,
+                            dst_lang,
+                            native_only=_native_only(request.data),
+                        )
                         dst_text = translation["dst_text"]
                         model_name = translation["model_name"]
                         model_version = translation["model_version"]
