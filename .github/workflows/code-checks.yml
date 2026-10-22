@@ -33,6 +33,11 @@ jobs:
     name: Pytest backend tests
     runs-on: ubuntu-latest
     environment: STAGING
+    # every run creates and drops the same test database on the shared Cloud SQL
+    # instance, so runs from any branch or PR must queue instead of overlapping
+    concurrency:
+      group: pytest-backend-shared-test-db
+      cancel-in-progress: false
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
       REGION: 'us-central1'
