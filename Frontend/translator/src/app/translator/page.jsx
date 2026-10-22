@@ -41,7 +41,6 @@ import { useAccess } from '@/customization/access';
 import { useConfig, useIsPreview } from '@/customization/ConfigProvider';
 import { matchesPrefix, prefixOf, useLanguageSides, variantParts } from '@/customization/languages';
 import RichText from '@/customization/RichText';
-import { TERRITORY_HELP } from '@/customization/territoryHelper';
 import { useT } from '@/customization/useT';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -148,7 +147,7 @@ export default function Translator() {
   // decidir" first; the notice follows once it is closed. Without it, the
   // notice shows right away, as before.
   const [helpFirst, setHelpFirst] = useState(() =>
-    Boolean(TERRITORY_HELP[config.languages.variantSelector.prefix]) &&
+    (config.languages.variantSelector.territoryHelp || []).length > 0 &&
     (sides.showsVariants(srcLang) || sides.showsVariants(dstLang))
   );
   const [showDevModal, setShowDevModal] = useState(texts.notice.enabled && !helpFirst);

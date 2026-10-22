@@ -33,6 +33,7 @@ from pydantic import (
     Field,
     StringConstraints,
     ValidationError,
+    model_serializer,
     model_validator,
 )
 
@@ -242,6 +243,18 @@ class VariantDialect(Strict):
     writings: Annotated[List[VariantCode], Field(max_length=20)] = []
 
 
+class TerritoryCard(Strict):
+    """A territory in "Ayúdame a decidir": what its name means, where it lies
+    and its comunas, which the popup's search looks up."""
+
+    code: VariantCode
+    # /images/territories/<icon>.svg
+    icon: IconName
+    meaning: ShortText
+    where: ShortText = ""
+    comunas: Annotated[List[Short], Field(max_length=300)] = []
+
+
 class VariantSelector(Strict):
     enabled: bool = False
     prefix: Annotated[str, StringConstraints(pattern=r"^([a-z]{2,3})?$")] = ""
@@ -252,6 +265,11 @@ class VariantSelector(Strict):
     options: Annotated[List[VariantOption], Field(max_length=20)] = []
     dialectLabel: ShortText = "Variante territorial"
     dialects: Annotated[List[VariantDialect], Field(max_length=20)] = []
+    # "Ayúdame a decidir", next to the territory selector. Absent in documents
+    # saved before it could be edited, where the frontend's preset applies; it
+    # stays absent (not an empty list, which would hide the preset's) when
+    # such a document is re-saved, published or restored
+    territoryHelp: Optional[Annotated[List[TerritoryCard], Field(max_length=20)]] = None
 
     @model_validator(mode="after")
     def _consistent(self):
@@ -264,6 +282,13 @@ class VariantSelector(Strict):
                     f"lista: {', '.join(unknown)}"
                 )
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_help(self, handler):
+        data = handler(self)
+        if self.territoryHelp is None:
+            data.pop("territoryHelp", None)
+        return data
 
 
 class Languages(Strict):

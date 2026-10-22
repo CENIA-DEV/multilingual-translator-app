@@ -225,6 +225,141 @@
             "rumian"
           ]
         }
+      ],
+      "territoryHelp": [
+        {
+          "code": "lafkenche",
+          "icon": "lafkenche",
+          "meaning": {
+            "es": "Gente que vive cerca del mar",
+            "en": "People who live near the sea",
+            "arn": "Pu che mülelu/tuwlu ina lafken"
+          },
+          "where": {},
+          "comunas": [
+            "Arauco",
+            "Lebu",
+            "Los Álamos",
+            "Cañete",
+            "Contulmo",
+            "Tirúa",
+            "Carahue",
+            "Saavedra",
+            "Puerto Saavedra",
+            "Teodoro Schmidt",
+            "Toltén",
+            "Mariquina"
+          ]
+        },
+        {
+          "code": "nagche",
+          "icon": "nagche",
+          "meaning": {
+            "es": "Gente de las tierras bajas",
+            "en": "People of the lowlands",
+            "arn": "Pu che tuwlu lelfün naq mew"
+          },
+          "where": {
+            "es": "Las lomas y valles junto a la cordillera de Nahuelbuta",
+            "en": "The hills and valleys by the Nahuelbuta range",
+            "arn": "Tuwlu lelfün mew mülelu ina fütxa mawiza Nawelfütxa"
+          },
+          "comunas": [
+            "Purén",
+            "Lumaco",
+            "Los Sauces",
+            "Traiguén",
+            "Galvarino",
+            "Cholchol",
+            "Chol Chol",
+            "Ercilla",
+            "Collipulli",
+            "Angol"
+          ]
+        },
+        {
+          "code": "wenteche",
+          "icon": "wenteche",
+          "meaning": {
+            "es": "Gente de los llanos altos",
+            "en": "People of the high plains",
+            "arn": "Pu che mülelu wente mapu mew"
+          },
+          "where": {
+            "es": "El valle central, alrededor de Temuco",
+            "en": "The central valley, around Temuco",
+            "arn": "Ragintu mapu ka wall Temuko mew"
+          },
+          "comunas": [
+            "Temuco",
+            "Padre Las Casas",
+            "Nueva Imperial",
+            "Lautaro",
+            "Perquenco",
+            "Victoria",
+            "Vilcún",
+            "Freire",
+            "Cunco",
+            "Pitrufquén",
+            "Gorbea"
+          ]
+        },
+        {
+          "code": "pewenche",
+          "icon": "pewenche",
+          "meaning": {
+            "es": "Gente del pewen (la araucaria)",
+            "en": "People of the pewen (monkey puzzle tree)",
+            "arn": "Pu che mülelu pewen mapu chew"
+          },
+          "where": {
+            "es": "La cordillera de los Andes, entre araucarias y volcanes",
+            "en": "The Andes, among monkey puzzle trees and volcanoes",
+            "arn": "Los Andes fütxa mawiza mew, pu pewenentu ka pu zeqiñentu mew"
+          },
+          "comunas": [
+            "Alto Biobío",
+            "Santa Bárbara",
+            "Lonquimay",
+            "Curacautín",
+            "Melipeuco",
+            "Curarrehue"
+          ]
+        },
+        {
+          "code": "williche",
+          "icon": "williche",
+          "meaning": {
+            "es": "Gente del sur",
+            "en": "People of the south",
+            "arn": "Pu che mülelu willi mapu püle"
+          },
+          "where": {
+            "es": "Los Ríos, Los Lagos y Chiloé",
+            "en": "Los Ríos, Los Lagos and Chiloé",
+            "arn": "Los Ríos, Los Lagos ka Chillwe mapu"
+          },
+          "comunas": [
+            "Valdivia",
+            "La Unión",
+            "Río Bueno",
+            "Lago Ranco",
+            "Osorno",
+            "San Juan de la Costa",
+            "San Pablo",
+            "Río Negro",
+            "Purranque",
+            "Puerto Montt",
+            "Ancud",
+            "Castro",
+            "Chonchi",
+            "Quellón",
+            "Queilén",
+            "Dalcahue",
+            "Quemchi",
+            "Chiloé"
+          ]
+        }
       ]
     }
   },

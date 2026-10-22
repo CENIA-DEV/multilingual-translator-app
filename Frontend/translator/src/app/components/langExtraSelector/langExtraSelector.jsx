@@ -17,7 +17,6 @@ import './langExtraSelector.css'
 import { useEffect, useId, useState } from "react";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import TerritoryHelper from "../territoryHelper/territoryHelper.jsx";
-import { TERRITORY_HELP } from "@/customization/territoryHelper";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { SelectContent, SelectItem } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -104,7 +103,7 @@ export default function LangExtraSelector({ lang, side, handleLangChange, commun
   const [helpOpen, setHelpOpen] = useState(false);
 
   // Opened on arrival when the page asks for it (and this side has the help)
-  const canHelp = sides.showsVariants(lang) && (TERRITORY_HELP[variantSelector.prefix] || []).length > 0;
+  const canHelp = sides.showsVariants(lang) && (variantSelector.territoryHelp || []).length > 0;
   useEffect(() => {
     if (autoOpenHelp && canHelp) setHelpOpen(true);
   }, [autoOpenHelp, canHelp]);
@@ -118,7 +117,7 @@ export default function LangExtraSelector({ lang, side, handleLangChange, commun
   // "Ayúdame a decidir": for languages with territory help, about the
   // territories the selector offers
   const dialectLabel = (code) => t.tr(sides.dialects.find((d) => d.code === code)?.label) || code;
-  const helpZones = (TERRITORY_HELP[variantSelector.prefix] || []).filter((zone) =>
+  const helpZones = (variantSelector.territoryHelp || []).filter((zone) =>
     sides.dialects.some((d) => d.code === zone.code)
   );
   const helpAction = helpZones.length

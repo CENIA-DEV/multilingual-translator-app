@@ -25,6 +25,7 @@ data but do not see the editor. The rule lives in one place,
 | Translator cards | Tarjetas y textos | left/right illustration, fit, position, opacity, tint-to-brand; default source/target language |
 | Translator texts | Tarjetas y textos | input placeholder (global and per source language), feedback prompt, entry notice (on/off, rich text), "restricted access" and "maintenance" dialogs |
 | Languages | Idiomas y funciones | which catalog languages the selector offers (search, bulk show/hide), renames, custom languages/dialects, the translator's own language codes, the variant selectors: territory (Nagche, Williche, ...) and alphabet/graphemary, with the alphabets each territory uses, and the code of the language without variants that the source side offers (prefix, labels, options) |
+| Territory help | Ayúdame a decidir | the popup next to the territory selector: one card per territory (territory, icon, what its name means, where it lies, its comunas for the search) and the popup's texts (title, intro, search, buttons), which fall back to the built-in ones when left empty |
 | Voice & words | Idiomas y funciones | TTS, ASR (dictation + audio upload) and word information: on/off and which languages |
 | Access pages | Páginas de acceso | login, forms (request access, password, invitation) and profile images; tint-to-brand |
 | Landing structure | Idiomas y secciones | page languages (add/remove/rename/default), section order (drag), visibility, tone (light / soft / dark) |
