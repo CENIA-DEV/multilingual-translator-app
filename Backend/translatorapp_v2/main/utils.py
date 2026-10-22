@@ -59,10 +59,11 @@ def cache_langs(lang):
 
 def filter_cache(src_codes, dst_codes, cache_results):
     # the newest pair between these languages (see cache_langs), and its text
-    # on the side in the requested dst language
+    # on the side in the requested dst language (`answer`: the pair's dst-side
+    # text, annotated by TranslateViewSet.get_queryset)
     for result in cache_results:  # from newest to oldest
         if result.src_lang.code in src_codes and result.dst_lang.code in dst_codes:
-            return result.dst_text, result
+            return result.answer, result
         if result.src_lang.code in dst_codes and result.dst_lang.code in src_codes:
             return result.src_text, result
 

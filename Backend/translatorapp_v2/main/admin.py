@@ -21,4 +21,10 @@ admin.site.register(TranslationPair)
 admin.site.register(Word)
 admin.site.register(Definition)
 admin.site.register(WordInformation)
-admin.site.register(Profile)
+
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "role", "trusted_feedback", "date_joined")
+    list_filter = ("role", "trusted_feedback")
+    search_fields = ("user__username", "user__email")
