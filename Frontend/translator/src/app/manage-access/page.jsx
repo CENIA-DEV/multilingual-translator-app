@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -98,6 +99,43 @@ const getApiErrorMessage = (error, fallback) => {
   return fallback;
 };
 
+/**
+ * Whether a user's suggestions answer from the translation cache right away
+ * (auto-accepted) or wait for an administrator to validate them. The same for
+ * every role: an administrator's suggestions wait too unless it's on, and an
+ * administrator may switch it for anyone, themselves included.
+ */
+function TrustedFeedbackSwitch({ user, disabled, onChange }) {
+  const name = user.first_name || user.email;
+  const checked = Boolean(user.profile?.trusted_feedback);
+  const hint = checked
+    ? `Las sugerencias de ${name} entran al traductor sin esperar revisión`
+    : `Las sugerencias de ${name} entran al traductor cuando un administrador las valida`;
+  const id = `trusted-feedback-${user.id}`;
+  return (
+    <div className="flex items-center gap-2 rounded-md px-2 py-1" title={hint}>
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={disabled || !user.profile}
+        onCheckedChange={onChange}
+        aria-label={`Auto-aceptar sugerencias de ${name}`}
+        className="data-[state=checked]:bg-emerald-600"
+      />
+      <label htmlFor={id} className="leading-tight cursor-pointer">
+        <span className="block text-xs font-medium text-gray-700">
+          Auto-aceptar sugerencias
+        </span>
+        <span
+          className={`block text-xs ${checked ? "text-emerald-700" : "text-gray-500"}`}
+        >
+          {checked ? "Activado: Directas al traductor" : "Desactivado: Requieren revisión"}
+        </span>
+      </label>
+    </div>
+  );
+}
+
 export default function Manageaccess() {
 
   const roles = ROLES;
@@ -119,6 +157,8 @@ export default function Manageaccess() {
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
   const [userOptions, setUserOptions] = useState([]);
+  // the user whose trusted-suggestions switch is being saved
+  const [trustBusyId, setTrustBusyId] = useState(null);
 
   const [menuState, setMenuState] = useState(false);
 
@@ -315,6 +355,38 @@ export default function Manageaccess() {
     }
   };
 
+  const handleTrustedChange = async (user, trusted) => {
+    const name = user.first_name || user.email;
+    try {
+      setTrustBusyId(user.id);
+      const res = await api.patch(
+        `${API_ENDPOINTS.USERS}${user.id}/update_trusted_feedback/`,
+        { trusted_feedback: trusted }
+      );
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id ? { ...u, profile: res.data.profile } : u
+        )
+      );
+      toast({
+        title: trusted
+          ? "Auto-aceptar sugerencias activado"
+          : "Auto-aceptar sugerencias desactivado",
+        description: trusted
+          ? `Las sugerencias de ${name} entrarán al traductor directamente`
+          : `Las sugerencias de ${name} esperarán la revisión de un administrador`,
+      });
+    } catch (error) {
+      toast({
+        title: "No se pudo cambiar Auto-aceptar sugerencias",
+        description: getApiErrorMessage(error, "Inténtalo nuevamente."),
+        variant: "destructive",
+      });
+    } finally {
+      setTrustBusyId(null);
+    }
+  };
+
   const handleInvitationRoleChange = async (invitationId, newRole) => {
     try {
       const res = await api.patch(
@@ -464,6 +536,13 @@ export default function Manageaccess() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
+                          <TrustedFeedbackSwitch
+                            user={user}
+                            disabled={trustBusyId === user.id}
+                            onChange={(trusted) =>
+                              handleTrustedChange(user, trusted)
+                            }
+                          />
                           <Select
                             onValueChange={(newRole) =>
                               handleUserRoleChange(user.id, newRole)

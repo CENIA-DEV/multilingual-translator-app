@@ -202,3 +202,37 @@ def test_variant_source_code_is_a_language_code_or_empty():
     validate_config(document)
     document["languages"]["variantSelector"]["sourceCode"] = "not a code"
     assert errors_for(document)
+
+
+def test_territory_help_cards_are_validated():
+    document = load_preset("arn")
+    cards = document["languages"]["variantSelector"]["territoryHelp"]
+    assert [card["code"] for card in cards] == [
+        "lafkenche",
+        "nagche",
+        "wenteche",
+        "pewenche",
+        "williche",
+    ]
+    cards[0]["icon"] = "../../etc/passwd"
+    cards[1]["colour"] = "red"
+    errors = errors_for(document)
+    assert "languages.variantSelector.territoryHelp.0.icon" in errors
+    assert (
+        errors["languages.variantSelector.territoryHelp.1.colour"]
+        == "Campo desconocido"
+    )
+
+
+def test_documents_without_territory_help_keep_falling_back_to_the_preset():
+    """Saved before it was editable: re-saving, publishing or restoring such a
+    document must not store an empty list, which would hide the preset's."""
+    document = load_preset("arn")
+    del document["languages"]["variantSelector"]["territoryHelp"]
+    cleaned = validate_config(document)
+    assert "territoryHelp" not in cleaned["languages"]["variantSelector"]
+
+    # an empty list is a choice (no help at all), and is kept
+    document["languages"]["variantSelector"]["territoryHelp"] = []
+    cleaned = validate_config(document)
+    assert cleaned["languages"]["variantSelector"]["territoryHelp"] == []

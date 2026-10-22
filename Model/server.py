@@ -4,12 +4,19 @@ import logging
 
 import numpy as np
 from dotenv import load_dotenv
-from model import MadLadWrapper, ModelWrapper, NLLBModelWrapper
+from model import MadLadCT2Wrapper, MadLadWrapper, ModelWrapper, NLLBModelWrapper
 from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig, TritonLifecyclePolicy
 
 load_dotenv()
+
+# `madlad-ct2` is MADLAD on CTranslate2 (a model made by convert_madlad_ct2.py)
+MODEL_CLASSES = {
+    "nllb": NLLBModelWrapper,
+    "madlad": MadLadWrapper,
+    "madlad-ct2": MadLadCT2Wrapper,
+}
 
 # Optional inputs naming a language variant's territory and alphabet, sent by the
 # backend only for languages that have them (arn_Latn + "nagche" + "raguileo")
@@ -113,7 +120,7 @@ def _infer_function_factory(
         # TO DO: CHECK IF MODEL NAME IN FOLDER PATH
 
         logger.info(f"Model type: {model_type}")
-        model_cls = NLLBModelWrapper if model_type == "nllb" else MadLadWrapper
+        model_cls = MODEL_CLASSES[model_type]
         model = model_cls(
             folder_path,
             logger=logger,
@@ -177,7 +184,7 @@ def _parse_args():
         "-t",
         type=str,
         default="nllb",
-        choices=["nllb", "madlad"],
+        choices=list(MODEL_CLASSES),
     )
     parser.add_argument(
         "--max-new-tokens",

@@ -41,7 +41,6 @@ import { useAccess } from '@/customization/access';
 import { useConfig, useIsPreview } from '@/customization/ConfigProvider';
 import { matchesPrefix, prefixOf, useLanguageSides, variantParts } from '@/customization/languages';
 import RichText from '@/customization/RichText';
-import { TERRITORY_HELP } from '@/customization/territoryHelper';
 import { useT } from '@/customization/useT';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -148,7 +147,7 @@ export default function Translator() {
   // decidir" first; the notice follows once it is closed. Without it, the
   // notice shows right away, as before.
   const [helpFirst, setHelpFirst] = useState(() =>
-    Boolean(TERRITORY_HELP[config.languages.variantSelector.prefix]) &&
+    (config.languages.variantSelector.territoryHelp || []).length > 0 &&
     (sides.showsVariants(srcLang) || sides.showsVariants(dstLang))
   );
   const [showDevModal, setShowDevModal] = useState(texts.notice.enabled && !helpFirst);
@@ -539,13 +538,15 @@ export default function Translator() {
     
     // Give a notification if fetching takes longer than 3 seconds
     const timeoutId = setTimeout(() => {
-      toast(t('tts.loading'), { duration: 20000 });
+      toast(t('tts.loading'), { id: 'tts-loading', duration: 20000 });
     }, 3000);
 
     try {
       await handleSpeakBase({ text, lang, gender });
     } finally {
       clearTimeout(timeoutId);
+      // the audio is in (or failed): the notice has nothing left to say
+      toast.dismiss('tts-loading');
     }
   }
 
@@ -564,7 +565,7 @@ export default function Translator() {
     setLoadingState(true);
     const startTime = performance.now();
     let timeoutId = setTimeout(() => {
-      toast(t('translator.slow'), { duration: 20000 });
+      toast(t('translator.slow'), { id: 'translation-slow', duration: 20000 });
     }, slowTranslationMs(srcText));
 
     try {
@@ -594,6 +595,8 @@ export default function Translator() {
         toast(t('common.error'), { description: t('translator.retry') });
       }
     } finally {
+      // the translation is in (or failed): stop saying it's taking long
+      toast.dismiss('translation-slow');
       setLoadingState(false);
     }
   }

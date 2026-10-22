@@ -21,6 +21,7 @@ import { CATALOG } from "../languages"
 import { mix, paletteFrom } from "../theme"
 import { DISPLAY_FONTS, TEXT_FONTS } from "../fonts"
 import { translate } from "../i18n"
+import { TERRITORY_ICONS } from "../territoryHelper"
 import {
   Callout,
   CodesField,
@@ -40,6 +41,7 @@ import {
   SliderField,
   TextField,
   ToggleField,
+  UiTextField,
   inputBase,
   inputClass,
   useEditor,
@@ -796,5 +798,111 @@ export function AuthPagesSection() {
         fit="cover"
       />
     </Panel>
+  )
+}
+
+// ------------------------------------------------------- territory helper
+/** The picture of a territory, painted like in the popup (the file is a mask). */
+function TerritoryIconPreview({ icon }) {
+  const url = `url(/images/territories/${icon}.svg)`
+  return (
+    <span
+      aria-hidden
+      className="block h-6 w-6 shrink-0 bg-slate-600"
+      style={{ WebkitMask: `${url} center / contain no-repeat`, mask: `${url} center / contain no-repeat` }}
+    />
+  )
+}
+
+/** "Ayúdame a decidir": the popup next to the territory selector. */
+export function TerritoryHelpSection() {
+  const { doc } = useEditor()
+  const variant = doc.languages.variantSelector
+  const dialects = variant.dialects || []
+  const cards = variant.territoryHelp || []
+  const dialectName = (code) => {
+    const dialect = dialects.find((d) => d.code === code)
+    return dialect ? translate(dialect.label, "es") || code : code
+  }
+  return (
+    <>
+      {(!variant.enabled || dialects.length === 0) && (
+        <Callout tone="warn">
+          La ventana aparece junto al selector de territorio, que se configura en «Idiomas y funciones» (Selector de
+          variantes). Mientras no haya territorios, no se muestra.
+        </Callout>
+      )}
+      <Panel
+        title="Territorios"
+        description="Una tarjeta por territorio: qué significa su nombre, dónde está y sus comunas, que la búsqueda usa para sugerir el territorio. Solo se muestran los territorios que ofrece el selector."
+      >
+        <ListField
+          path="languages.variantSelector.territoryHelp"
+          label="Tarjetas"
+          summary={(item) =>
+            `${dialectName(item.code) || "Sin territorio"} — ${(item.comunas || []).length} ${
+              (item.comunas || []).length === 1 ? "comuna" : "comunas"
+            }`
+          }
+          thumbnail={(item) => <TerritoryIconPreview icon={item.icon} />}
+          newItem={() => {
+            const free = dialects.find((d) => !cards.some((card) => card.code === d.code))
+            return { code: free?.code || "", icon: TERRITORY_ICONS[0].code, meaning: {}, where: {}, comunas: [] }
+          }}
+          addLabel="Agregar territorio"
+          max={20}
+          renderItem={(path) => (
+            <>
+              <Grid>
+                <SelectField
+                  path={`${path}.code`}
+                  label="Territorio"
+                  options={[
+                    { value: "", label: "Elige un territorio" },
+                    ...dialects.map((d) => ({ value: d.code, label: `${dialectName(d.code)} — ${d.code}` })),
+                  ]}
+                />
+                <SelectField
+                  path={`${path}.icon`}
+                  label="Ícono"
+                  options={TERRITORY_ICONS.map((icon) => ({ value: icon.code, label: icon.label }))}
+                />
+              </Grid>
+              <I18nField path={`${path}.meaning`} label="Qué significa el nombre" placeholder="Gente que vive cerca del mar" />
+              <I18nField
+                path={`${path}.where`}
+                label="Dónde está (opcional)"
+                hint="Se muestra bajo el significado en pantallas medianas y grandes."
+              />
+              <LinesField
+                path={`${path}.comunas`}
+                label="Comunas"
+                hint="Una por línea. La búsqueda no distingue tildes ni mayúsculas; agrega otras formas de escribir un nombre (Cholchol, Chol Chol) en líneas aparte."
+                rows={8}
+              />
+            </>
+          )}
+        />
+      </Panel>
+
+      <Panel
+        title="Textos de la ventana"
+        description="Vacío: se usa el texto predeterminado, que aparece en gris. Lo que escribas reemplaza el predeterminado en ese idioma."
+      >
+        <UiTextField uiKey="territoryHelp.open" label="Opción en el selector de territorio" />
+        <UiTextField uiKey="territoryHelp.title" label="Título" />
+        <UiTextField uiKey="territoryHelp.intro" label="Introducción" multiline rows={3} />
+        <UiTextField uiKey="territoryHelp.search" label="Pregunta de la búsqueda" />
+        <UiTextField uiKey="territoryHelp.searchHint" label="Ejemplo en el buscador" />
+        <UiTextField uiKey="territoryHelp.notFound" label="Comuna no encontrada" />
+        <UiTextField
+          uiKey="territoryHelp.belongs"
+          label="Comuna encontrada"
+          hint="{place} se reemplaza por la comuna y {territory} por el territorio."
+        />
+        <UiTextField uiKey="territoryHelp.use" label="Botón para usar el territorio" hint="{territory} se reemplaza por el territorio." />
+        <UiTextField uiKey="territoryHelp.pick" label="Botón sin territorio elegido" />
+      </Panel>
+    </>
   )
 }

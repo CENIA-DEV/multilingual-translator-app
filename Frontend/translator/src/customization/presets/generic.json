@@ -95,7 +95,8 @@
       "label": "Grafemario",
       "options": [],
       "dialectLabel": "Variante territorial",
-      "dialects": []
+      "dialects": [],
+      "territoryHelp": []
     }
   },
   "features": {
