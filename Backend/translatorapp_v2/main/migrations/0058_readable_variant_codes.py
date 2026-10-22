@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Readable codes for Mapuzugun's alphabets and territories.
+"""Readable codes for Mapuzungun's alphabets and territories.
 
 arn_r0_nag (alphabet r0, territory nag) becomes arn_raguileo_nagche, and the
 alphabet and territory rows take the same names, which is also what the model

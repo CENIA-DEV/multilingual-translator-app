@@ -98,7 +98,7 @@ def test_partial_update_accepts_nested_script_and_dialect():
     serializer = LanguageSerializer(
         lang,
         data={
-            "name": "Mapuzugun",
+            "name": "Mapuzungun",
             "script": {"code": "a0", "name": "Azümchefe"},
             "dialect": {"code": "n", "name": "Nguluche"},
         },
@@ -108,7 +108,7 @@ def test_partial_update_accepts_nested_script_and_dialect():
     serializer.save()
 
     lang.refresh_from_db()
-    assert lang.name == "Mapuzugun"
+    assert lang.name == "Mapuzungun"
     assert lang.script.code == "a0"
     assert lang.dialect.code == "n"
     assert Dialect.objects.filter(code="n").count() == 1

@@ -91,7 +91,7 @@ def model_language(code):
     """
     How the model is told a language: the code it gets and the extra inputs.
 
-    A language whose variants differ by territory or alphabet (Mapuzugun:
+    A language whose variants differ by territory or alphabet (Mapuzungun:
     arn_raguileo_nagche) goes as its base language's code (arn_Latn) plus the
     territory ("nagche") and the alphabet ("raguileo") as inputs of their own,
     each only when the variant has it (arn_Latn itself has neither). Every
@@ -689,7 +689,7 @@ def send_invite_email(invited_by_user, user_email, invitation_token):
 
     email_without_domain = user_email.partition("@")[0].strip()
     name = email_without_domain[0].upper() + email_without_domain[1:]
-    lang_name = "Rapa Nui" if settings.VARIANT == "rap" else "Mapuzugun"
+    lang_name = "Rapa Nui" if settings.VARIANT == "rap" else "Mapuzungun"
     # Define the context variables
     context = {
         "name": name,

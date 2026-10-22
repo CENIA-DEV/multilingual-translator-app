@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Migration 0060 creates the Mapuzugun variants the translator offers where
+"""Migration 0060 creates the Mapuzungun variants the translator offers where
 they are missing (a database that only had the Nguluche rows), so the backend
 accepts them and sends their territory and alphabet to the model."""
 import importlib
@@ -31,7 +31,7 @@ def inputs_of(payload):
 
 @pytest.fixture
 def nguluche_only():
-    """A Mapuzugun database as staging had it: only the Nguluche rows."""
+    """A Mapuzungun database as staging had it: only the Nguluche rows."""
     alphabet = Script.objects.create(code="azumchefe", name="Azümchefe")
     nguluche = Dialect.objects.create(code="n", name="Nguluche")
     Lang.objects.create(
@@ -69,7 +69,7 @@ def test_creates_only_what_is_missing(nguluche_only):
 
 
 @pytest.mark.django_db
-def test_leaves_a_database_without_mapuzugun_alone():
+def test_leaves_a_database_without_mapuzungun_alone():
     Lang.objects.create(code="rap_Latn", name="Rapa Nui", is_native=True)
     migration.forward(django_apps, None)
     assert not Lang.objects.filter(code__startswith="arn_").exists()

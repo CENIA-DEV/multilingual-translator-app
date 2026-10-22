@@ -14,7 +14,7 @@
 
 // Fixed texts of the translator app (menu, translator, feedback, voice), in
 // the languages every deployment shares. The texts of the translator's own
-// language (mapuzugun, rapa nui, ...) belong to the customization document:
+// language (mapuzungun, rapa nui, ...) belong to the customization document:
 // its `ui` map has the same keys and is laid over these, so a deployment can
 // translate or reword any of them without touching code. A text missing in
 // the visitor's language falls back to the site's default language (Spanish).
@@ -217,8 +217,8 @@ const MESSAGES = {
   "territoryHelp.open": { es: "Ayúdame a decidir", en: "Help me decide" },
   "territoryHelp.title": { es: "¿De qué territorio eres?", en: "Which territory are you from?" },
   "territoryHelp.intro": {
-    es: "El mapuzugun se habla distinto en cada territorio. Selecciona el territorio donde vives o de donde viene tu familia.",
-    en: "Mapuzugun is spoken differently in each territory. Select the territory where you live or where your family comes from.",
+    es: "El mapuzungun se habla distinto en cada territorio. Selecciona el territorio donde vives o de donde viene tu familia.",
+    en: "Mapuzungun is spoken differently in each territory. Select the territory where you live or where your family comes from.",
   },
   "territoryHelp.search": { es: "¿De qué comuna provienes?", en: "Which comuna are you from?" },
   "territoryHelp.searchHint": { es: "Por ejemplo: Carahue, Temuco, Osorno…", en: "For example: Carahue, Temuco, Osorno…" },

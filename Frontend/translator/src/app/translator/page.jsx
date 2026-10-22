@@ -57,7 +57,7 @@ import { useASR } from '../../hooks/useASR';
 import { getLanguages, translateText, submitPositiveFeedback } from '../services/translationService';
 
 // When to say a translation is slow. A normal one takes up to ~11 s on the
-// slowest model (p95 of the Mapuzugun model's inference time, Oct 2026), and
+// slowest model (p95 of the Mapuzungun model's inference time, Oct 2026), and
 // long texts take longer, so warn only past that: 12 s, plus 0.15 s per word
 // beyond the first 30.
 function slowTranslationMs(text) {
@@ -68,7 +68,7 @@ function slowTranslationMs(text) {
 export default function Translator() {
 
   const config = useConfig();
-  // A language with variants (Mapuzugun) is offered once on the source side;
+  // A language with variants (Mapuzungun) is offered once on the source side;
   // the target side always holds a territory + alphabet (see useLanguageSides)
   const sides = useLanguageSides();
   const { features, translator: texts } = config;
@@ -144,7 +144,7 @@ export default function Translator() {
   const [copyReady, setCopyReady] = useState(false);
   const [suppressNextAutoTranslate, setSuppressNextAutoTranslate] = useState(false);
 
-  // On arrival, a language with territory help (Mapuzugun) opens "Ayúdame a
+  // On arrival, a language with territory help (Mapuzungun) opens "Ayúdame a
   // decidir" first; the notice follows once it is closed. Without it, the
   // notice shows right away, as before.
   const [helpFirst, setHelpFirst] = useState(() =>
@@ -899,7 +899,7 @@ export default function Translator() {
 
           {/* RIGHT: Mic + compact review next to it (bottom-right of white card).
               On phones this is a bar fixed to the bottom of the screen, so it is
-              left out entirely where the site has no voice input (Mapuzugun). */}
+              left out entirely where the site has no voice input (Mapuzungun). */}
             {ASR_MIC_VISIBLE_D && (
             <div className=" absolute right-4 bottom-4 z-[40] flex items-center gap-2 max-[850px]:fixed max-[850px]:inset-x-0 max-[850px]:bottom-0 max-[850px]:justify-center max-[850px]:gap-4 max-[850px]:bg-[#f3f4f6] max-[850px]:py-3 max-[850px]:px-6 max-[850px]:rounded-tl-[2rem] max-[850px]:rounded-tr-[2rem] max-[850px]:border-t max-[850px]:border-slate-200 max-[850px]:shadow-[0_-8px_24px_rgba(0,0,0,0.08)] max-[850px]:pb-[env(safe-area-inset-bottom)]">
             

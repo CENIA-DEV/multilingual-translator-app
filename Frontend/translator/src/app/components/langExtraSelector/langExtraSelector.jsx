@@ -91,7 +91,7 @@ function PillSelect({ id, value, onValueChange, options, action }) {
 }
 
 // Territory ("Variante territorial") and alphabet ("Grafemario") of a language
-// whose codes encode both, e.g. arn_azumchefe_nagche: Mapuzugun, Nagche territory, in
+// whose codes encode both, e.g. arn_azumchefe_nagche: Mapuzungun, Nagche territory, in
 // the Azümchefe alphabet. Each territory lists the alphabets it uses (Williche:
 // Cacicado and Rumian). The language prefix, labels, territories and alphabets
 // come from "Idiomas y funciones" in Administrar Traductor.

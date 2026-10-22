@@ -469,7 +469,7 @@ class TranslationRequest(models.Model):
 class Word(models.Model):
     text = models.CharField(max_length=100, unique=True, db_index=True)
     # The territories and alphabets the word belongs to, for languages with
-    # variants (Mapuzugun); none means it isn't labelled
+    # variants (Mapuzungun); none means it isn't labelled
     dialects = models.ManyToManyField(Dialect, blank=True, related_name="words")
     scripts = models.ManyToManyField(Script, blank=True, related_name="words")
 

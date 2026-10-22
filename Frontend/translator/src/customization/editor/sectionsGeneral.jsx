@@ -646,7 +646,7 @@ export function LanguagesSection() {
 
       <Panel
         title="Selector de variantes"
-        description="Selectores de variante territorial y alfabeto (grafemario) sin salir del idioma, como en mapuzugun."
+        description="Selectores de variante territorial y alfabeto (grafemario) sin salir del idioma, como en mapuzungun."
       >
         <ToggleField path="languages.variantSelector.enabled" label="Mostrar el selector" />
         {variant.enabled && (

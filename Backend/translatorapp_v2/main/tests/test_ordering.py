@@ -32,7 +32,7 @@ def backdate(obj, days):
 @pytest.mark.django_db
 def test_languages_are_listed_by_name(api_client):  # noqa: F811
     Lang.objects.create(code="rap", name="Rapa Nui")
-    Lang.objects.create(code="arn", name="Mapuzugun")
+    Lang.objects.create(code="arn", name="Mapuzungun")
     Lang.objects.create(code="spa", name="Castellano")
 
     response = api_client.get("/api/languages/")
@@ -40,7 +40,7 @@ def test_languages_are_listed_by_name(api_client):  # noqa: F811
     assert response.status_code == 200
     assert [lang["name"] for lang in response.data] == [
         "Castellano",
-        "Mapuzugun",
+        "Mapuzungun",
         "Rapa Nui",
     ]
 

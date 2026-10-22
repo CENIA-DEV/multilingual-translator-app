@@ -1105,7 +1105,7 @@ export default function LandingPage() {
               onClick={() => trackEvent("cta_try_translator", { page: "about" })}
               style={{
                 display: "inline-block",
-                // its own colour (Mapuzugun: the translator's blue), else the accent
+                // its own colour (Mapuzungun: the translator's blue), else the accent
                 background: "var(--lp-cta, var(--lp-accent))",
                 color: "#ffffff",
                 fontWeight: 600,

@@ -30,7 +30,7 @@ def languages():
     williche = Dialect.objects.create(code="williche", name="Williche")
     Lang.objects.create(code="spa_Latn", script=latin, name="Español")
     Lang.objects.create(code="rap_Latn", name="Rapa Nui", is_native=True)
-    Lang.objects.create(code="arn_Latn", script=latin, name="Mapuzugun", is_native=True)
+    Lang.objects.create(code="arn_Latn", script=latin, name="Mapuzungun", is_native=True)
     Lang.objects.create(code="arn_raguileo_nagche", script=raguileo, dialect=nagche, name="Nagche Raguileo", is_native=True)
     Lang.objects.create(
         code="arn_cacicado-huilliche_williche", script=cacicado, dialect=williche, name="Williche Cacicado", is_native=True
