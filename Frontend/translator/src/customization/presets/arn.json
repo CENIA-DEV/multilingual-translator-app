@@ -739,62 +739,62 @@
           "lon": -72.5902
         },
         {
-          "name": "Visita al territorio",
+          "name": "Reigolil viejo (Curarrehue). Visita al territorio",
           "lat": -39.1177,
           "lon": -71.4746
         },
         {
-          "name": "Visita al territorio",
+          "name": "Pelantaro (Galvarino). Visita al territorio",
           "lat": -38.5232,
           "lon": -72.7621
         },
         {
-          "name": "Visita al territorio",
+          "name": "Ñielol (Galvarino). Visita al territorio",
           "lat": -38.4431,
           "lon": -72.6691
         },
         {
-          "name": "Chol Chol",
+          "name": "Chol-Chol. Visita al territorio",
           "lat": -38.6026,
           "lon": -72.8477
         },
         {
-          "name": "Visita al territorio",
+          "name": "Huamaqui (Chol-Chol). Visita al territorio",
           "lat": -38.4771,
           "lon": -72.99
         },
         {
-          "name": "Visita al territorio",
+          "name": "Carahue. Visita al territorio",
           "lat": -38.7116,
           "lon": -73.1652
         },
         {
-          "name": "Visita al territorio",
+          "name": "Imperialito (Carahue). Visita al territorio",
           "lat": -38.7176,
           "lon": -73.0803
         },
         {
-          "name": "Visita al territorio",
+          "name": "Maite (Curarrehue). Visita al territorio",
           "lat": -39.3104,
           "lon": -71.4551
         },
         {
-          "name": "Reunión online",
+          "name": "Galletúe (Lonquimay). Comunicación remota",
           "lat": -38.6941,
           "lon": -71.2631
         },
         {
-          "name": "Visita al territorio",
+          "name": "Icalma (Lonquimay). Visita al territorio",
           "lat": -38.8078,
           "lon": -71.281
         },
         {
-          "name": "Visita al territorio",
+          "name": "Lonquimay. Visita al territorio",
           "lat": -38.4541,
           "lon": -71.3706
         },
         {
-          "name": "Trabajo conjunto a la municipalidad",
+          "name": "Municipalidad de Puerto Saavedra",
           "lat": -38.7924,
           "lon": -73.3955
         },
@@ -804,7 +804,7 @@
           "lon": -72.7813
         },
         {
-          "name": "Lautaro",
+          "name": "DAEM Lautaro",
           "lat": -38.5343,
           "lon": -72.4351
         },
@@ -814,7 +814,7 @@
           "lon": -72.6669
         },
         {
-          "name": "Visita al territorio",
+          "name": "Comunidad Victoria (Traiguén). Visita al territorio",
           "lat": -38.2508,
           "lon": -72.6669
         },
@@ -822,6 +822,71 @@
           "name": "Trawupeyum - Aldea Intercultural",
           "lat": -39.3584,
           "lon": -71.5857
+        },
+        {
+          "name": "Museo Regional de la Araucanía",
+          "lat": -38.737259,
+          "lon": -72.602982
+        },
+        {
+          "name": "Comunidad Catrinao Bajo. Visita al territorio",
+          "lat": -38.377344,
+          "lon": -72.906625
+        },
+        {
+          "name": "Teodoro Schmidt. Visita al territorio",
+          "lat": -38.996745,
+          "lon": -73.089184
+        },
+        {
+          "name": "Lumaco. Visita al territorio",
+          "lat": -38.165324,
+          "lon": -72.906397
+        },
+        {
+          "name": "Temulemu (Traiguén). Visita al territorio",
+          "lat": -38.307865,
+          "lon": -72.822879
+        },
+        {
+          "name": "Comunidad mapuche warriache lautaro (Lautaro). Visita al territorio",
+          "lat": -38.5308,
+          "lon": -72.4357
+        },
+        {
+          "name": "Turismo Tripantu (Malalcahuello)",
+          "lat": -38.475169,
+          "lon": -71.58159
+        },
+        {
+          "name": "Defensoría Penal Mapuche",
+          "lat": -38.73413,
+          "lon": -72.589104
+        },
+        {
+          "name": "Sercotec Inakeyu",
+          "lat": -38.748681,
+          "lon": -72.949732
+        },
+        {
+          "name": "DAEM Lonquimay",
+          "lat": -38.452584,
+          "lon": -71.370583
+        },
+        {
+          "name": "CESFAM Boroa Filulawen",
+          "lat": -38.832846,
+          "lon": -72.885348
+        },
+        {
+          "name": "Escuela Misión Boroa",
+          "lat": -38.81119,
+          "lon": -72.879843
+        },
+        {
+          "name": "Instituto de la Lengua y Cultura Mapuche Aukiñ Mapu",
+          "lat": -38.412775,
+          "lon": -72.780626
         }
       ]
     },
@@ -1024,7 +1089,7 @@
             "Ximena del Carmen Montecinos Antiguay",
             "Álvaro Morales Marileo",
             "Patricio Caniullan",
-            "Mónica Lonconao obando",
+            "Mónica Lonconao Obando",
             "Marcela Lozano Riquelme",
             "Sebastián Oyarzo",
             "Mauricio Hernández",
