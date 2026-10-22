@@ -224,6 +224,18 @@ class Profile(models.Model):
     oral_proficiency = models.CharField(
         max_length=120, default="Non-Speaker", choices=ORAL_PROFICIENCY
     )
+    # On, the translations this user suggests answer from the translation
+    # cache as soon as they send them. Off, the default, they wait until a
+    # native admin validates them -- the rule every user followed before this
+    # field existed. Read at translation time, so turning it off takes their
+    # not-yet-validated suggestions out of the cache again.
+    trusted_feedback = models.BooleanField(
+        default=False,
+        help_text=(
+            "Suggestions from this user enter the translation cache without "
+            "waiting for validation"
+        ),
+    )
 
     def has_role(self, role):
         return self.role == role

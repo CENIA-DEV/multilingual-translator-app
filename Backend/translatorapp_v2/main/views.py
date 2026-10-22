@@ -23,7 +23,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Q
+from django.db.models import Case, F, Q, When
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
@@ -43,6 +43,7 @@ from .models import (
     InvitationToken,
     Lang,
     PasswordResetToken,
+    Profile,
     RequestAccess,
     SpeechToTextAudio,
     TextToSpeechAudio,
@@ -179,6 +180,27 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
         # if everything goes well serializer data will have the deserialized obejct
         return Response(serializer.data)
+
+    @action(detail=True, methods=["patch"])
+    def update_trusted_feedback(self, request, pk):
+        """Turn on or off whether the user's suggestions answer from the
+        translation cache without waiting for validation."""
+        user = self.get_object()
+        trusted = request.data.get("trusted_feedback")
+        if not isinstance(trusted, bool):
+            return Response(
+                {"trusted_feedback": "Debe ser verdadero o falso."},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        profile = Profile.objects.filter(user=user).first()
+        if profile is None:
+            return Response(
+                {"detail": "El usuario no tiene perfil."},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        profile.trusted_feedback = trusted
+        profile.save(update_fields=["trusted_feedback"])
+        return Response(self.get_serializer(user).data)
 
     @action(detail=False, methods=["post"])
     def create_by_invitation(self, request):
@@ -788,13 +810,25 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     serializer_class = TranslationPairSerializer
 
     def get_queryset(self, src_codes=None, dst_codes=None, src_text=None):
-        # validated pairs between these languages (cache, see cache_langs), in
-        # either direction, whose text in the requested source language is
-        # src_text. Matching only one side's language let a pair of another
-        # variant (spa -> arn_raguileo_nagche when asking for spa ->
-        # arn_raguileo_pewenche) answer with its source text, the input back
+        # cache pairs between these languages (see cache_langs), in either
+        # direction, whose text in the requested source language is src_text.
+        # Matching only one side's language let a pair of another variant
+        # (spa -> arn_raguileo_nagche when asking for spa ->
+        # arn_raguileo_pewenche) answer with its source text, the input back.
+        # `answer` is the pair's dst-side text: dst_text once validated, the
+        # user's correction (`suggestion`) while it waits for validation
         results = (
-            TranslationPair.objects.filter(correct=True, validated=True)
+            TranslationPair.objects.filter(self.cache_pairs())
+            .annotate(
+                answer=Case(
+                    When(validated=True, then=F("dst_text")),
+                    When(
+                        Q(suggestion__isnull=False) & ~Q(suggestion=""),
+                        then=F("suggestion"),
+                    ),
+                    default=F("dst_text"),
+                )
+            )
             .filter(
                 Q(
                     src_lang__code__in=src_codes,
@@ -804,13 +838,40 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 | Q(
                     src_lang__code__in=dst_codes,
                     dst_lang__code__in=src_codes,
-                    dst_text__iexact=src_text,
+                    answer__iexact=src_text,
                 )
             )
             .select_related("src_lang", "dst_lang")
             .order_by("-created_at", "-id")
         )
         return [s for s in results]
+
+    @staticmethod
+    def cache_pairs():
+        """The pairs that answer from the cache.
+
+        Validated correct pairs always do. So does the feedback of an active
+        user currently trusted (Profile.trusted_feedback) while it waits for
+        validation, as long as it says something: a confirmed translation, or
+        a correction that differs from the model's output. A thumbs-down sent
+        without changing the text and "no sé" (is_uncertain) are not used, and
+        a reviewer's rejection (validated, not correct) takes the pair out.
+        """
+        says_something = Q(feedback=True) | (
+            Q(suggestion__isnull=False)
+            & ~Q(suggestion="")
+            & ~Q(suggestion=F("dst_text"))
+        )
+        trusted = (
+            Q(
+                validated=False,
+                user__is_active=True,
+                user__profile__trusted_feedback=True,
+            )
+            & ~Q(is_uncertain=True)
+            & says_something
+        )
+        return Q(correct=True, validated=True) | trusted
 
     def create(self, request):
         logger.info(f"Received translation request: {request.data}")
