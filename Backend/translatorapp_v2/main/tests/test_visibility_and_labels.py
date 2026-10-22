@@ -33,7 +33,7 @@ unknown_territory = importlib.import_module("main.migrations.0061_unknown_territ
 
 
 @pytest.fixture
-def mapuzungun(create_languages):
+def mapuzugun(create_languages):
     latin = Script.objects.get(code="Latn")
     azumchefe = Script.objects.create(code="azumchefe", name="Azümchefe")
     raguileo = Script.objects.create(code="raguileo", name="Raguileo")
@@ -42,7 +42,7 @@ def mapuzungun(create_languages):
     return {
         "spa": Lang.objects.get(code="spa_Latn"),
         "rap": Lang.objects.get(code="rap_Latn"),
-        "base": Lang.objects.create(code="arn_Latn", script=latin, name="Mapuzungun", is_native=True),
+        "base": Lang.objects.create(code="arn_Latn", script=latin, name="Mapuzugun", is_native=True),
         "legacy": Lang.objects.create(code="arn_a0_n", script=azumchefe, dialect=nguluche, name="Nguluche Azümchefe", is_native=True),
         "nagche": Lang.objects.create(code="arn_raguileo_nagche", script=raguileo, dialect=nagche, name="Nagche Raguileo", is_native=True),
     }
@@ -64,8 +64,8 @@ def publish_access(**rules):
 
 # ----------------------------------------------- feedback from before selectors
 @pytest.mark.django_db
-def test_feedback_from_before_the_selector_keeps_its_alphabet_with_no_territory(mapuzungun):
-    feedback = pair(mapuzungun["spa"], mapuzungun["legacy"], feedback=False)
+def test_feedback_from_before_the_selector_keeps_its_alphabet_with_no_territory(mapuzugun):
+    feedback = pair(mapuzugun["spa"], mapuzugun["legacy"], feedback=False)
     unknown_territory.forward(apps, None)
     feedback.refresh_from_db()
     assert feedback.dst_lang.code == "arn_azumchefe"
@@ -74,9 +74,9 @@ def test_feedback_from_before_the_selector_keeps_its_alphabet_with_no_territory(
 
 
 @pytest.mark.django_db
-def test_when_the_new_code_exists_the_feedback_moves_to_it(mapuzungun):
+def test_when_the_new_code_exists_the_feedback_moves_to_it(mapuzugun):
     target = Lang.objects.create(code="arn_azumchefe", script=Script.objects.get(code="azumchefe"), name="Azümchefe")
-    feedback = pair(mapuzungun["spa"], mapuzungun["legacy"])
+    feedback = pair(mapuzugun["spa"], mapuzugun["legacy"])
     unknown_territory.forward(apps, None)
     feedback.refresh_from_db()
     assert feedback.dst_lang_id == target.id
@@ -84,10 +84,10 @@ def test_when_the_new_code_exists_the_feedback_moves_to_it(mapuzungun):
 
 
 @pytest.mark.django_db
-def test_explore_data_lists_every_code_of_the_family(api_client, native_admin_auth, mapuzungun):
-    pair(mapuzungun["spa"], mapuzungun["legacy"])  # old code
-    pair(mapuzungun["nagche"], mapuzungun["spa"])  # new code, other direction
-    pair(mapuzungun["spa"], mapuzungun["rap"])  # another language
+def test_explore_data_lists_every_code_of_the_family(api_client, native_admin_auth, mapuzugun):
+    pair(mapuzugun["spa"], mapuzugun["legacy"])  # old code
+    pair(mapuzugun["nagche"], mapuzugun["spa"])  # new code, other direction
+    pair(mapuzugun["spa"], mapuzugun["rap"])  # another language
     response = api_client.get("/api/suggestions/", {"lang_prefix": "arn", "page_size": 50})
     assert response.status_code == 200
     rows = response.json().get("results", response.json())
@@ -98,8 +98,8 @@ def test_explore_data_lists_every_code_of_the_family(api_client, native_admin_au
 # --------------------------------------- administrators relabel a pair's variant
 @pytest.mark.django_db
 @pytest.mark.parametrize("reverse", [False, True])
-def test_an_administrator_sets_the_territory_and_commune(api_client, native_admin_auth, mapuzungun, reverse):
-    legacy, spa = mapuzungun["legacy"], mapuzungun["spa"]
+def test_an_administrator_sets_the_territory_and_commune(api_client, native_admin_auth, mapuzugun, reverse):
+    legacy, spa = mapuzugun["legacy"], mapuzugun["spa"]
     feedback = pair(legacy, spa) if reverse else pair(spa, legacy)
     response = api_client.patch(
         f"/api/suggestions/{feedback.id}/relabel/", {"lang": "arn_raguileo_nagche", "commune": " Purén "}, format="json"
@@ -112,15 +112,15 @@ def test_an_administrator_sets_the_territory_and_commune(api_client, native_admi
 
 
 @pytest.mark.django_db
-def test_relabel_only_within_the_same_language(api_client, native_admin_auth, mapuzungun):
-    feedback = pair(mapuzungun["spa"], mapuzungun["rap"])
+def test_relabel_only_within_the_same_language(api_client, native_admin_auth, mapuzugun):
+    feedback = pair(mapuzugun["spa"], mapuzugun["rap"])
     response = api_client.patch(f"/api/suggestions/{feedback.id}/relabel/", {"lang": "arn_raguileo_nagche"}, format="json")
     assert response.status_code == 400
 
 
 @pytest.mark.django_db
-def test_relabel_is_for_administrators(api_client, user_auth, mapuzungun):
-    feedback = pair(mapuzungun["spa"], mapuzungun["legacy"])
+def test_relabel_is_for_administrators(api_client, user_auth, mapuzugun):
+    feedback = pair(mapuzugun["spa"], mapuzugun["legacy"])
     response = api_client.patch(f"/api/suggestions/{feedback.id}/relabel/", {"lang": "arn_raguileo_nagche"}, format="json")
     assert response.status_code in (401, 403)
 
@@ -211,7 +211,7 @@ def test_rejected_rules_fall_back_to_defaults(api_client):
 
 # ------------------------------------------------------------------ word labels
 @pytest.mark.django_db
-def test_a_word_is_labelled_with_territories_and_alphabets(api_client, native_admin_auth, mapuzungun):
+def test_a_word_is_labelled_with_territories_and_alphabets(api_client, native_admin_auth, mapuzugun):
     Dialect.objects.create(code="lafkenche", name="Lafkenche")
     response = api_client.post(
         "/api/words/", {"text": "ruka", "territories": ["nagche", "lafkenche"], "writings": ["raguileo"]}, format="json"
@@ -225,14 +225,14 @@ def test_a_word_is_labelled_with_territories_and_alphabets(api_client, native_ad
 
 
 @pytest.mark.django_db
-def test_an_unknown_label_is_refused(api_client, native_admin_auth, mapuzungun):
+def test_an_unknown_label_is_refused(api_client, native_admin_auth, mapuzugun):
     response = api_client.post("/api/words/", {"text": "ruka", "territories": ["atlantis"]}, format="json")
     assert response.status_code == 400
 
 
 # ------------------------------------- explanations follow the text's variant
 @pytest.fixture
-def labelled_words(mapuzungun):
+def labelled_words(mapuzugun):
     azumchefe, raguileo = Script.objects.get(code="azumchefe"), Script.objects.get(code="raguileo")
     pewenche = Dialect.objects.create(code="pewenche", name="Pewenche")
     Lang.objects.create(code="arn_raguileo_pewenche", script=raguileo, dialect=pewenche, name="Pewenche Raguileo")

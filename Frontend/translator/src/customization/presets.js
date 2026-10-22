@@ -24,7 +24,7 @@ export const PRESETS = { rap, arn, generic }
 
 export const PRESET_LABELS = {
   rap: "Rapa Nui (traductor rapa nui - español)",
-  arn: "Mapuzungun (traductor mapuzungun - español)",
+  arn: "Mapuzugun (traductor mapuzugun - español)",
   generic: "Plantilla neutra para un idioma nuevo",
 }
 

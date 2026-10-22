@@ -1,6 +1,6 @@
 # Administrar Traductor — per-translator customization
 
-Everything that used to differ between the Rapa Nui (`rap`) and Mapuzungun (`arn`)
+Everything that used to differ between the Rapa Nui (`rap`) and Mapuzugun (`arn`)
 builds (names, colours, images, texts, languages, voice features, the whole landing
 page) is now one JSON document that the technical team edits from the site itself,
 at **/manage-translator** ("Administrar Traductor" in the menu). The same build can
@@ -30,7 +30,7 @@ data but do not see the editor. The rule lives in one place,
 | Landing structure | Idiomas y secciones | page languages (add/remove/rename/default), section order (drag), visibility, tone (light / soft / dark) |
 | Landing content | one section each | header logo & title, hero photo with focal point and overlay strength, CTAs, "about" paragraphs (rich text + photo + focal point), validation map (GeoJSON outline upload + places table with spreadsheet paste + live map), focus pillars (12-icon picker), partner institutions, developer (VOCES) block, credit columns, funders, contact section and form texts, footer |
 | Translations | Traducciones | per-language progress and a side-by-side workbench listing every pending text of the landing page |
-| Versions | Historial, Plantillas e importación | publish history with notes and change summaries, restore any version into the draft, templates (Rapa Nui, Mapuzungun, neutral), export/import of the whole document including uploaded images |
+| Versions | Historial, Plantillas e importación | publish history with notes and change summaries, restore any version into the draft, templates (Rapa Nui, Mapuzugun, neutral), export/import of the whole document including uploaded images |
 
 Deliberately **not** in the editor (deploy-time settings, unchanged): whether
 translation / TTS / ASR / word information / gender voices require login, the word

@@ -20,7 +20,7 @@ import { useConfig } from "./ConfigProvider"
 import { translate } from "./i18n"
 
 // The language selector offers the catalog (every language the models know,
-// NLLB codes plus the Mapuzungun graphemaries and Rapa Nui) minus the codes
+// NLLB codes plus the Mapuzugun graphemaries and Rapa Nui) minus the codes
 // the document hides, with the document's renames and custom languages on top.
 
 export { CATALOG }

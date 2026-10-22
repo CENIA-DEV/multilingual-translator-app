@@ -521,7 +521,7 @@ def test_translate_cache_skips_a_pair_for_another_language(
     mock_get_prediction.assert_not_called()
 
 
-def _mapuzungun():
+def _mapuzugun():
     """arn_raguileo (territory unknown) and three variants with a territory."""
     raguileo = Script.objects.create(code="raguileo", name="Raguileo")
     azumchefe = Script.objects.create(code="azumchefe", name="Azümchefe")
@@ -566,7 +566,7 @@ def _translate_data(api_client, text, src_lang, dst_lang):
 @override_settings(TRANSLATION_REQUIRES_AUTH=False)
 def test_translate_cache_hit_per_variant(api_client, create_languages, mock_get_prediction):
     english, spanish, _, _ = create_languages
-    arn = _mapuzungun()
+    arn = _mapuzugun()
     variants = [arn["raguileo_nagche"], arn["raguileo_pewenche"], arn["azumchefe_nagche"]]
     for i, variant in enumerate(variants):
         _validated(spanish, variant, "Hola", f"mari mari {i}")
@@ -583,7 +583,7 @@ def test_translate_cache_hit_per_variant(api_client, create_languages, mock_get_
 @override_settings(TRANSLATION_REQUIRES_AUTH=False)
 def test_translate_no_cache_hit_from_other_variant(api_client, create_languages, mock_get_prediction):
     _, spanish, _, _ = create_languages
-    arn = _mapuzungun()
+    arn = _mapuzugun()
     _model_answers(mock_get_prediction)
     _validated(spanish, arn["raguileo_nagche"], "hola", "mari mari")
 
@@ -598,7 +598,7 @@ def test_translate_no_cache_hit_from_other_variant(api_client, create_languages,
 @override_settings(TRANSLATION_REQUIRES_AUTH=False)
 def test_translate_cache_hit_territory_unknown(api_client, create_languages, mock_get_prediction):
     _, spanish, _, _ = create_languages
-    arn = _mapuzungun()
+    arn = _mapuzugun()
     _model_answers(mock_get_prediction)
     _validated(spanish, arn["raguileo_nagche"], "hola", "mari mari nagche")
     _validated(spanish, arn["raguileo"], "hola", "mari mari")  # newer

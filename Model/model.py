@@ -27,7 +27,7 @@ madlad_language_token_map = {
     "spa_Latn": "<2es>",
 }
 
-# Mapuzungun variants: the backend sends `arn_Latn` plus the variant's territory
+# Mapuzugun variants: the backend sends `arn_Latn` plus the variant's territory
 # (nagche, pewenche, lafkenche, wenteche, williche) and alphabet (azumchefe,
 # raguileo, amu, rumian, cacicado-huilliche) as inputs of their own. A MADLAD
 # model trained on dialects has one token per variant, e.g. `<2arn-rag-nagche>`
@@ -41,7 +41,7 @@ def madlad_target_tokens(target_lang: str, target_variant: Optional[dict] = None
     """
     Candidate MADLAD tokens for a target language, best first.
 
-    For a Mapuzungun variant: its own token, then the token of its alphabet in the
+    For a Mapuzugun variant: its own token, then the token of its alphabet in the
     central territory, of its territory in the Azümchefe alphabet, the central
     Azümchefe token and, last, the language's plain token (`<2arn>`), so a model
     without variant tokens still translates. Any other language: its plain token.
@@ -206,7 +206,7 @@ class ModelWrapper(ABC):
                 Target language to translate the given sentence.
             target_variant (`dict`, *optional*):
                 The target language variant's `territory` and `writing` (alphabet),
-                for languages that have them (Mapuzungun).
+                for languages that have them (Mapuzugun).
 
         Returns:
             translation (`str`): The corresponding translation to the given sentece.

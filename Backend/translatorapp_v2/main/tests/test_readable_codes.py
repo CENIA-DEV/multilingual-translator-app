@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Migration 0058 rewrites stored customization documents to the readable
-Mapuzungun codes (arn_r0_nag -> arn_raguileo_nagche)."""
+Mapuzugun codes (arn_r0_nag -> arn_raguileo_nagche)."""
 import importlib
 
 migration = importlib.import_module("main.migrations.0058_readable_variant_codes")

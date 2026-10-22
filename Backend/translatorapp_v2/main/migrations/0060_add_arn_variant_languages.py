@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The Mapuzungun variants the translator offers, created where they are missing.
+"""The Mapuzugun variants the translator offers, created where they are missing.
 
 0058 renames the old variant codes (arn_r0_nag -> arn_raguileo_nagche), so it
 only gives the new codes to databases that already had the old variants. A
@@ -20,7 +20,7 @@ database that only had the Nguluche rows (arn_a0_n, ...) ends with no variant
 at all, and every translation to or from one fails with "Lengua de destino no
 soportada". This creates each missing variant, with its alphabet and territory
 (codes as in 0058 and the language catalog), and arn_Latn. Rows that exist are
-left as they are, and a database without Mapuzungun (the Rapa Nui translator's)
+left as they are, and a database without Mapuzugun (the Rapa Nui translator's)
 is not touched.
 """
 from django.db import migrations
@@ -60,11 +60,11 @@ def forward(apps, schema_editor):
     Dialect = apps.get_model("main", "Dialect")
 
     if not Lang.objects.filter(code__startswith="arn_").exists():
-        return  # not a Mapuzungun translator
+        return  # not a Mapuzugun translator
 
     if not Lang.objects.filter(code="arn_Latn").exists():
         latin = Script.objects.get_or_create(code="Latn", defaults={"name": "Latin"})[0]
-        Lang.objects.create(code="arn_Latn", name="Mapuzungun", script=latin, is_native=True)
+        Lang.objects.create(code="arn_Latn", name="Mapuzugun", script=latin, is_native=True)
 
     for code, name, writing, territory in VARIANTS:
         if Lang.objects.filter(code=code).exists():

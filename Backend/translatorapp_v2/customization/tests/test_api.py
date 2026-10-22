@@ -101,7 +101,7 @@ def test_publish_can_save_and_publish_in_one_step(api, manager):
     document = load_preset("arn")
     response = api.post(PUBLISH, {"config": document, "baseVersion": 0}, format="json")
     assert response.status_code == 200, response.data
-    assert api.get(CONFIG).data["config"]["identity"]["languageName"] == "Mapuzungun"
+    assert api.get(CONFIG).data["config"]["identity"]["languageName"] == "Mapuzugun"
 
 
 @pytest.mark.django_db
