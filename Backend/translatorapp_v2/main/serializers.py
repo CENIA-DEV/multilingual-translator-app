@@ -520,23 +520,9 @@ class SuggestionSerializer(serializers.ModelSerializer):
         validated_user = validated_data.pop("user")
         src_lang = validated_data.pop("src_lang")
         dst_lang = validated_data.pop("dst_lang")
-        # if user is native admin, we automatically validate the suggestion
-        if validated_user and validated_user.profile.has_role(Profile.NATIVEADMIN):
-            if validated_data["feedback"] is False:
-                # store the error in translation pair
-                TranslationPair.objects.create(
-                    user=validated_user,
-                    src_lang=src_lang,
-                    dst_lang=dst_lang,
-                    correct=False,
-                    validated=True,
-                    validated_by=validated_user,
-                    **validated_data,
-                )
-            validated_data["correct"] = True
-            validated_data["validated"] = True
-            validated_data["validated_by"] = validated_user
-            validated_data["dst_text"] = validated_data["suggestion"]
+        # Every suggestion waits for validation, an administrator's too: the
+        # author's "Auto-aceptar sugerencias" (Profile.trusted_feedback) is
+        # what lets it answer from the cache before that
         pair = TranslationPair.objects.create(
             src_lang=src_lang, dst_lang=dst_lang, user=validated_user, **validated_data
         )

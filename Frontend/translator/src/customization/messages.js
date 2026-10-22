@@ -212,8 +212,9 @@ const MESSAGES = {
   },
 
   // ------------------------------------- "Ayúdame a decidir" (territory)
-  // The territories' own texts (what each name means, where it lies) are in
-  // territoryHelper.js, with the comunas.
+  // The territories' own texts (what each name means, where it lies) and their
+  // comunas are languages.variantSelector.territoryHelp in the document. These
+  // and those are edited in Administrar Traductor > "Ayúdame a decidir".
   "territoryHelp.open": { es: "Ayúdame a decidir", en: "Help me decide" },
   "territoryHelp.title": { es: "¿De qué territorio eres?", en: "Which territory are you from?" },
   "territoryHelp.intro": {

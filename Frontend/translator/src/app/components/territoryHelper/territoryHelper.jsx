@@ -24,8 +24,9 @@ import { useT } from "@/customization/useT";
 // tappable: a search by comuna, first, and one tile per territory (what it
 // means and where it lies). A comuna picked from the search goes back with the
 // territory, to tag translations and feedback. Nothing changes until "Usar ...".
-// Its texts are the "territoryHelp.*" messages (messages.js); a deployment's own
-// language translates them in its `ui` map, like the other texts.
+// Its texts are the "territoryHelp.*" messages (messages.js), and its territories
+// (`zones`) languages.variantSelector.territoryHelp: both are edited in
+// Administrar Traductor > "Ayúdame a decidir".
 
 /** The card's picture, /public/images/territories/<icon>.svg, painted in the
  * brand colour (the file is a mask, so it takes whatever colour the text has). */
@@ -58,7 +59,7 @@ export default function TerritoryHelper({ open, onOpenChange, zones, current, cu
   }, [open, current, currentCommune])
 
   const places = useMemo(
-    () => zones.flatMap((z) => z.comunas.map((name) => ({ name, code: z.code, key: placeKey(name) }))),
+    () => zones.flatMap((z) => (z.comunas || []).map((name) => ({ name, code: z.code, key: placeKey(name) }))),
     [zones]
   )
   const key = placeKey(query)
@@ -159,6 +160,7 @@ export default function TerritoryHelper({ open, onOpenChange, zones, current, cu
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
             {zones.map((zone) => {
               const isOn = selected === zone.code
+              const where = zone.where ? t.tr(zone.where) : ""
               return (
                 <button
                   key={zone.code}
@@ -177,7 +179,7 @@ export default function TerritoryHelper({ open, onOpenChange, zones, current, cu
                   <span className="text-default"><TerritoryIcon icon={zone.icon} className="h-11 w-11 sm:h-14 sm:w-14" /></span>
                   <span className="text-[14px] font-bold text-slate-900 sm:text-[17px]">{label(zone.code)}</span>
                   <span className="text-[11.5px] leading-snug text-slate-600 sm:text-[13px]">{t.tr(zone.meaning)}</span>
-                  {zone.where && <span className="hidden text-[12px] leading-snug text-slate-500 sm:block">{t.tr(zone.where)}</span>}
+                  {where && <span className="hidden text-[12px] leading-snug text-slate-500 sm:block">{where}</span>}
                 </button>
               )
             })}

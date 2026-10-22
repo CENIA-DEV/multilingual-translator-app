@@ -43,6 +43,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getIn } from "../config"
+import MESSAGES from "../messages"
 import { resolveMedia } from "../media"
 import { contrastRatio } from "../theme"
 import { fetchAssets, uploadAsset, errorMessage } from "./api"
@@ -521,8 +522,54 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 88, a
  * site, and is flagged here as pending.
  */
 export function I18nField({ path, label, hint, multiline, rich, rows = 3, placeholder }) {
-  const { doc } = useEditor()
   const [value, set] = useField(path)
+  return (
+    <I18nInputs
+      value={value}
+      onChange={set}
+      path={path}
+      label={label}
+      hint={hint}
+      multiline={multiline}
+      rich={rich}
+      rows={rows}
+      placeholder={placeholder}
+    />
+  )
+}
+
+/**
+ * A fixed text of the app (messages.js, "territoryHelp.title") as the document
+ * overrides it in its `ui` map. Its key has dots, so it is not a path: the
+ * field writes ui[uiKey] itself. An empty language uses the built-in text,
+ * shown as the placeholder.
+ */
+export function UiTextField({ uiKey, label, hint, multiline, rows = 3 }) {
+  const { doc, update } = useEditor()
+  const set = (next) => {
+    const ui = { ...(doc.ui || {}) }
+    if (Object.keys(next).length) ui[uiKey] = next
+    else delete ui[uiKey]
+    update("ui", ui)
+  }
+  return (
+    <I18nInputs
+      value={doc.ui?.[uiKey]}
+      onChange={set}
+      path={`ui.${uiKey}`}
+      label={label}
+      hint={hint}
+      multiline={multiline}
+      rows={rows}
+      defaults={MESSAGES[uiKey]}
+    />
+  )
+}
+
+/** One input per site language for an { es, en, ... } text. `defaults`: the
+ * built-in text per language, used where the value has none. */
+function I18nInputs({ value, onChange: set, path, label, hint, multiline, rich, rows = 3, placeholder, defaults }) {
+  const { doc } = useEditor()
   const locales = doc.landing.locales
   const defaultLocale = doc.landing.defaultLocale
   // A plain string (a text saved before it could be translated) is the
@@ -538,7 +585,8 @@ export function I18nField({ path, label, hint, multiline, rich, rows = 3, placeh
     set(next)
   }
 
-  const pending = locales.filter((l) => !(current[l.code] || "").trim()).length
+  const builtIn = (code) => (typeof defaults?.[code] === "string" ? defaults[code] : "")
+  const pending = locales.filter((l) => !(current[l.code] || "").trim() && !builtIn(l.code)).length
 
   return (
     <Field
@@ -556,7 +604,7 @@ export function I18nField({ path, label, hint, multiline, rich, rows = 3, placeh
       <div className="space-y-2">
         {locales.map((locale) => {
           const text = current[locale.code] || ""
-          const missing = !text.trim()
+          const missing = !text.trim() && !builtIn(locale.code)
           const badge = (
             <span
               title={locale.label}
@@ -567,8 +615,9 @@ export function I18nField({ path, label, hint, multiline, rich, rows = 3, placeh
               {locale.code}
             </span>
           )
-          const placeholderText =
-            locale.code === defaultLocale
+          const placeholderText = builtIn(locale.code)
+            ? `Predeterminado: ${builtIn(locale.code)}`
+            : locale.code === defaultLocale
               ? placeholder
               : missing && fallback
                 ? `Sin traducir: se muestra en ${locales.find((l) => l.code === defaultLocale)?.label || defaultLocale}`

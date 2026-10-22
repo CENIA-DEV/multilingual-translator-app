@@ -42,6 +42,7 @@ import {
   Loader2,
   LogIn,
   Map as MapIcon,
+  MapPin,
   MessageSquareText,
   Palette,
   Redo2,
@@ -61,7 +62,14 @@ import { landingFontsHref } from "../fonts"
 import { EditorContext } from "./fields"
 import { STATUS, useEditorState } from "./useEditorState"
 import PreviewPane from "./PreviewPane"
-import { AppearanceSection, AuthPagesSection, IdentitySection, LanguagesSection, TranslatorSection } from "./sectionsGeneral"
+import {
+  AppearanceSection,
+  AuthPagesSection,
+  IdentitySection,
+  LanguagesSection,
+  TerritoryHelpSection,
+  TranslatorSection,
+} from "./sectionsGeneral"
 import { AccessSection } from "./sectionsAccess"
 import {
   AboutSection,
@@ -90,6 +98,7 @@ const NAV = [
     items: [
       { id: "translator", label: "Tarjetas y textos", icon: Columns2, page: "/translator", render: () => <TranslatorSection /> },
       { id: "languages", label: "Idiomas y funciones", icon: Languages, page: "/translator", render: () => <LanguagesSection /> },
+      { id: "territoryHelp", label: "Ayúdame a decidir", icon: MapPin, page: "/translator", render: () => <TerritoryHelpSection /> },
       { id: "auth", label: "Páginas de acceso", icon: LogIn, page: "/login", render: () => <AuthPagesSection /> },
       { id: "access", label: "Visibilidad", icon: ShieldCheck, page: "/translator", render: () => <AccessSection /> },
     ],

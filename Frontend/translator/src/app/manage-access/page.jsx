@@ -101,38 +101,35 @@ const getApiErrorMessage = (error, fallback) => {
 
 /**
  * Whether a user's suggestions answer from the translation cache right away
- * (trusted) or wait for an administrator to validate them. An administrator's
- * own suggestions are validated as they send them, so the switch shows on
- * and locked for them.
+ * (auto-accepted) or wait for an administrator to validate them. The same for
+ * every role: an administrator's suggestions wait too unless it's on, and an
+ * administrator may switch it for anyone, themselves included.
  */
 function TrustedFeedbackSwitch({ user, disabled, onChange }) {
   const name = user.first_name || user.email;
-  const validatesOwn = user.profile?.role === "NativeAdmin";
-  const checked = validatesOwn || Boolean(user.profile?.trusted_feedback);
-  const hint = validatesOwn
-    ? `Las sugerencias de ${name} se validan al enviarlas, por ser administrador`
-    : checked
-      ? `Las sugerencias de ${name} entran al traductor sin esperar revisión`
-      : `Las sugerencias de ${name} entran al traductor cuando un administrador las valida`;
+  const checked = Boolean(user.profile?.trusted_feedback);
+  const hint = checked
+    ? `Las sugerencias de ${name} entran al traductor sin esperar revisión`
+    : `Las sugerencias de ${name} entran al traductor cuando un administrador las valida`;
   const id = `trusted-feedback-${user.id}`;
   return (
     <div className="flex items-center gap-2 rounded-md px-2 py-1" title={hint}>
       <Switch
         id={id}
         checked={checked}
-        disabled={disabled || validatesOwn || !user.profile}
+        disabled={disabled || !user.profile}
         onCheckedChange={onChange}
-        aria-label={`Sugerencias confiables de ${name}`}
+        aria-label={`Auto-aceptar sugerencias de ${name}`}
         className="data-[state=checked]:bg-emerald-600"
       />
       <label htmlFor={id} className="leading-tight cursor-pointer">
         <span className="block text-xs font-medium text-gray-700">
-          Sugerencias
+          Auto-aceptar sugerencias
         </span>
         <span
           className={`block text-xs ${checked ? "text-emerald-700" : "text-gray-500"}`}
         >
-          {checked ? "Directas al traductor" : "Requieren revisión"}
+          {checked ? "Activado: Directas al traductor" : "Desactivado: Requieren revisión"}
         </span>
       </label>
     </div>
@@ -372,14 +369,16 @@ export default function Manageaccess() {
         )
       );
       toast({
-        title: trusted ? "Usuario confiable" : "Usuario sin confianza",
+        title: trusted
+          ? "Auto-aceptar sugerencias activado"
+          : "Auto-aceptar sugerencias desactivado",
         description: trusted
           ? `Las sugerencias de ${name} entrarán al traductor directamente`
           : `Las sugerencias de ${name} esperarán la revisión de un administrador`,
       });
     } catch (error) {
       toast({
-        title: "No se pudo cambiar la confianza en las sugerencias",
+        title: "No se pudo cambiar Auto-aceptar sugerencias",
         description: getApiErrorMessage(error, "Inténtalo nuevamente."),
         variant: "destructive",
       });

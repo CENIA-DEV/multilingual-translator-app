@@ -255,3 +255,22 @@ def test_toggle_is_for_admins(api_client, admin_auth):
     )
     member.profile.refresh_from_db()
     assert member.profile.trusted_feedback is False
+
+
+@pytest.mark.django_db
+@override_settings(TRANSLATION_REQUIRES_AUTH=False)
+def test_administrators_follow_their_own_switch(create_languages, mock_get_prediction):
+    """Being an administrator does not make one's suggestions trusted."""
+    _, spanish, rapanui, _ = create_languages
+    admin, client = _client_for("administradora", role=Profile.NATIVEADMIN)
+    _correct(client, spanish, rapanui, "Hola", "Iorana", "Iorana koe")
+    assert _translate("hola", spanish, rapanui) == "Iorana"  # the model
+
+    # they turn their own switch on, and then off
+    url = f"/api/users/{admin.id}/update_trusted_feedback/"
+    response = client.patch(url, {"trusted_feedback": True}, format="json")
+    assert response.status_code == 200
+    assert _translate("hola", spanish, rapanui) == "Iorana koe"
+    response = client.patch(url, {"trusted_feedback": False}, format="json")
+    assert response.status_code == 200
+    assert _translate("hola", spanish, rapanui) == "Iorana"
