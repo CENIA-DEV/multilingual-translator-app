@@ -9,6 +9,9 @@ const Toaster = ({ ...props }) => {
     <Sonner
       theme={theme}
       className="toaster group"
+      // every message can be closed by hand ("La traducción está tardando...")
+      // instead of only waiting for it to hide
+      closeButton
       toastOptions={{
         classNames: {
           toast:

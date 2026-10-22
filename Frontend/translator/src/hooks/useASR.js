@@ -262,6 +262,7 @@ export function useASR({ getAudioContext, trackEvent }) {
       try {
         timeoutId = setTimeout(() => {
           toast(t('asr.slow'), {
+            id: 'asr-slow',
             description: t('asr.pleaseWait'),
             duration: 20000,
           });
@@ -287,6 +288,8 @@ export function useASR({ getAudioContext, trackEvent }) {
           description: err?.response?.data?.error || t('asr.retryFile'),
         });
       } finally {
+        // the transcription is in, failed or was cancelled: the notice is done
+        toast.dismiss('asr-slow');
         asrAbortRef.current = null;
         await new Promise(r => setTimeout(r, COOLDOWN_MS));
         if (asrStatus !== 'idle' && typeof onReset === 'function') onReset();

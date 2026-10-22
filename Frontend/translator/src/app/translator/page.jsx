@@ -539,13 +539,15 @@ export default function Translator() {
     
     // Give a notification if fetching takes longer than 3 seconds
     const timeoutId = setTimeout(() => {
-      toast(t('tts.loading'), { duration: 20000 });
+      toast(t('tts.loading'), { id: 'tts-loading', duration: 20000 });
     }, 3000);
 
     try {
       await handleSpeakBase({ text, lang, gender });
     } finally {
       clearTimeout(timeoutId);
+      // the audio is in (or failed): the notice has nothing left to say
+      toast.dismiss('tts-loading');
     }
   }
 
@@ -564,7 +566,7 @@ export default function Translator() {
     setLoadingState(true);
     const startTime = performance.now();
     let timeoutId = setTimeout(() => {
-      toast(t('translator.slow'), { duration: 20000 });
+      toast(t('translator.slow'), { id: 'translation-slow', duration: 20000 });
     }, slowTranslationMs(srcText));
 
     try {
@@ -594,6 +596,8 @@ export default function Translator() {
         toast(t('common.error'), { description: t('translator.retry') });
       }
     } finally {
+      // the translation is in (or failed): stop saying it's taking long
+      toast.dismiss('translation-slow');
       setLoadingState(false);
     }
   }
