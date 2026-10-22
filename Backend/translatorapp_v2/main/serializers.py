@@ -82,8 +82,14 @@ class FullProfileSerializer(BaseProfileSerializer):
             "oral_proficiency",
             "organization",
             "age",
+            "trusted_feedback",
         ]
-        extra_kwargs = {"age": {"read_only": True}}
+        # trusted_feedback only changes through update_trusted_feedback, so
+        # registering or editing a profile can't set it
+        extra_kwargs = {
+            "age": {"read_only": True},
+            "trusted_feedback": {"read_only": True},
+        }
 
 
 class ProfileSerializer(BaseProfileSerializer):
