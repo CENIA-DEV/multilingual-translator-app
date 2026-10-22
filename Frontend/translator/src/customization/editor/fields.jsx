@@ -1102,12 +1102,17 @@ export function CodesField({ path, label, hint, languages, prefixes = false, pla
   const listId = useId()
   const options = useMemo(() => {
     if (!prefixes) return languages.map((lang) => ({ code: lang.code, name: lang.name }))
+    // A prefix is named after its base language (arn_Latn: "Mapuzungun"), not
+    // after whichever variant comes first ("Lafkenche Azümchefe")
+    const rank = (code, prefix) => (code === prefix ? 0 : new RegExp(`^${prefix}_[A-Z][a-z]{3}$`).test(code) ? 1 : 2)
     const seen = new Map()
     languages.forEach((lang) => {
       const prefix = lang.code.split("_")[0]
-      if (!seen.has(prefix)) seen.set(prefix, lang.name)
+      const current = seen.get(prefix)
+      const r = rank(lang.code, prefix)
+      if (!current || r < current.rank) seen.set(prefix, { name: lang.name, rank: r })
     })
-    return [...seen].map(([code, name]) => ({ code, name }))
+    return [...seen].map(([code, { name }]) => ({ code, name }))
   }, [languages, prefixes])
   const nameOf = (code) => options.find((option) => option.code === code)?.name
 
