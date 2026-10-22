@@ -260,7 +260,7 @@
   },
   "ui": {
     "lang.arn_Latn": {
-      "arn": "Mapuzugun"
+      "arn": "Mapuzungun"
     },
     "lang.spa_Latn": {
       "arn": "Wigkazugun"
@@ -410,7 +410,7 @@
       },
       {
         "code": "arn",
-        "label": "Mapuzugun"
+        "label": "Mapuzungun"
       }
     ],
     "defaultLocale": "es",
@@ -474,7 +474,7 @@
       "imageAlt": {
         "es": "Mapuzungun",
         "en": "Mapuzungun",
-        "arn": "Mapuzugun"
+        "arn": "Mapuzungun"
       },
       "focalPoint": {
         "x": 50,
@@ -484,7 +484,7 @@
       "title": {
         "es": "Contribuyamos a la revitalización del Mapuzungun con IA",
         "en": "Let's contribute to the revitalization of Mapuzungun with AI",
-        "arn": "Kelluyiñ may ñi wüñozugugetual mapuzugun IA mew"
+        "arn": "Kelluyiñ may ñi wüñozugugetual Mapuzungun IA mew"
       },
       "subtitle": {
         "es": "Desarrollamos tecnología para el idioma mapuzungun con inteligencia artificial",
@@ -514,7 +514,7 @@
           "text": {
             "es": "La pérdida de lenguas de pueblos originarios es una crisis creciente en la actualidad. <strong>El mapuzungun, es considerado una lengua en peligro</strong>, ya que a pesar de que en Chile más de 1.500.000 de personas se identifican como mapuche, cuenta con menos de 200.000 hablantes activos, y sólo tres comunas la consideran lengua cooficial a nivel nacional.",
             "en": "The loss of Indigenous languages is a growing crisis today. <strong>Mapuzungun is considered an endangered language</strong>: although more than 1,500,000 people in Chile identify as Mapuche, it has fewer than 200,000 active speakers, and only three municipalities in the country recognize it as a co-official language.",
-            "arn": "Fantepu mew pu pueblos originarios petu ñamomiy ñi zugun egün. <strong>Mapuzugun ta, kiñe petu ñamchi kewünh</strong>, Chile mew ta mülefuy zoy 1.500.000 mapuche txokiwiy, welu niey zoy püchi 200.000 zugukechi che, ka küla comuna mew müten lengu cooficialgeay gulumapu mew."
+            "arn": "Fantepu mew pu pueblos originarios petu ñamomiy ñi zugun egün. <strong>Mapuzungun ta, kiñe petu ñamchi kewünh</strong>, Chile mew ta mülefuy zoy 1.500.000 mapuche txokiwiy, welu niey zoy püchi 200.000 zugukechi che, ka küla comuna mew müten lengu cooficialgeay gulumapu mew."
           },
           "image": "/images/landing/arn-class-session.jpg",
           "imageAlt": {
