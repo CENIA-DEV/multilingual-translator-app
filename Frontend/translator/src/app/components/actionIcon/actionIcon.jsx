@@ -31,7 +31,7 @@ export default function ActionIcon(props) {
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant={variant} size="icon" onClick={handleClick} style={style} className="justify-center items-center">
+                    <Button variant={variant} size="icon" onClick={handleClick} style={style} className="justify-center items-center" aria-label={tooltipText}>
                     {isLoading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : <FontAwesomeIcon icon={icon}/>}
                     </Button>
                 </TooltipTrigger>

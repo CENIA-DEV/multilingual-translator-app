@@ -593,7 +593,8 @@ def test_translate_no_cache_hit_from_other_variant(api_client, create_languages,
 
 
 # 26. translate - a pair with the territory unknown applies to every territory
-# of its alphabet, and the newest matching pair answers
+# of its alphabet, after the pairs of the requested variant itself (newest
+# first within each)
 @pytest.mark.django_db
 @override_settings(TRANSLATION_REQUIRES_AUTH=False)
 def test_translate_cache_hit_territory_unknown(api_client, create_languages, mock_get_prediction):
@@ -601,13 +602,15 @@ def test_translate_cache_hit_territory_unknown(api_client, create_languages, moc
     arn = _mapuzungun()
     _model_answers(mock_get_prediction)
     _validated(spanish, arn["raguileo_nagche"], "hola", "mari mari nagche")
-    _validated(spanish, arn["raguileo"], "hola", "mari mari")  # newer
+    _validated(spanish, arn["raguileo"], "hola", "mari mari")  # newer, but less specific
 
-    for variant in (arn["raguileo_nagche"], arn["raguileo_pewenche"], arn["raguileo"]):
+    expected = {"raguileo_nagche": "mari mari nagche", "raguileo_pewenche": "mari mari", "raguileo": "mari mari"}
+    for name, answer in expected.items():
+        variant = arn[name]
         data = _translate_data(api_client, "hola", spanish, variant)
-        assert data["dst_text"] == "mari mari"
+        assert data["dst_text"] == answer
         assert data["dst_lang"]["code"] == variant.code  # the requested one
-        assert _translate_data(api_client, "mari mari", variant, spanish)["dst_text"] == "hola"
+        assert _translate_data(api_client, answer, variant, spanish)["dst_text"] == "hola"
     mock_get_prediction.assert_not_called()
 
     _validated(arn["raguileo_nagche"], spanish, "mari mari kom", "hola")  # newest
