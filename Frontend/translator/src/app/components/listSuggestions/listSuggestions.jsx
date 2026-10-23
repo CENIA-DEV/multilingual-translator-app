@@ -76,7 +76,27 @@ function LangBadge({ lang, commune }) {
  */
 const PAGE_SIZE = 15;
 
-export default function ListSuggestions({validated, ...props}) {
+/** Who sent a suggestion (if they were logged in) and when. */
+function Submitted({ suggestion }) {
+  const date = suggestion.created_at
+    ? new Date(suggestion.created_at).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' })
+    : null;
+  return (
+    <div className="text-xs leading-5 text-gray-600">
+      <div className="break-all font-semibold text-gray-800" title={suggestion.user?.email || undefined}>
+        {suggestion.user_name || <i className="font-normal text-gray-500">Anónimo</i>}
+      </div>
+      {date && <div className="whitespace-nowrap">{date}</div>}
+    </div>
+  );
+}
+
+/**
+ * The suggestions of the translator's language, a page at a time: those
+ * waiting for validation, the validated ones, or (`inUse`) those waiting that
+ * the translator already answers with because their author is trusted.
+ */
+export default function ListSuggestions({validated, inUse = false, ...props}) {
 
   const handleUpdateTable = props.updateTable;
   const handleEditSuggestion = props.handleEditSuggestion;
@@ -128,6 +148,9 @@ export default function ListSuggestions({validated, ...props}) {
         if (validated) {
           queryParams.correct = true;
         }
+        if (inUse) {
+          queryParams.in_use = true;
+        }
         const res = await api.get(
           API_ENDPOINTS.SUGGESTIONS,
           {
@@ -171,7 +194,7 @@ export default function ListSuggestions({validated, ...props}) {
     return () => {
       cancelled = true;
     };
-  }, [validated, dstLang, currentPage]);
+  }, [validated, inUse, dstLang, currentPage]);
 
   const handleNegativeFeedback = async (selectedSuggestion) => {
     try {
@@ -253,15 +276,16 @@ export default function ListSuggestions({validated, ...props}) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-lg font-bold w-[45%]">Fuente</TableHead>
-                    <TableHead className="text-lg font-bold w-[45%]">Traducción</TableHead>
+                    <TableHead className="text-lg font-bold w-[38%]">Fuente</TableHead>
+                    <TableHead className="text-lg font-bold w-[38%]">Traducción</TableHead>
+                    <TableHead className="text-lg font-bold w-[14%]">Enviada por</TableHead>
                     <TableHead className="text-lg font-bold w-[10%]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {suggestions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={3} className={`py-8 text-center ${loadError ? 'text-red-600' : 'text-gray-500'}`}>
+                      <TableCell colSpan={4} className={`py-8 text-center ${loadError ? 'text-red-600' : 'text-gray-500'}`}>
                         {loadError || 'No hay sugerencias disponibles.'}
                       </TableCell>
                     </TableRow>
@@ -279,6 +303,9 @@ export default function ListSuggestions({validated, ...props}) {
                           <div className="max-h-24 overflow-y-auto pr-2">{validated ? suggestion.dst_text : suggestion.suggestion}</div>
                           <LangBadge lang={suggestion.dst_lang} commune={suggestion.commune} />
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Submitted suggestion={suggestion} />
                       </TableCell>
                       <TableCell className="text-right">
 

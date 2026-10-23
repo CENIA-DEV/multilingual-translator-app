@@ -519,6 +519,9 @@ class Access(Strict):
     separateGenders: AccessRule
     asr: AccessRule
     wordInformation: AccessRule
+    # rating, correcting or commenting a translation; absent in documents
+    # saved before it existed, which let everyone
+    suggestions: AccessRule = AccessRule(level="public")
     maintenance: bool
     maxWordsTranslation: Annotated[int, Field(ge=1, le=2000)]
 

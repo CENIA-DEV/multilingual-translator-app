@@ -28,6 +28,7 @@ export const ACCESS_FEATURES = [
   ["separateGenders", "Voces masculina y femenina"],
   ["asr", "Dictar por voz"],
   ["wordInformation", "Información de palabras"],
+  ["suggestions", "Enviar sugerencias"],
 ]
 
 /** The roles a rule can name (the top-tier admins may always). */

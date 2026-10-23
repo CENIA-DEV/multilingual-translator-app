@@ -464,6 +464,10 @@
       "level": "public",
       "roles": []
     },
+    "suggestions": {
+      "level": "public",
+      "roles": []
+    },
     "maintenance": false,
     "maxWordsTranslation": 150
   }

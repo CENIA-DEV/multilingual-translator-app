@@ -34,7 +34,7 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-from .models import CacheTTS, Lang, Word
+from .models import CacheTTS, ImportedFile, ImportedPair, Lang, Word
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,41 @@ def filter_cache(src_codes, dst_codes, cache_results):
             return result.src_text, result
 
     return None, None
+
+
+def text_key(text):
+    """What an imported text is looked up by: the text with its spaces
+    collapsed, in Unicode NFC and case-folded (so "Hola " finds "hola"),
+    hashed to a fixed length that any text fits in an index with."""
+    normal = unicodedata.normalize("NFC", " ".join(str(text).split())).casefold()
+    return hashlib.blake2b(normal.encode("utf-8"), digest_size=16).hexdigest()
+
+
+def filter_imported(src_codes, dst_codes, src_text):
+    """The row of an uploaded CSV (ImportedPair) that answers src_text between
+    these languages, in either direction, and its text in the dst language.
+    Only finished files answer; the file with the lowest priority wins, and
+    within a file the first row."""
+    key = text_key(src_text)
+    forward = Q(src_key=key, src_lang__code__in=src_codes, dst_lang__code__in=dst_codes)
+    backward = Q(
+        dst_key=key, src_lang__code__in=dst_codes, dst_lang__code__in=src_codes
+    )
+    pair = (
+        ImportedPair.objects.filter(forward | backward, file__status=ImportedFile.READY)
+        .select_related("file", "src_lang", "dst_lang")
+        .order_by("file__priority", "file_id", "id")
+        .first()
+    )
+    if pair is None:
+        return None, None
+    if (
+        pair.src_key == key
+        and pair.src_lang.code in src_codes
+        and pair.dst_lang.code in dst_codes
+    ):
+        return pair.dst_text, pair
+    return pair.src_text, pair
 
 
 def clean_commune(value):

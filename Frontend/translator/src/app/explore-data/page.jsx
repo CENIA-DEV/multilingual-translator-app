@@ -13,16 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 'use client'
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import FeedbackModal from '../components/feedbackModal/feedbackModal.jsx'
 import ListSuggestions from '../components/listSuggestions/listSuggestions.jsx';
+import ImportedFiles from '../components/csvImport/importedFiles.jsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuthContext } from '../contexts';
+import { canManageTranslator } from '../constants';
 
 export default function Exploredata()  {
 
   const [editingTranslation, setEditingTranslation] = useState(null);
   const [editingSuggestionId, setEditingSuggestionId] = useState(null);
   const [updateTable, setUpdateTable] = useState(false);
+  // the uploaded CSVs are for the technical team only (the API checks too)
+  const showFiles = canManageTranslator(useContext(AuthContext));
 
   const handleUpdateTable = () => {
     setUpdateTable(!updateTable);
@@ -40,13 +45,21 @@ export default function Exploredata()  {
           Sugerencias Ingresadas
         </h1>
         <Tabs defaultValue="not-validated" className="space-y-4">
-          <TabsList className="mb-4 py-2 sm:h-20">
+          <TabsList className="mb-4 h-auto flex-wrap py-2 sm:min-h-20">
             <TabsTrigger value="not-validated" className="text-sm sm:text-lg font-semibold">
               Sugerencias por Validar
             </TabsTrigger>
             <TabsTrigger value="validated" className="text-sm sm:text-lg font-semibold">
               Sugerencias Validadas
             </TabsTrigger>
+            <TabsTrigger value="in-use" className="text-sm sm:text-lg font-semibold">
+              En uso sin validar
+            </TabsTrigger>
+            {showFiles && (
+              <TabsTrigger value="files" className="text-sm sm:text-lg font-semibold">
+                Archivos CSV
+              </TabsTrigger>
+            )}
           </TabsList>
           <TabsContent value="not-validated">
             <ListSuggestions 
@@ -65,6 +78,25 @@ export default function Exploredata()  {
               onActionComplete={handleUpdateTable}
             />
           </TabsContent>
+          <TabsContent value="in-use">
+            <p className="mb-3 text-sm text-gray-600">
+              Sugerencias aún sin validar que el traductor ya usa porque las enviaron usuarios de confianza
+              («Auto-aceptar sugerencias» en Administrar Accesos). Validarlas o rechazarlas funciona igual que en
+              «Sugerencias por Validar»; al rechazarlas dejan de usarse.
+            </p>
+            <ListSuggestions
+              handleEditSuggestion={handleEditSuggestion}
+              validated={false}
+              inUse={true}
+              updateTable={updateTable}
+              onActionComplete={handleUpdateTable}
+            />
+          </TabsContent>
+          {showFiles && (
+            <TabsContent value="files">
+              <ImportedFiles />
+            </TabsContent>
+          )}
         </Tabs>
 
         <FeedbackModal

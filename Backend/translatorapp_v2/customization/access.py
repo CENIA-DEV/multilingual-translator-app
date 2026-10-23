@@ -41,6 +41,7 @@ FEATURES = (
     "separateGenders",
     "asr",
     "wordInformation",
+    "suggestions",
 )
 LEVELS = ("public", "login", "roles")
 ROLES = (
@@ -74,6 +75,8 @@ def default_access():
         "separateGenders": dict(public),
         "asr": dict(translation),
         "wordInformation": dict(public),
+        # rating, correcting or commenting a translation
+        "suggestions": dict(public),
         "maintenance": False,
         "maxWordsTranslation": int(getattr(settings, "MAX_WORDS_TRANSLATION", 150)),
     }

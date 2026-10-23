@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import base64
+import csv
+import io
 import logging
 from functools import reduce
 from operator import or_
@@ -22,9 +24,11 @@ from customization.access import can_use, feature_access
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import IntegrityError
-from django.db.models import Case, F, Q, When
+from django.db import IntegrityError, transaction
+from django.db.models import Case, Count, F, Max, Q, When
+from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils.http import content_disposition_header
 from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -40,6 +44,8 @@ from rest_framework.views import APIView
 from .models import (
     CacheTTS,
     GeneralSuggestion,
+    ImportedFile,
+    ImportedPair,
     InvitationToken,
     Lang,
     PasswordResetToken,
@@ -52,10 +58,12 @@ from .models import (
     Word,
     WordInformation,
 )
-from .roles import IsAdmin, IsNativeAdmin
+from .roles import IsAdmin, IsNativeAdmin, IsTranslatorManager
 from .serializers import (
     FullUserSerializer,
     GeneralSuggestionSerializer,
+    ImportedFileSerializer,
+    ImportedPairSerializer,
     InvitationSerializer,
     LanguageSerializer,
     ParticipateSerializer,
@@ -74,6 +82,7 @@ from .utils import (
     cache_langs,
     clean_commune,
     filter_cache,
+    filter_imported,
     find_cached_tts_normalized,
     generate_asr,
     generate_tts,
@@ -83,6 +92,7 @@ from .utils import (
     send_invite_email,
     send_participate_email,
     send_recovery_email,
+    text_key,
     translate,
 )
 
@@ -531,14 +541,18 @@ class SuggestionViewSet(viewsets.ModelViewSet):
             "accept_translation",
             "reject_translation",
             "add_suggestion",
-        ]:  # TODO: Review
-            permission_classes = [AllowAny]
+        ]:
+            # who may send feedback: "Sugerencias" in Visibilidad (Administrar
+            # Traductor); public by default, anonymous visitors included
+            permission_classes = [feature_access("suggestions")]
         else:
             permission_classes = [IsNativeAdmin | IsAdmin | IsAdminUser]
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
-        queryset = TranslationPair.objects.all()
+        queryset = TranslationPair.objects.select_related(
+            "src_lang", "dst_lang", "user"
+        )
         language_param = self.request.query_params.get("lang")
         validated = self.request.query_params.get("validated")
         # Filter by feedback polarity. `correct` stays null until someone says
@@ -588,6 +602,10 @@ class SuggestionViewSet(viewsets.ModelViewSet):
         if validated is not None:
             validated = validated.lower() == "true"
             queryset = queryset.filter(validated=validated)
+        # `in_use=true`: the unvalidated suggestions the translator already
+        # answers with, because their author is trusted
+        if self.request.query_params.get("in_use", "").lower() == "true":
+            queryset = queryset.filter(TranslateViewSet.trusted_pairs())
         # `-id` breaks created_at ties so pages never overlap or skip rows
         return queryset.order_by("-created_at", "-id")
 
@@ -858,21 +876,25 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
     @staticmethod
     def cache_pairs():
-        """The pairs that answer from the cache.
+        """The pairs that answer from the cache: validated correct pairs, and
+        the trusted ones still waiting for validation (trusted_pairs)."""
+        return Q(correct=True, validated=True) | TranslateViewSet.trusted_pairs()
 
-        Validated correct pairs always do. So does the feedback of an active
-        user currently trusted (Profile.trusted_feedback) while it waits for
-        validation, as long as it says something: a confirmed translation, or
-        a correction that differs from the model's output. A thumbs-down sent
-        without changing the text and "no sé" (is_uncertain) are not used, and
-        a reviewer's rejection (validated, not correct) takes the pair out.
+    @staticmethod
+    def trusted_pairs():
+        """The feedback of an active user currently trusted
+        (Profile.trusted_feedback) while it waits for validation, as long as it
+        says something: a confirmed translation, or a correction that differs
+        from the model's output. A thumbs-down sent without changing the text
+        and "no sé" (is_uncertain) are not used, and a reviewer's rejection
+        (validated, not correct) takes the pair out.
         """
         says_something = Q(feedback=True) | (
             Q(suggestion__isnull=False)
             & ~Q(suggestion="")
             & ~Q(suggestion=F("dst_text"))
         )
-        trusted = (
+        return (
             Q(
                 validated=False,
                 user__is_active=True,
@@ -881,7 +903,33 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             & ~Q(is_uncertain=True)
             & says_something
         )
-        return Q(correct=True, validated=True) | trusted
+
+    def lookup(self, src_lang, dst_lang, src_text):
+        """The saved answer for src_text, and the pair that holds it, or
+        (None, None) for the model to translate.
+
+        The requested variant itself comes first, then the codes that answer
+        for it with the territory unknown (see cache_langs); for each, the
+        suggestions (cache_pairs, newest first) and then the uploaded CSVs
+        (filter_imported), which fill the gaps the suggestions leave. So a CSV
+        row of arn_raguileo_nagche answers before a suggestion of arn_raguileo.
+        """
+        src_codes = cache_langs(src_lang)
+        dst_codes = cache_langs(dst_lang)
+        cache_results = self.get_queryset(
+            src_codes=src_codes, dst_codes=dst_codes, src_text=src_text
+        )
+        tiers = [([src_lang.code], [dst_lang.code])]
+        if (src_codes, dst_codes) != tiers[0]:
+            tiers.append((src_codes, dst_codes))
+        for src_tier, dst_tier in tiers:
+            for found in (
+                filter_cache(src_tier, dst_tier, cache_results),
+                filter_imported(src_tier, dst_tier, src_text),
+            ):
+                if found[0] is not None:
+                    return found
+        return None, None
 
     def create(self, request):
         logger.info(f"Received translation request: {request.data}")
@@ -918,15 +966,7 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 serializer.save(dst_text=dst_text)
 
             else:
-                # check for cache hits
-                src_codes = cache_langs(src_lang)
-                dst_codes = cache_langs(dst_lang)
-                cache_results = self.get_queryset(
-                    src_codes=src_codes, dst_codes=dst_codes, src_text=src_text
-                )
-                cache_result, cached_pair = filter_cache(
-                    src_codes, dst_codes, cache_results
-                )
+                cache_result, cached_pair = self.lookup(src_lang, dst_lang, src_text)
 
                 if cache_result is None:
                     logger.debug("No cache hit, calling translation model")
@@ -1451,3 +1491,187 @@ class WordInformationViewSet(viewsets.ModelViewSet):
                 | IsAdminUser
             ]
         return [permission() for permission in permission_classes]
+
+
+class ImportedFileViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """The CSVs uploaded in "Explorar datos" (technical team only).
+
+    The browser reads the file and sends it in steps: `create` the file, its
+    rows in batches (`rows`), then `finish`, after which they answer from the
+    translation cache. A large file never travels, nor sits in memory, whole.
+    """
+
+    serializer_class = ImportedFileSerializer
+    permission_classes = [IsTranslatorManager]
+    queryset = ImportedFile.objects.select_related("uploaded_by")
+    pagination_class = None
+    # rows a `rows` request may carry, and the longest text a row may have
+    MAX_BATCH = 5000
+    MAX_TEXT = 10000
+
+    def perform_create(self, serializer):
+        # a new file comes last: it only fills what the others leave
+        last = ImportedFile.objects.aggregate(last=Max("priority"))["last"]
+        serializer.save(
+            uploaded_by=self.request.user,
+            priority=0 if last is None else last + 1,
+        )
+
+    @action(detail=True, methods=["post"])
+    def rows(self, request, pk=None):
+        """Store a batch of rows, each [src_lang, dst_lang, src_text,
+        dst_text] with the codes already mapped. Rows with an unknown code (an
+        ignored one is sent empty), a missing text or a text too long are
+        counted as skipped."""
+        imported = self.get_object()
+        if imported.status != ImportedFile.UPLOADING:
+            return Response(
+                {"detail": "El archivo ya terminó de cargarse"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        rows = request.data.get("rows")
+        if not isinstance(rows, list) or len(rows) > self.MAX_BATCH:
+            return Response(
+                {"rows": f"Se esperaba una lista de hasta {self.MAX_BATCH} filas"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        codes = {
+            row[i]
+            for row in rows
+            if isinstance(row, list) and len(row) == 4
+            for i in (0, 1)
+            if isinstance(row[i], str)
+        }
+        lang_ids = dict(Lang.objects.filter(code__in=codes).values_list("code", "id"))
+        pairs = []
+        for row in rows:
+            if not (
+                isinstance(row, list)
+                and len(row) == 4
+                and all(isinstance(value, str) for value in row)
+            ):
+                continue
+            src_id, dst_id = lang_ids.get(row[0]), lang_ids.get(row[1])
+            src_text, dst_text = row[2].strip(), row[3].strip()
+            if (
+                src_id is None
+                or dst_id is None
+                or src_id == dst_id
+                or not src_text
+                or not dst_text
+                or max(len(src_text), len(dst_text)) > self.MAX_TEXT
+            ):
+                continue
+            pairs.append(
+                ImportedPair(
+                    file=imported,
+                    src_lang_id=src_id,
+                    dst_lang_id=dst_id,
+                    src_text=src_text,
+                    dst_text=dst_text,
+                    src_key=text_key(src_text),
+                    dst_key=text_key(dst_text),
+                )
+            )
+        skipped = len(rows) - len(pairs)
+        with transaction.atomic():
+            ImportedPair.objects.bulk_create(pairs, batch_size=1000)
+            ImportedFile.objects.filter(pk=imported.pk).update(
+                row_count=F("row_count") + len(pairs),
+                skipped_count=F("skipped_count") + skipped,
+            )
+        return Response({"stored": len(pairs), "skipped": skipped})
+
+    @action(detail=True, methods=["post"])
+    def finish(self, request, pk=None):
+        """All the rows are in: the file starts answering."""
+        imported = self.get_object()
+        counts = (
+            imported.pairs.values("src_lang__code", "dst_lang__code")
+            .annotate(rows=Count("id"))
+            .order_by("-rows")
+        )
+        imported.lang_pairs = [
+            {"src": c["src_lang__code"], "dst": c["dst_lang__code"], "rows": c["rows"]}
+            for c in counts
+        ]
+        imported.status = ImportedFile.READY
+        imported.save(update_fields=["lang_pairs", "status", "updated_at"])
+        return Response(self.get_serializer(imported).data)
+
+    @action(detail=False, methods=["post"])
+    def reorder(self, request):
+        """Set the priority order: `ids` from the file that answers first. Files
+        missing from the list (uploaded meanwhile) keep their order after it."""
+        ids = request.data.get("ids")
+        if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+            return Response(
+                {"ids": "Se esperaba una lista de identificadores"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        current = list(ImportedFile.objects.values_list("id", flat=True))
+        if not set(ids) <= set(current) or len(set(ids)) != len(ids):
+            return Response(
+                {"ids": "La lista no corresponde a los archivos cargados"},
+                status=HTTP_400_BAD_REQUEST,
+            )
+        listed = set(ids)
+        order = ids + [i for i in current if i not in listed]
+        with transaction.atomic():
+            for priority, pk in enumerate(order):
+                ImportedFile.objects.filter(pk=pk).update(priority=priority)
+        return Response(self.get_serializer(self.get_queryset(), many=True).data)
+
+    @action(detail=True, methods=["get"])
+    def pairs(self, request, pk=None):
+        """The file's rows, in file order and paged, to look at what it holds."""
+        imported = self.get_object()
+        paginator = SuggestionPageNumberPagination()
+        paginator.page_size = 20
+        page = paginator.paginate_queryset(
+            imported.pairs.select_related("src_lang", "dst_lang").order_by("id"),
+            request,
+            view=self,
+        )
+        return paginator.get_paginated_response(
+            ImportedPairSerializer(page, many=True).data
+        )
+
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        """The file as CSV, written again from its stored rows: comma
+        separated, UTF-8 (with a BOM, so Excel reads it as such), the columns
+        src_text, tgt_text, src_lang, tgt_lang and the codes as mapped. It is
+        streamed, so a large file is never in memory whole."""
+        imported = self.get_object()
+        rows = (
+            imported.pairs.order_by("id")
+            .values_list("src_text", "dst_text", "src_lang__code", "dst_lang__code")
+            .iterator(chunk_size=2000)
+        )
+
+        def lines():
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerow(["src_text", "tgt_text", "src_lang", "tgt_lang"])
+            yield "\ufeff" + buffer.getvalue()
+            for row in rows:
+                buffer.seek(0)
+                buffer.truncate()
+                writer.writerow(row)
+                yield buffer.getvalue()
+
+        response = StreamingHttpResponse(
+            lines(), content_type="text/csv; charset=utf-8"
+        )
+        response["Content-Disposition"] = content_disposition_header(
+            True, f"{imported.name}.csv"
+        )
+        return response

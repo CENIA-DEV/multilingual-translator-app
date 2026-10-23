@@ -494,3 +494,78 @@ class WordInformation(models.Model):
 
     def __str__(self):
         return f"Info for {self.word.text}"
+
+
+class ImportedFile(models.Model):
+    """A CSV of translations uploaded in "Explorar datos". Its rows
+    (ImportedPair) answer from the translation cache where the suggestions
+    leave gaps (see TranslateViewSet.lookup); when several files hold the same
+    text, the one with the lowest `priority` answers. The file itself is not
+    kept, only its rows."""
+
+    UPLOADING = "uploading"
+    READY = "ready"
+    STATUSES = [(UPLOADING, "Uploading"), (READY, "Ready")]
+
+    name = models.CharField(max_length=255)
+    filename = models.CharField(max_length=255, blank=True, default="")
+    priority = models.PositiveIntegerField(default=0)
+    # Rows are sent in batches; only a file whose upload finished answers
+    status = models.CharField(max_length=20, choices=STATUSES, default=UPLOADING)
+    row_count = models.PositiveIntegerField(default=0)
+    skipped_count = models.PositiveIntegerField(default=0)
+    # How the file was read (delimiter, columns, language codes), as chosen
+    settings = models.JSONField(default=dict, blank=True)
+    # The language pairs it holds and their rows, counted when it finishes
+    lang_pairs = models.JSONField(default=list, blank=True)
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="imported_files",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["priority", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class ImportedPair(models.Model):
+    """A row of an ImportedFile. It answers in either direction, like a
+    suggestion; the keys (see utils.text_key) are what a text is looked up by,
+    so texts of any length can be indexed."""
+
+    file = models.ForeignKey(
+        ImportedFile, related_name="pairs", on_delete=models.CASCADE
+    )
+    src_lang = models.ForeignKey(Lang, related_name="+", on_delete=models.CASCADE)
+    dst_lang = models.ForeignKey(Lang, related_name="+", on_delete=models.CASCADE)
+    src_text = models.TextField()
+    dst_text = models.TextField()
+    src_key = models.CharField(max_length=32)
+    dst_key = models.CharField(max_length=32)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["src_key"]),
+            models.Index(fields=["dst_key"]),
+        ]
+
+    # What a translation answered by this row reports, as a cached pair would
+    @property
+    def model_name(self):
+        return "csv_import"
+
+    @property
+    def model_version(self):
+        return self.file.name[:100]
+
+    def __str__(self):
+        return (
+            f"{self.src_lang_id}:{self.src_text} | {self.dst_lang_id}:{self.dst_text}"
+        )

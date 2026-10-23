@@ -33,6 +33,7 @@ const HINTS = {
   separateGenders: "Elegir entre voz masculina y femenina al escuchar.",
   asr: "Dictar o subir un audio para transcribirlo.",
   wordInformation: "Las palabras destacadas con su explicación.",
+  suggestions: "Calificar una traducción, corregirla o enviar un comentario. «Público» deja que lo hagan también quienes no iniciaron sesión.",
 }
 
 function RolesField({ path }) {
