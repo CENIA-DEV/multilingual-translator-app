@@ -386,6 +386,119 @@ class NLLBModelWrapper(ModelWrapper):
         )
 
 
+class NLLBCT2Wrapper(NLLBModelWrapper):
+    """
+    NLLB on CTranslate2 instead of transformers, on CPU only, from a model converted
+    with `convert_nllb_ct2.py` (int8 weights): the same inputs and generation
+    settings as `NLLBModelWrapper`.
+
+    A language the model knows by its own token (e.g. `rap_Latn`) keeps it;
+    `nllb_language_token_map` only applies to the languages it does not know.
+
+    CTranslate2 applies `repetition_penalty` to the logits, and transformers' beam
+    search to the log-probabilities, so a value penalizes much more here: 1.0
+    gives the translations closest to transformers with 1.15.
+    """
+
+    def __init__(
+        self,
+        model_path: str,
+        logger: logging.Logger,
+        optimize: bool = False,
+        gpu: bool = False,
+        max_new_tokens: int = 256,
+        num_beams: Optional[int] = None,
+        no_repeat_ngram_size: Optional[int] = None,
+        repetition_penalty: Optional[float] = None,
+        length_penalty: Optional[float] = None,
+    ):
+        # imported here so the transformers models never depend on it
+        import ctranslate2
+
+        # `ModelWrapper.__init__` loads a transformers model, so it is not called
+        self.logger = logger
+        if gpu:
+            self.logger.warning("This model runs on CPU only, --gpu is ignored")
+        if optimize:
+            self.logger.info("--optimize does not apply to CTranslate2 models")
+
+        self._device = torch.device("cpu")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, token=HF_TOKEN)
+        self._vocab = set(self.tokenizer.get_vocab())
+        # one thread per CPU the container gets
+        threads = len(os.sched_getaffinity(0))
+        self.model = ctranslate2.Translator(
+            model_path, device="cpu", compute_type="int8", intra_threads=threads
+        )
+        self.logger.info(f"CTranslate2 model loaded on CPU (int8, {threads} threads)")
+        self.max_new_tokens = max_new_tokens
+        self.logger.info(f"Max new tokens set to: {self.max_new_tokens}")
+        self.generation_kwargs = {
+            name: value
+            for name, value in (
+                ("beam_size", num_beams or 1),  # 1 (greedy) as in transformers
+                ("no_repeat_ngram_size", no_repeat_ngram_size),
+                ("repetition_penalty", repetition_penalty),
+                ("length_penalty", length_penalty),
+            )
+            if value is not None
+        }
+        self.logger.info(f"Generation settings: {self.generation_kwargs}")
+
+    def language_token(self, lang: str) -> str:
+        """The model's own token for `lang`, else the token it borrows."""
+        if lang in self._vocab:
+            return lang
+        return nllb_language_token_map.get(lang, lang)
+
+    def tokenize(
+        self,
+        sentences: list[str],
+        target_lang: str,
+        source_lang: str,
+        target_variant: Optional[dict] = None,
+    ):
+        self.tokenizer.src_lang = self.language_token(source_lang)
+        self.logger.debug(f"Source lang mapped: {self.tokenizer.src_lang}")
+        self.logger.debug(f"TRANSLATING {sentences}")
+        return self.tokenizer(sentences, return_tensors="pt", padding="longest")
+
+    def generate(
+        self,
+        inputs: Union[BatchEncoding, dict[str, torch.Tensor]],
+        target_lang: Optional[str] = None,
+    ):
+        if target_lang is None:
+            raise ValueError("`target_lang` is required in NLLB models.")
+
+        target_token = self.language_token(target_lang)
+        self.logger.debug(f"Target lang mapped: {target_token}")
+        source = [
+            self.tokenizer.convert_ids_to_tokens(ids[mask.bool()].tolist())
+            for ids, mask in zip(inputs["input_ids"], inputs["attention_mask"])
+        ]
+        results = self.model.translate_batch(
+            source,
+            # NLLB is told the target language by the first token it generates
+            target_prefix=[[target_token]] * len(source),
+            max_input_length=0,  # no truncation, as in transformers
+            max_decoding_length=self.max_new_tokens,
+            **self.generation_kwargs,
+        )
+        # token ids, padded, as transformers' `generate` returns them
+        return torch.nn.utils.rnn.pad_sequence(
+            [
+                torch.tensor(
+                    self.tokenizer.convert_tokens_to_ids(result.hypotheses[0]),
+                    dtype=torch.long,
+                )
+                for result in results
+            ],
+            batch_first=True,
+            padding_value=self.tokenizer.pad_token_id,
+        )
+
+
 class MadLadWrapper(ModelWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

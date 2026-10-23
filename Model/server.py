@@ -4,16 +4,24 @@ import logging
 
 import numpy as np
 from dotenv import load_dotenv
-from model import MadLadCT2Wrapper, MadLadWrapper, ModelWrapper, NLLBModelWrapper
+from model import (
+    MadLadCT2Wrapper,
+    MadLadWrapper,
+    ModelWrapper,
+    NLLBCT2Wrapper,
+    NLLBModelWrapper,
+)
 from pytriton.decorators import batch
 from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig, TritonLifecyclePolicy
 
 load_dotenv()
 
-# `madlad-ct2` is MADLAD on CTranslate2 (a model made by convert_madlad_ct2.py)
+# `madlad-ct2` is MADLAD on CTranslate2 (a model made by convert_madlad_ct2.py),
+# `nllb-ct2` NLLB on CTranslate2, CPU only (a model made by convert_nllb_ct2.py)
 MODEL_CLASSES = {
     "nllb": NLLBModelWrapper,
+    "nllb-ct2": NLLBCT2Wrapper,
     "madlad": MadLadWrapper,
     "madlad-ct2": MadLadCT2Wrapper,
 }
