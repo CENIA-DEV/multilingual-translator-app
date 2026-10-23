@@ -246,6 +246,8 @@ export default function Translator() {
   const ANY_TTS_VISIBLE = TTS_ENABLED_SRC_D || TTS_ENABLED_DST_D;
 
   const WORD_INFORMATION_VISIBLE_D = access.can('wordInformation');
+  // rating, correcting and commenting: "Sugerencias" in Visibilidad
+  const SUGGESTIONS_ALLOWED_D = access.can('suggestions');
   
   // Separate (male / female) voices: their own rule
   const SEPARATE_GENDERS_ALLOWED_D = access.can('separateGenders');
@@ -1005,7 +1007,7 @@ export default function Translator() {
       {/* On phones the feedback icons sit just above the voice bar, or at the
           very bottom when there is none */}
       <div className={`translator-footer ${ASR_MIC_VISIBLE_D ? 'max-[850px]:mb-[84px]' : ''}`}>
-        {translationRestricted ? (<></>) : (
+        {translationRestricted || !SUGGESTIONS_ALLOWED_D ? (<></>) : (
           <>
             <strong className="max-[850px]:hidden">{t.tr(texts.feedbackPrompt)}</strong>
 

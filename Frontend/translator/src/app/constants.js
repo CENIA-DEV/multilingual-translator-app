@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
     WORDS_ANALYZE: 'api/words/analyze_sentence/' ,
     WORDS: 'api/words/',
     WORD_INFORMATION: 'api/word-information/',
+    IMPORTED_FILES: 'api/imported-files/',
 
 
 

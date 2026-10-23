@@ -26,6 +26,8 @@ from .models import (
     Definition,
     Dialect,
     GeneralSuggestion,
+    ImportedFile,
+    ImportedPair,
     InvitationToken,
     Lang,
     PasswordResetToken,
@@ -478,6 +480,8 @@ class SuggestionSerializer(serializers.ModelSerializer):
     src_lang = NameLanguageSerializer()
     dst_lang = NameLanguageSerializer()
     user = UserEmailSerializer(read_only=True)
+    # who sent it, as the suggestions table shows them (null if anonymous)
+    user_name = serializers.SerializerMethodField()
     updated_suggestion = serializers.CharField(required=False)
 
     class Meta:
@@ -498,7 +502,16 @@ class SuggestionSerializer(serializers.ModelSerializer):
             "updated_suggestion",
             "is_uncertain",
             "commune",
+            "user_name",
+            "created_at",
         ]
+        read_only_fields = ["created_at"]
+
+    def get_user_name(self, obj):
+        user = obj.user
+        if user is None:
+            return None
+        return user.get_full_name() or user.email or user.username
 
     def validate_src_lang(self, src_lang):
         try:
@@ -755,3 +768,50 @@ class WordSerializer(serializers.ModelSerializer):
             Definition.objects.create(word=word, **definition_data)
 
         return word
+
+
+class ImportedFileSerializer(serializers.ModelSerializer):
+    """A CSV uploaded in "Explorar datos"; only its name can change after it
+    is created, its rows are sent with the `rows` action."""
+
+    uploaded_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ImportedFile
+        fields = [
+            "id",
+            "name",
+            "filename",
+            "priority",
+            "status",
+            "row_count",
+            "skipped_count",
+            "settings",
+            "lang_pairs",
+            "uploaded_by",
+            "created_at",
+        ]
+        read_only_fields = [
+            "priority",
+            "status",
+            "row_count",
+            "skipped_count",
+            "lang_pairs",
+            "uploaded_by",
+            "created_at",
+        ]
+
+    def get_uploaded_by(self, obj):
+        user = obj.uploaded_by
+        if user is None:
+            return None
+        return user.get_full_name() or user.email or user.username
+
+
+class ImportedPairSerializer(serializers.ModelSerializer):
+    src_lang = serializers.CharField(source="src_lang.code")
+    dst_lang = serializers.CharField(source="dst_lang.code")
+
+    class Meta:
+        model = ImportedPair
+        fields = ["id", "src_lang", "dst_lang", "src_text", "dst_text"]
