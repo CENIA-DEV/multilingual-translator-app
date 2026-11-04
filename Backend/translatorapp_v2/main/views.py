@@ -14,7 +14,9 @@
 # limitations under the License.
 import base64
 import csv
+import hashlib
 import io
+import json
 import logging
 from functools import reduce
 from operator import or_
@@ -26,9 +28,12 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import Case, Count, F, Max, Q, When
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
-from django.utils.http import content_disposition_header
+from django.utils.cache import get_conditional_response
+from django.utils.decorators import method_decorator
+from django.utils.http import content_disposition_header, quote_etag
+from django.views.decorators.gzip import gzip_page
 from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -843,20 +848,8 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         # Matching only one side's language let a pair of another variant
         # (spa -> arn_raguileo_nagche when asking for spa ->
         # arn_raguileo_pewenche) answer with its source text, the input back.
-        # `answer` is the pair's dst-side text: dst_text once validated, the
-        # user's correction (`suggestion`) while it waits for validation
         results = (
-            TranslationPair.objects.filter(self.cache_pairs())
-            .annotate(
-                answer=Case(
-                    When(validated=True, then=F("dst_text")),
-                    When(
-                        Q(suggestion__isnull=False) & ~Q(suggestion=""),
-                        then=F("suggestion"),
-                    ),
-                    default=F("dst_text"),
-                )
-            )
+            self.cached_answers()
             .filter(
                 Q(
                     src_lang__code__in=src_codes,
@@ -873,6 +866,22 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             .order_by("-created_at", "-id")
         )
         return [s for s in results]
+
+    @staticmethod
+    def cached_answers():
+        """The pairs that answer from the cache (cache_pairs), each with its
+        `answer`: the pair's dst-side text, dst_text once validated, the
+        user's correction (`suggestion`) while it waits for validation."""
+        return TranslationPair.objects.filter(TranslateViewSet.cache_pairs()).annotate(
+            answer=Case(
+                When(validated=True, then=F("dst_text")),
+                When(
+                    Q(suggestion__isnull=False) & ~Q(suggestion=""),
+                    then=F("suggestion"),
+                ),
+                default=F("dst_text"),
+            )
+        )
 
     @staticmethod
     def cache_pairs():
@@ -930,6 +939,60 @@ class TranslateViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                 if found[0] is not None:
                     return found
         return None, None
+
+    @action(detail=False, methods=["get"], url_path="cache")
+    @method_decorator(gzip_page)
+    def export_cache(self, request):
+        """The translation cache, whole: the mobile app downloads it so that
+        its offline model answers from the same saved translations as the
+        website does before calling the model (see lookup).
+
+        `pairs` is in lookup's precedence: first the suggestions that answer
+        (cache_pairs, newest first, with get_queryset's `answer` as dst_text),
+        then the rows of the finished CSVs, as filter_imported orders them. A
+        pair answers in both directions, so the app keeps, for each language
+        pair and text, the first entry it finds in either direction.
+
+        Each pair goes under its own two codes, without expanding the variants
+        (cache_langs): falling back to the codes with the territory unknown is
+        left to the client. Pairs without both languages and both texts are
+        left out.
+
+        The app checks it once a day: the ETag is a hash of the uncompressed
+        body, and If-None-Match with it gets an empty 304. The body is gzipped
+        when the client accepts it, which makes the ETag weak (W/); it matches
+        all the same.
+        """
+        suggestions = (
+            self.cached_answers()
+            .order_by("-created_at", "-id")
+            .values_list("src_lang__code", "dst_lang__code", "src_text", "answer")
+        )
+        imported = (
+            ImportedPair.objects.filter(file__status=ImportedFile.READY)
+            .order_by("file__priority", "file_id", "id")
+            .values_list("src_lang__code", "dst_lang__code", "src_text", "dst_text")
+        )
+        fields = ("src_lang", "dst_lang", "src_text", "dst_text")
+        pairs = [
+            dict(zip(fields, row))
+            for rows in (suggestions, imported)
+            for row in rows.iterator(chunk_size=2000)
+            # a pair whose language was deleted has a null code; a blank text
+            # answers nothing
+            if all(value and value.strip() for value in row)
+        ]
+        body = json.dumps(
+            {"pairs": pairs}, ensure_ascii=False, separators=(",", ":")
+        ).encode("utf-8")
+        response = HttpResponse(body, content_type="application/json")
+        response["ETag"] = quote_etag(hashlib.sha256(body).hexdigest())
+        # stored copies are checked with the ETag before each use
+        response["Cache-Control"] = "no-cache"
+        # If-None-Match compares weakly, so the gzipped W/ ETag matches too
+        return get_conditional_response(
+            request, etag=response["ETag"], response=response
+        )
 
     def create(self, request):
         logger.info(f"Received translation request: {request.data}")
